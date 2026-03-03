@@ -1,0 +1,18 @@
+{
+  "name": "migo-uit",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r run dev",
+    "build": "pnpm -r run build",
+    "lint:backend": "pnpm --filter @migo-uit/backend run lint",
+    "lint:frontend": "pnpm --filter @migo-uit/frontend run lint"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@nestjs/core", "esbuild", "protobufjs"]
+  }
+}

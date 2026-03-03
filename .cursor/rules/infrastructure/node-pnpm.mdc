@@ -1,0 +1,8 @@
+---
+description: Node & pnpm Setup
+globs: *
+---
+# Infrastructure Requirements
+
+- **Environment:** Node.js version 22 must be used.
+- **Package Manager:** Use `pnpm` for dependency management.

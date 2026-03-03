@@ -1,0 +1,4 @@
+[dotenv@17.3.1] injecting env (4) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (6) from .env.secrets -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+Firebase Admin Initialized
+Testing connection...

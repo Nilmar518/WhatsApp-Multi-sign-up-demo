@@ -1,0 +1,8 @@
+---
+description: Firestore Database Conventions
+globs: *
+---
+# Firestore Usage
+
+- **Rule:** Use `onSnapshot` for real-time UI updates.
+- **Structure:** The `integrations` collection must follow the schema: `{ businessId, status: Enum, metaData: {}, updatedAt }`.

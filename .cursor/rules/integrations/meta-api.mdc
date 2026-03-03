@@ -1,0 +1,169 @@
+---
+description: Meta API Integration Rules
+globs: *
+---
+# Meta API Management
+
+## Core Rules
+
+- **Rule:** Handle Meta's token lifecycle (Short-lived → Long-lived → System User exchange).
+- **Requirement:** Define explicit error handling for single-use tokens and expiry (Error 100/190).
+- **Infrastructure:** ngrok must be used for local webhook verification; ensure the logic supports dynamic ngrok URLs.
+- **Versioning:** Always pin Graph API version (use `v19.0` or higher). Never use the unversioned alias.
+
+---
+
+## Networking Examples
+
+### Defensive Wrapper — Axios Client for Meta Endpoints
+
+Every call to the Meta Graph API **must** go through this wrapper. It logs `[REQUEST]`, `[RESPONSE]`, `[LATENCY]`, and `[ERROR_CODE]` for observability.
+
+```typescript
+// src/common/logger/defensive-logger.service.ts
+import { Injectable, Logger } from '@nestjs/common';
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+
+@Injectable()
+export class DefensiveLoggerService {
+  private readonly logger = new Logger('MetaAPI');
+
+  async request<T>(config: AxiosRequestConfig): Promise<T> {
+    const start = Date.now();
+    const url = String(config.url ?? '');
+
+    this.logger.log(`[REQUEST] ${config.method?.toUpperCase()} ${url}`);
+    if (config.data) {
+      this.logger.debug(`[REQUEST_BODY] ${JSON.stringify(config.data)}`);
+    }
+
+    try {
+      const response: AxiosResponse<T> = await axios({ ...config });
+      const latency = Date.now() - start;
+
+      this.logger.log(`[RESPONSE] ${response.status} | [LATENCY] ${latency}ms`);
+      this.logger.debug(`[RESPONSE_BODY] ${JSON.stringify(response.data)}`);
+
+      return response.data;
+    } catch (err: any) {
+      const latency = Date.now() - start;
+      const errorCode = err?.response?.data?.error?.code;
+      const errorMessage = err?.response?.data?.error?.message;
+
+      this.logger.error(
+        `[ERROR_CODE] ${errorCode ?? 'UNKNOWN'} | [LATENCY] ${latency}ms | ${errorMessage ?? err.message}`,
+      );
+
+      // Handle single-use / expired token — see Token Error Handling below
+      if (errorCode === 100 || errorCode === 190) {
+        throw new TokenExpiredError(
+          `Meta token error (${errorCode}): ${errorMessage}`,
+          errorCode,
+        );
+      }
+
+      throw err;
+    }
+  }
+}
+
+export class TokenExpiredError extends Error {
+  constructor(message: string, public readonly metaErrorCode: number) {
+    super(message);
+    this.name = 'TokenExpiredError';
+  }
+}
+```
+
+---
+
+### Network Resilience — Single-Use Token Error Handling (Meta Error 100 / 190)
+
+Meta authorization codes are **single-use**. Re-using them returns Error 100 (`Invalid Parameter`) or Error 190 (`Access Token Invalid`). There is **no valid retry** with the same code — the only recovery is restarting the Embedded Signup flow.
+
+**Pattern:**
+
+```typescript
+// In any service calling the Meta API
+try {
+  const result = await this.defLogger.request({ method: 'GET', url: '...', params: { code } });
+  return result;
+} catch (err) {
+  if (err instanceof TokenExpiredError) {
+    // Graceful failure: update Firestore status to ERROR and surface a user message
+    await this.integrationDoc.set(
+      { status: 'ERROR', metaData: { error: 'Token expired or already used. Please reconnect.' } },
+      { merge: true },
+    );
+    // Do NOT retry — surface the error to the frontend via Firestore onSnapshot
+    throw err;
+  }
+  // For non-token errors, surface generically
+  throw new InternalServerErrorException('Meta API call failed.');
+}
+```
+
+**State Machine for token errors:**
+
+```
+CONNECTING → (Error 100/190) → ERROR
+                ↓
+       User clicks "Connect" again
+                ↓
+          CONNECTING → ACTIVE
+```
+
+---
+
+### Dynamic ngrok URL — Webhook Verification
+
+During local development, ngrok provides a dynamic HTTPS URL. The backend must read this from an environment variable rather than hardcoding it.
+
+```typescript
+// src/webhook/webhook.controller.ts
+import { Controller, Get, Query, Res, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
+
+@Controller('webhook')
+export class WebhookController {
+  private readonly logger = new Logger(WebhookController.name);
+
+  constructor(private config: ConfigService) {}
+
+  @Get()
+  verify(
+    @Query('hub.mode') mode: string,
+    @Query('hub.verify_token') token: string,
+    @Query('hub.challenge') challenge: string,
+    @Res() res: Response,
+  ) {
+    // Injected at runtime from NGROK_URL env var
+    const ngrokUrl = this.config.get<string>('NGROK_URL');
+    const verifyToken = this.config.get<string>('META_WEBHOOK_VERIFY_TOKEN');
+
+    this.logger.log(`[WEBHOOK_VERIFY] mode=${mode} | active ngrok=${ngrokUrl}`);
+
+    if (mode === 'subscribe' && token === verifyToken) {
+      this.logger.log('[WEBHOOK_VERIFY] ✓ Verification successful');
+      res.status(200).send(challenge);
+    } else {
+      this.logger.warn('[WEBHOOK_VERIFY] ✗ Token mismatch — rejected');
+      res.status(403).send('Forbidden');
+    }
+  }
+}
+```
+
+**Environment setup for dynamic ngrok:**
+
+```bash
+# .env (update each time ngrok restarts)
+NGROK_URL=https://xxxx-xx-xx-xx-xx.ngrok-free.app
+META_WEBHOOK_VERIFY_TOKEN=migo_verify_secret_2024
+
+# After updating NGROK_URL, re-register the webhook in Meta Dashboard:
+# App Dashboard → WhatsApp → Configuration → Webhook URL → {NGROK_URL}/webhook
+```
+
+> **Tip:** Use the `ngrok` Node.js SDK or a shell script to auto-update `NGROK_URL` and re-register the webhook via `PATCH /{WABA_ID}/subscribed_apps` on startup.

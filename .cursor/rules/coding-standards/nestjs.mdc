@@ -1,0 +1,9 @@
+---
+description: NestJS Coding Standards
+globs: *.ts, *.controller.ts, *.service.ts, *.dto.ts
+---
+# NestJS Modular Patterns
+
+- **Rule:** All backend services must use NestJS modular patterns.
+- **Requirement:** Mandatory DTOs for every endpoint. Use `class-validator` and `class-transformer`.
+- **Logging:** Every Meta API call must be wrapped in a custom Logger with "Defensive Engineering" logs (log request body, response, and latency).

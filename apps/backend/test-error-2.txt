@@ -1,0 +1,38 @@
+(node:38180) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ÔØî Error connecting to Firestore: Error: 7 PERMISSION_DENIED: Missing or insufficient permissions.
+    at callErrorFromStatus (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@grpc+grpc-js@1.14.3\node_modules\@grpc\grpc-js\build\src\call.js:32:19)
+    at Object.onReceiveStatus (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@grpc+grpc-js@1.14.3\node_modules\@grpc\grpc-js\build\src\client.js:359:73)
+    at Object.onReceiveStatus (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@grpc+grpc-js@1.14.3\node_modules\@grpc\grpc-js\build\src\client-interceptors.js:327:181)
+    at D:\migo\repos\Migo-UIT\node_modules\.pnpm\@grpc+grpc-js@1.14.3\node_modules\@grpc\grpc-js\build\src\resolving-call.js:135:78
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeServerStreamRequest (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@grpc+grpc-js@1.14.3\node_modules\@grpc\grpc-js\build\src\client.js:342:32)
+    at ServiceClientImpl.<anonymous> (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@grpc+grpc-js@1.14.3\node_modules\@grpc\grpc-js\build\src\make-client.js:105:19)
+    at D:\migo\repos\Migo-UIT\node_modules\.pnpm\@google-cloud+firestore@7.11.6\node_modules\@google-cloud\firestore\build\src\v1\firestore_client.js:242:33
+    at D:\migo\repos\Migo-UIT\node_modules\.pnpm\google-gax@4.6.1\node_modules\google-gax\build\src\streamingCalls\streamingApiCaller.js:38:28
+    at D:\migo\repos\Migo-UIT\node_modules\.pnpm\google-gax@4.6.1\node_modules\google-gax\build\src\normalCalls\timeout.js:44:16
+    at Object.request (D:\migo\repos\Migo-UIT\node_modules\.pnpm\google-gax@4.6.1\node_modules\google-gax\build\src\streamingCalls\streaming.js:234:40)
+    at makeRequest (D:\migo\repos\Migo-UIT\node_modules\.pnpm\retry-request@7.0.2\node_modules\retry-request\index.js:159:28)
+    at retryRequest (D:\migo\repos\Migo-UIT\node_modules\.pnpm\retry-request@7.0.2\node_modules\retry-request\index.js:119:5)
+    at StreamProxy.setStream (D:\migo\repos\Migo-UIT\node_modules\.pnpm\google-gax@4.6.1\node_modules\google-gax\build\src\streamingCalls\streaming.js:225:37)
+    at StreamingApiCaller.call (D:\migo\repos\Migo-UIT\node_modules\.pnpm\google-gax@4.6.1\node_modules\google-gax\build\src\streamingCalls\streamingApiCaller.js:54:16)
+Caused by: Error
+    at QueryUtil._getResponse (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@google-cloud+firestore@7.11.6\node_modules\@google-cloud\firestore\build\src\reference\query-util.js:44:23)
+    at Query._getResponse (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@google-cloud+firestore@7.11.6\node_modules\@google-cloud\firestore\build\src\reference\query.js:784:32)
+    at Query._get (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@google-cloud+firestore@7.11.6\node_modules\@google-cloud\firestore\build\src\reference\query.js:777:35)
+    at D:\migo\repos\Migo-UIT\node_modules\.pnpm\@google-cloud+firestore@7.11.6\node_modules\@google-cloud\firestore\build\src\reference\query.js:745:43
+    at D:\migo\repos\Migo-UIT\node_modules\.pnpm\@google-cloud+firestore@7.11.6\node_modules\@google-cloud\firestore\build\src\telemetry\enabled-trace-util.js:110:30
+    at NoopContextManager.with (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@opentelemetry+api@1.9.0\node_modules\@opentelemetry\api\build\src\context\NoopContextManager.js:25:19)
+    at ContextAPI.with (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@opentelemetry+api@1.9.0\node_modules\@opentelemetry\api\build\src\api\context.js:60:46)
+    at NoopTracer.startActiveSpan (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@opentelemetry+api@1.9.0\node_modules\@opentelemetry\api\build\src\trace\NoopTracer.js:65:31)
+    at ProxyTracer.startActiveSpan (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@opentelemetry+api@1.9.0\node_modules\@opentelemetry\api\build\src\trace\ProxyTracer.js:36:24)
+    at EnabledTraceUtil.startActiveSpan (D:\migo\repos\Migo-UIT\node_modules\.pnpm\@google-cloud+firestore@7.11.6\node_modules\@google-cloud\firestore\build\src\telemetry\enabled-trace-util.js:102:28) {
+  code: 7,
+  details: 'Missing or insufficient permissions.',
+  metadata: Metadata {
+    internalRepr: Map(1) { 'x-debug-tracking-id' => [Array] },
+    opaqueData: Map(0) {},
+    options: {}
+  }
+}

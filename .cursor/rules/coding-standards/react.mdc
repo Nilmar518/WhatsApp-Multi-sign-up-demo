@@ -1,0 +1,9 @@
+---
+description: React Coding Standards
+globs: *.tsx, *.jsx, *.ts, *.js
+---
+# React Conventions
+
+- **Rule:** Use functional components and TypeScript.
+- **Requirement:** Use Tailwind CSS for styling. Prioritize Hooks for state management.
+- **Conventions:** Folder-based component structure (e.g., `Component/index.tsx`).
