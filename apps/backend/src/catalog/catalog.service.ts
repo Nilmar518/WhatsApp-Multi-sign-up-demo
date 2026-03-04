@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { DefensiveLoggerService } from '../common/logger/defensive-logger.service';
 import { FirebaseService } from '../firebase/firebase.service';
+import { SecretManagerService } from '../common/secrets/secret-manager.service';
 
 interface MetaCatalogItem {
   id: string;
@@ -36,6 +37,7 @@ export class CatalogService {
   constructor(
     private readonly defLogger: DefensiveLoggerService,
     private readonly firebase: FirebaseService,
+    private readonly secrets: SecretManagerService,
   ) {}
 
   async getCatalog(businessId: string): Promise<CatalogData> {
@@ -60,22 +62,40 @@ export class CatalogService {
       );
     }
 
-    this.logger.log(`[CATALOG] Fetching catalogs for wabaId=${wabaId}`);
+    const businessIdMeta = this.secrets.get('META_BUSINESS_ID') || businessId;
+    
+    // 🔥 EL SECRETO ESTÁ AQUÍ: Usamos el System Token para tener permisos de ver los catálogos
+    const systemToken = this.secrets.get('META_SYSTEM_USER_TOKEN') || accessToken;
 
-    // Step 1 — List catalogs linked to the WABA
-    const catalogsResp = await this.defLogger.request<{
+    this.logger.log(`[CATALOG] Fetching catalogs for businessId=${businessIdMeta} using System Token`);
+
+    // Step 1 — Buscamos catálogos propios con el SYSTEM TOKEN
+    let catalogsResp = await this.defLogger.request<{
       data: MetaCatalogItem[];
     }>({
       method: 'GET',
-      url: `https://graph.facebook.com/v19.0/${wabaId}/owned_product_catalogs`,
-      headers: { Authorization: `Bearer ${accessToken}` },
+      url: `https://graph.facebook.com/v25.0/${businessIdMeta}/owned_product_catalogs`,
+      headers: { Authorization: `Bearer ${systemToken}` },
     });
 
-    const catalogs = catalogsResp.data ?? [];
+    let catalogs = catalogsResp.data ?? [];
+
+    // Plan B — Si no hay propios, buscamos los compartidos/clientes con el SYSTEM TOKEN
+    if (catalogs.length === 0) {
+      this.logger.log(`[CATALOG] No owned catalogs, checking client_product_catalogs...`);
+      const clientCatalogsResp = await this.defLogger.request<{
+        data: MetaCatalogItem[];
+      }>({
+        method: 'GET',
+        url: `https://graph.facebook.com/v25.0/${businessIdMeta}/client_product_catalogs`,
+        headers: { Authorization: `Bearer ${systemToken}` },
+      });
+      catalogs = clientCatalogsResp.data ?? [];
+    }
 
     if (!catalogs.length) {
       this.logger.warn(
-        `[CATALOG] No catalog linked to wabaId=${wabaId}. Configure a catalog in Meta Commerce Manager.`,
+        `[CATALOG] No catalog found (owned or client) for businessId=${businessIdMeta}. Configure a catalog in Meta Commerce Manager.`,
       );
       const empty: CatalogData = {
         catalogId: '',
@@ -87,18 +107,19 @@ export class CatalogService {
       return empty;
     }
 
+    // Tomamos el primer catálogo que encuentre el negocio
     const firstCatalog = catalogs[0];
     this.logger.log(
       `[CATALOG] Found catalog id=${firstCatalog.id} name="${firstCatalog.name}"`,
     );
 
-    // Step 2 — Fetch products from the first linked catalog
+    // Step 2 — Descargamos los productos usando también el SYSTEM TOKEN
     const productsResp = await this.defLogger.request<{ data: MetaProduct[] }>(
       {
         method: 'GET',
-        url: `https://graph.facebook.com/v19.0/${firstCatalog.id}/products`,
+        url: `https://graph.facebook.com/v25.0/${firstCatalog.id}/products`,
         params: { fields: 'id,name,retailer_id,availability,price,currency' },
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${systemToken}` },
       },
     );
 
@@ -113,7 +134,6 @@ export class CatalogService {
       `[CATALOG] ✓ Stored ${catalogData.products.length} product(s) for businessId=${businessId}`,
     );
 
-    // Persist to Firestore — the frontend onSnapshot will pick this up automatically
     await this.firebase.update(docRef, {
       catalog: catalogData,
       updatedAt: new Date().toISOString(),

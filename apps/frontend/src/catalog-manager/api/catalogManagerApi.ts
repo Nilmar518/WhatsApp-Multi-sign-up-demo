@@ -186,6 +186,13 @@ export async function linkCatalog(
   );
 }
 
+export async function unlinkCatalog(businessId: string): Promise<void> {
+  return apiFetch(
+    `${BASE}/catalogs/unlink?businessId=${encodeURIComponent(businessId)}`,
+    { method: 'POST' },
+  );
+}
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 /** Converts a Meta price string in minor units to a display string (e.g. "1000" → "$10.00") */

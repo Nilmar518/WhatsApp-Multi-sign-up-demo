@@ -5,6 +5,7 @@ import {
   listCatalogs,
   createCatalog,
   linkCatalog,
+  unlinkCatalog,
   checkHealth,
 } from '../../catalog-manager/api/catalogManagerApi';
 
@@ -94,6 +95,10 @@ export default function CatalogView({ businessId, catalog }: Props) {
   const [catalogsLoading, setCatalogsLoading]     = useState(false);
   const [linkingId, setLinkingId]                 = useState<string | null>(null);
 
+  // ── Unlink ────────────────────────────────────────────────────────────────
+  const [isUnlinking, setIsUnlinking]   = useState(false);
+  const [unlinkError, setUnlinkError]   = useState<string | null>(null);
+
   // ── Create catalog form ───────────────────────────────────────────────────
   const [showCatalogForm, setShowCatalogForm] = useState(false);
   const [newCatalogName, setNewCatalogName]   = useState('');
@@ -158,6 +163,27 @@ export default function CatalogView({ businessId, catalog }: Props) {
       setCatalogError(err instanceof Error ? err.message : 'Failed to link catalog');
     } finally {
       setLinkingId(null);
+    }
+  };
+
+  // ── Catalog: unlink ───────────────────────────────────────────────────────
+
+  const handleUnlinkCatalog = async () => {
+    if (
+      !confirm(
+        'Unlink this catalog from WhatsApp?\n\nThe catalog itself is not deleted — it can be re-linked at any time.',
+      )
+    )
+      return;
+    setIsUnlinking(true);
+    setUnlinkError(null);
+    try {
+      await unlinkCatalog(businessId);
+      // Firestore is updated by the backend; onSnapshot propagates to App.tsx
+    } catch (err: unknown) {
+      setUnlinkError(err instanceof Error ? err.message : 'Failed to unlink catalog');
+    } finally {
+      setIsUnlinking(false);
     }
   };
 
@@ -229,21 +255,37 @@ export default function CatalogView({ businessId, catalog }: Props) {
 
       {/* ── Catalog linked ──────────────────────────────────────────────── */}
       {hasCatalog && (
-        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-800 truncate">
-              {catalog!.catalogName ?? 'Linked Catalog'}
-            </p>
-            <p className="text-xs text-gray-400 font-mono truncate">
-              {catalog!.catalogId}
-            </p>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-800 truncate">
+                {catalog!.catalogName ?? 'Linked Catalog'}
+              </p>
+              <p className="text-xs text-gray-400 font-mono truncate">
+                {catalog!.catalogId}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href="/inventory"
+                className="text-xs font-medium text-emerald-600 hover:text-emerald-700 bg-white border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Manage →
+              </a>
+              <button
+                onClick={() => void handleUnlinkCatalog()}
+                disabled={isUnlinking}
+                className="text-xs font-medium text-red-500 hover:text-red-600 bg-white border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
+              >
+                {isUnlinking ? 'Unlinking…' : 'Unlink'}
+              </button>
+            </div>
           </div>
-          <a
-            href="/inventory"
-            className="shrink-0 text-xs font-medium text-emerald-600 hover:text-emerald-700 bg-white border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            Manage →
-          </a>
+          {unlinkError && (
+            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {unlinkError}
+            </p>
+          )}
         </div>
       )}
 

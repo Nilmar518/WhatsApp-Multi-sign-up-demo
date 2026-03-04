@@ -103,6 +103,25 @@ export class CatalogManagerController {
   }
 
   /**
+   * POST /catalog-manager/catalogs/unlink?businessId=X
+   *
+   * Unlinks the catalog from the WABA phone number (sets is_catalog_visible=false)
+   * and clears the Firestore catalog state so the onSnapshot fires immediately.
+   *
+   * NOTE: Declared before POST catalogs/:catalogId/link so NestJS does not
+   * resolve "unlink" as a catalogId path parameter.
+   *
+   * Meta endpoint: POST /v25.0/{phoneNumberId}/whatsapp_commerce_settings
+   */
+  @Post('catalogs/unlink')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  unlinkCatalog(
+    @Query('businessId') businessId: string,
+  ): Promise<void> {
+    return this.catalogManagerService.unlinkCatalogFromWaba(businessId);
+  }
+
+  /**
    * POST /catalog-manager/catalogs/:catalogId/link?businessId=X
    *
    * Links an existing catalog to the WABA phone number via WhatsApp Commerce

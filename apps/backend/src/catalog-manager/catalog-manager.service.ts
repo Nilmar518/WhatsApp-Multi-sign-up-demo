@@ -491,8 +491,8 @@ export class CatalogManagerService {
     businessId: string,
     catalogId: string,
   ): Promise<void> {
-    const { accessToken, phoneNumberId } =
-      await this.getIntegrationCredentials(businessId);
+    const { phoneNumberId } = await this.getIntegrationCredentials(businessId);
+    const catalogToken = await this.getCatalogToken(businessId);
 
     if (!phoneNumberId) {
       throw new BadRequestException(
@@ -508,7 +508,7 @@ export class CatalogManagerService {
       method: 'POST',
       url: `${META_GRAPH_V25}/${phoneNumberId}/whatsapp_commerce_settings`,
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${catalogToken}`,
         'Content-Type': 'application/json',
       },
       data: { catalog_id: catalogId, is_catalog_visible: true },
@@ -516,6 +516,63 @@ export class CatalogManagerService {
 
     this.logger.log(
       `[CATALOG_MANAGER] ✓ Catalog ${catalogId} linked to phoneNumberId=${phoneNumberId}`,
+    );
+  }
+
+  /**
+   * Unlinks the currently associated catalog from the WABA phone number.
+   *
+   * Meta endpoint: POST /v25.0/{phoneNumberId}/whatsapp_commerce_settings
+   * Body: { is_catalog_visible: false, catalog_id: "" }
+   *
+   * After Meta confirms success, Firestore is updated with an empty catalog
+   * state so the frontend's onSnapshot listener reverts the UI immediately —
+   * no additional client-side sync call is required.
+   */
+  async unlinkCatalogFromWaba(businessId: string): Promise<void> {
+    const { phoneNumberId } = await this.getIntegrationCredentials(businessId);
+    const catalogToken = await this.getCatalogToken(businessId);
+
+    if (!phoneNumberId) {
+      throw new BadRequestException(
+        'phoneNumberId is missing from the integration. Cannot unlink catalog.',
+      );
+    }
+
+    this.logger.log(
+      `[CATALOG_MANAGER] Unlinking catalog from phoneNumberId=${phoneNumberId}`,
+    );
+
+    await this.defLogger.request<{ success: boolean }>({
+      method: 'POST',
+      url: `${META_GRAPH_V25}/${phoneNumberId}/whatsapp_commerce_settings`,
+      headers: {
+        Authorization: `Bearer ${catalogToken}`,
+        'Content-Type': 'application/json',
+      },
+      data: { is_catalog_visible: false, catalog_id: '' },
+    });
+
+    this.logger.log(
+      `[CATALOG_MANAGER] ✓ Catalog unlinked from phoneNumberId=${phoneNumberId} — clearing Firestore catalog state`,
+    );
+
+    // Reset the Firestore catalog field so the frontend onSnapshot fires
+    // immediately and the UI reverts to the "no catalog linked" selector.
+    const db = this.firebase.getFirestore();
+    const docRef = db.collection('integrations').doc(businessId);
+    await this.firebase.update(docRef, {
+      catalog: {
+        catalogId: '',
+        catalogName: 'No catalog linked to this WABA',
+        products: [],
+        fetchedAt: new Date().toISOString(),
+      },
+      updatedAt: new Date().toISOString(),
+    });
+
+    this.logger.log(
+      `[CATALOG_MANAGER] ✓ Firestore catalog state cleared for businessId=${businessId}`,
     );
   }
 
