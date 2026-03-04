@@ -245,7 +245,7 @@ Complete end-to-end demo script for a stakeholder presentation:
 
 ### Step 3 — View Product Catalog
 1. In the **"Product Catalog"** section, click **"Load Catalog"**
-2. Backend calls Meta `/{WABA_ID}/product_catalogs` then `/{CATALOG_ID}/products`
+2. Backend calls Meta `/{WABA_ID}/owned_product_catalogs` then `/{CATALOG_ID}/products`
 3. Product list appears in the panel via Firestore `onSnapshot` — no page reload
 
 ### Step 4 — Receive an Inbound Message

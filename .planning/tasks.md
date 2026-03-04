@@ -36,7 +36,7 @@
 - [x] CLAUDE.md updated with production swap guide (`@google-cloud/secret-manager`)
 - [x] `SystemUserService.tryEscalate()` — exchanges long-lived token for permanent System User token
 - [x] `AuthService` updated to use `SecretManagerService` + `SystemUserService`
-- [x] `GET /catalog` — fetches `/{wabaId}/product_catalogs` then `/{catalogId}/products`
+- [x] `GET /catalog` — fetches `/{wabaId}/owned_product_catalogs` then `/{catalogId}/products`
 - [x] Catalog data persisted to `integrations/{businessId}.catalog` in Firestore
 - [x] `CatalogView` component — product list, Load/Refresh button, availability badges
 - [x] `BusinessToggle` component — switch between `demo-business-001` / `demo-business-002`

@@ -67,7 +67,7 @@ export class CatalogService {
       data: MetaCatalogItem[];
     }>({
       method: 'GET',
-      url: `https://graph.facebook.com/v19.0/${wabaId}/product_catalogs`,
+      url: `https://graph.facebook.com/v19.0/${wabaId}/owned_product_catalogs`,
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 

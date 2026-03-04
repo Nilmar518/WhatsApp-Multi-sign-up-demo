@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "scripts": {
     "build": "nest build",
+    "predev": "node src/scripts/check-permissions.js",
     "dev": "nest start --watch",
     "start": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "check-permissions": "node src/scripts/check-permissions.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

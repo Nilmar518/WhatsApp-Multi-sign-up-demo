@@ -10,6 +10,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { RegistrationModule } from './registration/registration.module';
 import { MigrationModule } from './migration/migration.module';
+import { CatalogManagerModule } from './catalog-manager/catalog-manager.module';
 
 @Module({
   imports: [
@@ -26,6 +27,8 @@ import { MigrationModule } from './migration/migration.module';
     IntegrationsModule,
     RegistrationModule,
     MigrationModule,
+    // Catalog ABM — isolated from the Multi Sign-Up demo logic
+    CatalogManagerModule,
   ],
 })
 export class AppModule {}
