@@ -6,7 +6,6 @@ import {
   Body,
   Res,
   Logger,
-  HttpCode,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
@@ -43,18 +42,38 @@ export class WebhookController {
     }
   }
 
-  // POST /webhook — Inbound messages and delivery status events from Meta
+  /**
+   * POST /webhook — Inbound messages and delivery status events from Meta.
+   *
+   * ACK-FIRST PATTERN: We flush HTTP 200 to Meta immediately after receiving
+   * the payload, then hand off all business logic to a background task via
+   * setImmediate. This prevents Meta from retrying the webhook when downstream
+   * operations (Firestore, Graph API) are slow, which was the root cause of
+   * the duplicate-message bug (two identical product_list messages sent to the
+   * end-user within the same second).
+   *
+   * Meta's retry policy: if it does not receive a 200 within 20 s it will
+   * resend the same payload — potentially triggering a second auto-reply.
+   */
   @Post()
-  @HttpCode(200) // Meta requires 200 within 20s or it will retry
-  async receive(@Body() body: unknown) {
+  receive(@Body() body: unknown, @Res() res: Response): void {
     // ── Raw payload dump — first line of defence when tracing inbound issues ──
-    console.log('[WEBHOOK_INBOUND_PAYLOAD]:', JSON.stringify(body, null, 2));
+    this.logger.log('[WEBHOOK_EVENT] Payload received — ACK sent immediately');
+    this.logger.debug(
+      `[WEBHOOK_INBOUND_PAYLOAD] ${JSON.stringify(body)}`,
+    );
 
-    this.logger.log('[WEBHOOK_EVENT] Payload received');
+    // Acknowledge Meta before any async work begins
+    res.status(200).json({ received: true });
 
-    // processInbound never throws — defensive design ensures we always ack Meta
-    await this.webhookService.processInbound(body);
-
-    return { received: true };
+    // Dispatch processing outside the current event-loop tick so the HTTP
+    // response is flushed before any awaitable work starts.
+    setImmediate(() => {
+      this.webhookService.processInbound(body).catch((err: unknown) => {
+        this.logger.error(
+          `[WEBHOOK_BG_ERROR] Unhandled error in background processor: ${(err as Error).message ?? err}`,
+        );
+      });
+    });
   }
 }

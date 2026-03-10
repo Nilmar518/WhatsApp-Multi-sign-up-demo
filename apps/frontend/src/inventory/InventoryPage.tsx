@@ -1,33 +1,81 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { MetaCatalog } from '../catalog-manager/api/catalogManagerApi';
+import type { MetaCatalog, MetaProduct } from '../catalog-manager/api/catalogManagerApi';
 import { listCatalogs } from '../catalog-manager/api/catalogManagerApi';
 import CatalogManager from './components/CatalogManager';
 import ProductManager from './components/ProductManager';
+import VariantManager from './components/VariantManager';
+import AutoReplyManager from './components/AutoReplyManager';
 import { ToastContainer } from './components/Toast';
 import type { ToastItem, ToastType } from './components/Toast';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const BUSINESS_OPTIONS = [
   { label: 'Demo Business 001', value: 'demo-business-001' },
   { label: 'Demo Business 002', value: 'demo-business-002' },
 ];
 
-type View = 'catalogs' | 'products';
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Section = 'inventory' | 'auto-replies';
+type InventoryView = 'catalogs' | 'products' | 'variants';
+
+// ─── Sidebar icons ────────────────────────────────────────────────────────────
+
+function BoxIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={active ? 2 : 1.75}
+      className="w-4 h-4 shrink-0"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+      />
+    </svg>
+  );
+}
+
+function BoltIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={active ? 2 : 1.75}
+      className="w-4 h-4 shrink-0"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13 10V3L4 14h7v7l9-11h-7z"
+      />
+    </svg>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 /**
- * InventoryPage — Administrative view for catalog & product management.
+ * InventoryPage — Administrative view for catalog, product, and auto-reply management.
  *
  * Route: /inventory (pathname-based routing in main.tsx)
  *
- * Separated from the Dashboard (CatalogView) which handles WABA linking only.
- * This page is the full ABM/CRUD surface for Meta product catalogs and items.
+ * Layout: sticky header + left sidebar + scrollable main content area.
  */
 export default function InventoryPage() {
   const [businessId, setBusinessId] = useState(BUSINESS_OPTIONS[0].value);
-  const [view, setView]             = useState<View>('catalogs');
+  const [section, setSection]       = useState<Section>('inventory');
+  const [view, setView]             = useState<InventoryView>('catalogs');
   const [selectedCatalog, setSelectedCatalog] = useState<MetaCatalog | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<MetaProduct | null>(null);
 
-  // Catalogs
-  const [catalogs, setCatalogs]         = useState<MetaCatalog[]>([]);
+  // Catalogs (shared between inventory and auto-reply product selector)
+  const [catalogs, setCatalogs]           = useState<MetaCatalog[]>([]);
   const [catalogsLoading, setCatalogsLoading] = useState(false);
 
   // Toasts
@@ -62,12 +110,14 @@ export default function InventoryPage() {
   // Re-fetch + reset view whenever business changes
   useEffect(() => {
     setCatalogs([]);
+    setSection('inventory');
     setView('catalogs');
     setSelectedCatalog(null);
+    setSelectedProduct(null);
     void fetchCatalogs();
   }, [fetchCatalogs, businessId]);
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Inventory view handlers ─────────────────────────────────────────────────
 
   const handleViewProducts = (catalog: MetaCatalog) => {
     setSelectedCatalog(catalog);
@@ -77,33 +127,54 @@ export default function InventoryPage() {
   const handleBackToCatalogs = () => {
     setView('catalogs');
     setSelectedCatalog(null);
+    setSelectedProduct(null);
+  };
+
+  const handleManageVariants = (product: MetaProduct) => {
+    setSelectedProduct(product);
+    setView('variants');
+  };
+
+  const handleBackToProducts = () => {
+    setView('products');
+    setSelectedProduct(null);
+  };
+
+  // ── Sidebar navigation ──────────────────────────────────────────────────────
+
+  const handleSectionChange = (next: Section) => {
+    setSection(next);
+    // When navigating back to inventory, reset to catalogs list
+    if (next === 'inventory') {
+      setView('catalogs');
+      setSelectedCatalog(null);
+      setSelectedProduct(null);
+    }
   };
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <header className="bg-white border-b border-gray-200 px-6 py-3.5 flex items-center justify-between shrink-0 z-10">
+        <div className="flex items-center gap-3">
           <a
             href="/"
-            className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors"
           >
             ← Dashboard
           </a>
-          <span className="text-gray-300">|</span>
-          <h1 className="text-base font-bold text-gray-900">
-            Inventory Manager
-          </h1>
-          <span className="text-xs font-medium bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+          <span className="text-gray-200">|</span>
+          <h1 className="text-sm font-bold text-gray-900">Inventory Manager</h1>
+          <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
             Admin
           </span>
         </div>
 
         {/* Business selector */}
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-500">Business</label>
+          <label className="text-xs font-medium text-gray-400">Business</label>
           <select
             value={businessId}
             onChange={(e) => setBusinessId(e.target.value)}
@@ -118,30 +189,89 @@ export default function InventoryPage() {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="max-w-4xl mx-auto px-6 py-8">
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          {view === 'catalogs' && (
-            <CatalogManager
-              businessId={businessId}
-              catalogs={catalogs}
-              isLoading={catalogsLoading}
-              onRefresh={() => void fetchCatalogs()}
-              onViewProducts={handleViewProducts}
-              onToast={showToast}
-            />
-          )}
+      {/* ── Body: sidebar + content ─────────────────────────────────────────── */}
+      <div className="flex flex-1 overflow-hidden">
 
-          {view === 'products' && selectedCatalog && (
-            <ProductManager
-              businessId={businessId}
-              catalog={selectedCatalog}
-              onBack={handleBackToCatalogs}
-              onToast={showToast}
-            />
-          )}
-        </div>
-      </main>
+        {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+        <aside className="w-56 bg-white border-r border-gray-200 shrink-0 flex flex-col py-5 px-3">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-3 mb-2">
+            Menu
+          </p>
+          <nav className="space-y-0.5">
+            <button
+              onClick={() => handleSectionChange('inventory')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
+                section === 'inventory'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+            >
+              <BoxIcon active={section === 'inventory'} />
+              Catalogs &amp; Products
+            </button>
+
+            <button
+              onClick={() => handleSectionChange('auto-replies')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
+                section === 'auto-replies'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+            >
+              <BoltIcon active={section === 'auto-replies'} />
+              Keyword Triggers
+            </button>
+          </nav>
+        </aside>
+
+        {/* ── Main content ─────────────────────────────────────────────────── */}
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm min-h-full">
+
+            {/* Catalogs & Products section */}
+            {section === 'inventory' && view === 'catalogs' && (
+              <CatalogManager
+                businessId={businessId}
+                catalogs={catalogs}
+                isLoading={catalogsLoading}
+                onRefresh={() => void fetchCatalogs()}
+                onViewProducts={handleViewProducts}
+                onToast={showToast}
+              />
+            )}
+
+            {section === 'inventory' && view === 'products' && selectedCatalog && (
+              <ProductManager
+                businessId={businessId}
+                catalog={selectedCatalog}
+                onBack={handleBackToCatalogs}
+                onToast={showToast}
+                onManageVariants={handleManageVariants}
+              />
+            )}
+
+            {section === 'inventory' && view === 'variants' && selectedCatalog && selectedProduct && (
+              <VariantManager
+                businessId={businessId}
+                catalog={selectedCatalog}
+                product={selectedProduct}
+                onBack={handleBackToProducts}
+                onToast={showToast}
+              />
+            )}
+
+            {/* Keyword Triggers section */}
+            {section === 'auto-replies' && (
+              <AutoReplyManager
+                businessId={businessId}
+                catalogs={catalogs}
+                onToast={showToast}
+              />
+            )}
+
+          </div>
+        </main>
+      </div>
 
       {/* Toast notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

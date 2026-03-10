@@ -19,6 +19,7 @@ interface Props {
   catalog: MetaCatalog;
   onBack: () => void;
   onToast: (message: string, type: ToastType) => void;
+  onManageVariants: (product: MetaProduct) => void;
 }
 
 // ─── Product form ──────────────────────────────────────────────────────────────
@@ -63,11 +64,13 @@ function ProductCard({
   product,
   onEdit,
   onDelete,
+  onManageVariants,
   isDeleting,
 }: {
   product: MetaProduct;
   onEdit: () => void;
   onDelete: () => void;
+  onManageVariants: () => void;
   isDeleting: boolean;
 }) {
   const [imgError, setImgError] = useState(false);
@@ -106,6 +109,12 @@ function ProductCard({
             className="text-xs font-medium bg-white text-gray-800 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
             Edit
+          </button>
+          <button
+            onClick={onManageVariants}
+            className="text-xs font-medium bg-violet-500 text-white px-3 py-1.5 rounded-lg hover:bg-violet-600 transition-colors"
+          >
+            Variants
           </button>
           <button
             onClick={onDelete}
@@ -175,6 +184,7 @@ export default function ProductManager({
   catalog,
   onBack,
   onToast,
+  onManageVariants,
 }: Props) {
   const [products, setProducts]     = useState<MetaProduct[]>([]);
   const [loading, setLoading]       = useState(false);
@@ -585,6 +595,7 @@ export default function ProductManager({
               product={product}
               onEdit={() => openEdit(product)}
               onDelete={() => void handleDelete(product)}
+              onManageVariants={() => onManageVariants(product)}
               isDeleting={deletingId === product.id}
             />
           ))}

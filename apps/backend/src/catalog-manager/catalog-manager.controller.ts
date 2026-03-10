@@ -16,10 +16,14 @@ import { CreateCatalogDto } from './dto/create-catalog.dto';
 import { UpdateCatalogDto } from './dto/update-catalog.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateVariantDto } from './dto/create-variant.dto';
+import { UpdateVariantDto } from './dto/update-variant.dto';
 import type {
   MetaCatalogItem,
   MetaProductItem,
   CatalogHealthResult,
+  FirestoreVariantRecord,
+  ReconciliationReport,
 } from './catalog-manager.types';
 
 @Controller('catalog-manager')
@@ -186,5 +190,87 @@ export class CatalogManagerController {
     @Query('businessId') businessId: string,
   ): Promise<void> {
     return this.catalogManagerService.deleteProduct(businessId, productItemId);
+  }
+
+  // ─── Variant Endpoints ────────────────────────────────────────────────────
+
+  /**
+   * GET /catalog-manager/catalogs/:catalogId/products/:productId/variants?businessId=X
+   *
+   * Lists all variants for a product from Firestore (all states, including
+   * FAILED_INTEGRATION and ARCHIVED, so the operator can see the full history).
+   */
+  @Get('catalogs/:catalogId/products/:productId/variants')
+  listVariants(
+    @Param('productId') productId: string,
+    @Query('businessId') businessId: string,
+  ): Promise<FirestoreVariantRecord[]> {
+    return this.catalogManagerService.listVariants(businessId, productId);
+  }
+
+  /**
+   * POST /catalog-manager/catalogs/:catalogId/products/:productId/variants
+   * Body: CreateVariantDto
+   *
+   * Creates a new variant. Sends to Meta with item_group_id = parent's
+   * retailer_id, then writes ACTIVE record to Firestore variants subcollection.
+   */
+  @Post('catalogs/:catalogId/products/:productId/variants')
+  createVariant(
+    @Param('catalogId') catalogId: string,
+    @Param('productId') productId: string,
+    @Body() dto: CreateVariantDto,
+  ): Promise<MetaProductItem> {
+    return this.catalogManagerService.createVariant(catalogId, productId, dto);
+  }
+
+  /**
+   * PUT /catalog-manager/catalogs/:catalogId/products/:productId/variants/:variantItemId
+   * Body: UpdateVariantDto
+   *
+   * Updates a variant in Meta then syncs the diff to Firestore.
+   */
+  @Put('catalogs/:catalogId/products/:productId/variants/:variantItemId')
+  updateVariant(
+    @Param('variantItemId') variantItemId: string,
+    @Body() dto: UpdateVariantDto,
+  ): Promise<MetaProductItem> {
+    return this.catalogManagerService.updateVariant(variantItemId, dto);
+  }
+
+  /**
+   * DELETE /catalog-manager/catalogs/:catalogId/products/:productId/variants/:variantItemId?businessId=X
+   *
+   * Deletes from Meta then soft-deletes (ARCHIVED) in Firestore.
+   */
+  @Delete('catalogs/:catalogId/products/:productId/variants/:variantItemId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteVariant(
+    @Param('productId') productId: string,
+    @Param('variantItemId') variantItemId: string,
+    @Query('businessId') businessId: string,
+  ): Promise<void> {
+    return this.catalogManagerService.deleteVariant(businessId, productId, variantItemId);
+  }
+
+  // ─── Reconciliation ───────────────────────────────────────────────────────
+
+  /**
+   * POST /catalog-manager/catalogs/:catalogId/reconcile?businessId=X
+   *
+   * Compares Meta's catalog (source of truth) against the Firestore mirror and
+   * patches every discrepancy:
+   *   • Items in Meta but not Firestore → created in Firestore as ACTIVE
+   *   • Items ACTIVE in Firestore but absent in Meta → marked DELETED_IN_META
+   *
+   * Returns a full audit report. Every correction is also logged at WARN level.
+   * Safe to call at any time — idempotent when there are no discrepancies.
+   */
+  @Post('catalogs/:catalogId/reconcile')
+  reconcileCatalog(
+    @Param('catalogId') catalogId: string,
+    @Query('businessId') businessId: string,
+  ): Promise<ReconciliationReport> {
+    return this.catalogManagerService.reconcileCatalog(businessId, catalogId);
   }
 }

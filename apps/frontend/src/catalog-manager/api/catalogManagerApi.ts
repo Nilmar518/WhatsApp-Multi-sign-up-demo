@@ -158,6 +158,104 @@ export async function deleteProduct(
   );
 }
 
+// ─── Variant API ──────────────────────────────────────────────────────────────
+
+export interface MetaVariant {
+  /** Firestore auto-generated document ID */
+  id?: string;
+  retailerId: string;
+  name: string;
+  itemGroupId: string;
+  catalogId: string;
+  metaVariantId?: string;
+  attributeKey: string;
+  attributeValue: string;
+  price?: number;
+  currency?: string;
+  availability?: string;
+  /** Sync state written and maintained by our backend */
+  status: 'SYNCING_WITH_META' | 'ACTIVE' | 'FAILED_INTEGRATION' | 'ARCHIVED' | 'SUSPENDED_BY_POLICY';
+  failureReason?: string;
+  rejectionReasons?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateVariantPayload {
+  businessId: string;
+  itemGroupId: string;
+  retailerId: string;
+  name: string;
+  description: string;
+  attributeKey: string;
+  attributeValue: string;
+  availability: string;
+  condition: string;
+  price: number;
+  currency: string;
+  imageUrl: string;
+  url: string;
+}
+
+export interface UpdateVariantPayload {
+  businessId: string;
+  name?: string;
+  description?: string;
+  attributeKey?: string;
+  attributeValue?: string;
+  availability?: string;
+  condition?: string;
+  price?: number;
+  currency?: string;
+  imageUrl?: string;
+  url?: string;
+}
+
+export async function listVariants(
+  businessId: string,
+  catalogId: string,
+  productId: string,
+): Promise<MetaVariant[]> {
+  return apiFetch(
+    `${BASE}/catalogs/${catalogId}/products/${productId}/variants?businessId=${encodeURIComponent(businessId)}`,
+  );
+}
+
+export async function createVariant(
+  catalogId: string,
+  productId: string,
+  payload: CreateVariantPayload,
+): Promise<MetaVariant> {
+  return apiFetch(
+    `${BASE}/catalogs/${catalogId}/products/${productId}/variants`,
+    { method: 'POST', body: JSON.stringify(payload) },
+  );
+}
+
+export async function updateVariant(
+  catalogId: string,
+  productId: string,
+  variantItemId: string,
+  payload: UpdateVariantPayload,
+): Promise<MetaVariant> {
+  return apiFetch(
+    `${BASE}/catalogs/${catalogId}/products/${productId}/variants/${variantItemId}`,
+    { method: 'PUT', body: JSON.stringify(payload) },
+  );
+}
+
+export async function deleteVariant(
+  businessId: string,
+  catalogId: string,
+  productId: string,
+  variantItemId: string,
+): Promise<void> {
+  return apiFetch(
+    `${BASE}/catalogs/${catalogId}/products/${productId}/variants/${variantItemId}?businessId=${encodeURIComponent(businessId)}`,
+    { method: 'DELETE' },
+  );
+}
+
 // ─── Health check API ─────────────────────────────────────────────────────────
 
 export interface CatalogHealth {

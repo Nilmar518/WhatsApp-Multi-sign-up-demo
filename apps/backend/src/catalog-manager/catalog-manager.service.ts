@@ -10,11 +10,17 @@ import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import { CreateCatalogDto } from './dto/create-catalog.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateVariantDto } from './dto/create-variant.dto';
+import { UpdateVariantDto } from './dto/update-variant.dto';
 import type {
   MetaCatalogItem,
   MetaProductItem,
   CommerceAccount,
   CatalogHealthResult,
+  FirestoreProductRecord,
+  FirestoreVariantRecord,
+  ReconciliationReport,
+  ReconciliationCorrection,
 } from './catalog-manager.types';
 
 /**
@@ -511,11 +517,11 @@ export class CatalogManagerService {
         Authorization: `Bearer ${catalogToken}`,
         'Content-Type': 'application/json',
       },
-      data: { catalog_id: catalogId, is_catalog_visible: true },
+      data: { catalog_id: catalogId, is_catalog_visible: true, is_cart_enabled: true },
     });
 
     this.logger.log(
-      `[CATALOG_MANAGER] ✓ Catalog ${catalogId} linked to phoneNumberId=${phoneNumberId}`,
+      `[CATALOG_MANAGER] ✓ Catalog ${catalogId} linked to phoneNumberId=${phoneNumberId} (visibility=true, cart=true)`,
     );
   }
 
@@ -707,30 +713,93 @@ export class CatalogManagerService {
     dto: CreateProductDto,
   ): Promise<MetaProductItem> {
     const catalogToken = await this.getCatalogToken(dto.businessId);
+
+    // 1. Optimistic Firestore write — SYNCING_WITH_META
+    const db = this.firebase.getFirestore();
+    const productRef = db
+      .collection('integrations')
+      .doc(dto.businessId)
+      .collection('catalog_products')
+      .doc(); // auto-generated ID
+
+    const now = new Date().toISOString();
+    // Parent products use their own retailer_id as the item_group_id so that
+    // every variant created later can reference this same value, producing a
+    // unified product family with attribute selectors (size/color) in WhatsApp.
+    const itemGroupId = dto.retailerId;
+
+    const firestoreRecord: FirestoreProductRecord = {
+      retailerId:  dto.retailerId,
+      itemGroupId, // persisted so the reconciler and variant queries can use it
+      name:        dto.name,
+      catalogId,
+      status:      'SYNCING_WITH_META',
+      createdAt:   now,
+      updatedAt:   now,
+    };
+    await this.firebase.set(productRef, firestoreRecord);
+
     this.logger.log(
-      `[CATALOG_MANAGER] Creating product retailerId="${dto.retailerId}" in catalogId=${catalogId}`,
+      `[CATALOG_MANAGER] Creating product retailerId="${dto.retailerId}" ` +
+      `itemGroupId="${itemGroupId}" in catalogId=${catalogId} (Firestore: SYNCING_WITH_META)`,
     );
-    const resp = await this.defLogger.request<MetaProductItem>({
-      method: 'POST',
-      url: `${META_GRAPH_V19}/${catalogId}/products`,
-      headers: {
-        Authorization: `Bearer ${catalogToken}`,
-        'Content-Type': 'application/json',
-      },
-      data: {
-        retailer_id: dto.retailerId,
-        name: dto.name,
-        description: dto.description,
-        availability: dto.availability,
-        condition: dto.condition,
-        price: dto.price,
-        currency: dto.currency,
-        image_url: dto.imageUrl,
-        url: dto.url,
-      },
-    });
-    this.logger.log(`[CATALOG_MANAGER] ✓ Product created id=${resp.id}`);
-    return resp;
+
+    try {
+      // 2. Call Meta Graph API — item_group_id is mandatory so Meta groups this
+      // product and its future variants under a single product family, rather
+      // than auto-generating a random group ID that variants cannot reference.
+      const resp = await this.defLogger.request<MetaProductItem>({
+        method: 'POST',
+        url: `${META_GRAPH_V19}/${catalogId}/products`,
+        headers: {
+          Authorization: `Bearer ${catalogToken}`,
+          'Content-Type': 'application/json',
+        },
+        data: {
+          retailer_id:   dto.retailerId,
+          item_group_id: itemGroupId,
+          name:          dto.name,
+          description:   dto.description,
+          availability:  dto.availability,
+          condition:     dto.condition,
+          price:         dto.price,
+          currency:      dto.currency,
+          image_url:     dto.imageUrl,
+          url:           dto.url,
+        },
+      });
+
+      // 3. Transition to ACTIVE once Meta confirms
+      const activeProductPatch = {
+        metaProductId: resp.id,
+        status: 'ACTIVE',
+        updatedAt: new Date().toISOString(),
+      };
+      await this.firebase.update(productRef, activeProductPatch);
+
+      // 4. Post-write verify: read back and repair if the write was silently lost
+      await this.verifyAndRepairFirestoreWrite(
+        productRef,
+        'ACTIVE',
+        activeProductPatch,
+        `createProduct retailerId="${dto.retailerId}"`,
+      );
+
+      this.logger.log(
+        `[CATALOG_MANAGER] ✓ Product created id=${resp.id} (Firestore: ACTIVE, verified)`,
+      );
+      return resp;
+    } catch (err: unknown) {
+      // 4. Compensatory rollback — leave a traceable record, not an orphan
+      await this.firebase.update(productRef, {
+        status: 'FAILED_INTEGRATION',
+        updatedAt: new Date().toISOString(),
+      });
+      this.logger.error(
+        `[CATALOG_MANAGER] ✗ Product creation failed for retailerId="${dto.retailerId}" — Firestore marked FAILED_INTEGRATION`,
+      );
+      throw err;
+    }
   }
 
   async updateProduct(
@@ -741,16 +810,18 @@ export class CatalogManagerService {
     this.logger.log(
       `[CATALOG_MANAGER] Updating product id=${productItemId}`,
     );
-    const data: Record<string, unknown> = {};
-    if (dto.name !== undefined) data['name'] = dto.name;
-    if (dto.description !== undefined) data['description'] = dto.description;
-    if (dto.availability !== undefined) data['availability'] = dto.availability;
-    if (dto.condition !== undefined) data['condition'] = dto.condition;
-    if (dto.price !== undefined) data['price'] = dto.price;
-    if (dto.currency !== undefined) data['currency'] = dto.currency;
-    if (dto.imageUrl !== undefined) data['image_url'] = dto.imageUrl;
-    if (dto.url !== undefined) data['url'] = dto.url;
 
+    const metaData: Record<string, unknown> = {};
+    if (dto.name !== undefined) metaData['name'] = dto.name;
+    if (dto.description !== undefined) metaData['description'] = dto.description;
+    if (dto.availability !== undefined) metaData['availability'] = dto.availability;
+    if (dto.condition !== undefined) metaData['condition'] = dto.condition;
+    if (dto.price !== undefined) metaData['price'] = dto.price;
+    if (dto.currency !== undefined) metaData['currency'] = dto.currency;
+    if (dto.imageUrl !== undefined) metaData['image_url'] = dto.imageUrl;
+    if (dto.url !== undefined) metaData['url'] = dto.url;
+
+    // 1. Call Meta Graph API first — Firestore only updated on success
     const resp = await this.defLogger.request<MetaProductItem>({
       method: 'POST',
       url: `${META_GRAPH_V19}/${productItemId}`,
@@ -758,9 +829,40 @@ export class CatalogManagerService {
         Authorization: `Bearer ${catalogToken}`,
         'Content-Type': 'application/json',
       },
-      data,
+      data: metaData,
     });
-    this.logger.log(`[CATALOG_MANAGER] ✓ Product updated id=${productItemId}`);
+
+    this.logger.log(`[CATALOG_MANAGER] ✓ Product updated id=${productItemId} — syncing Firestore`);
+
+    // 2. Sync the matching catalog_products doc — fatal: if Firestore fails, surface the error
+    const db = this.firebase.getFirestore();
+    const snap = await db
+      .collection('integrations')
+      .doc(dto.businessId)
+      .collection('catalog_products')
+      .where('metaProductId', '==', productItemId)
+      .limit(1)
+      .get();
+
+    if (!snap.empty) {
+      const firestoreUpdate: Record<string, unknown> = {
+        status: 'ACTIVE',
+        updatedAt: new Date().toISOString(),
+      };
+      if (dto.name !== undefined) firestoreUpdate['name'] = dto.name;
+      if (dto.availability !== undefined) firestoreUpdate['availability'] = dto.availability;
+
+      await this.firebase.update(snap.docs[0].ref, firestoreUpdate);
+      this.logger.log(
+        `[CATALOG_MANAGER] ✓ Firestore catalog_products synced for id=${productItemId}`,
+      );
+    } else {
+      this.logger.error(
+        `[CATALOG_MANAGER] ✗ No catalog_products doc found for metaProductId=${productItemId} — ` +
+        `Firestore not updated. Run reconcile to repair.`,
+      );
+    }
+
     return resp;
   }
 
@@ -772,11 +874,623 @@ export class CatalogManagerService {
     this.logger.log(
       `[CATALOG_MANAGER] Deleting product id=${productItemId}`,
     );
+
+    // 1. Delete from Meta first — if this fails, we do NOT touch Firestore
     await this.defLogger.request<{ success: boolean }>({
       method: 'DELETE',
       url: `${META_GRAPH_V19}/${productItemId}`,
       headers: { Authorization: `Bearer ${catalogToken}` },
     });
+
+    // 2. Remove the corresponding Firestore record
+    try {
+      const db = this.firebase.getFirestore();
+      const snap = await db
+        .collection('integrations')
+        .doc(businessId)
+        .collection('catalog_products')
+        .where('metaProductId', '==', productItemId)
+        .limit(1)
+        .get();
+
+      for (const doc of snap.docs) {
+        await doc.ref.delete();
+      }
+    } catch (err: unknown) {
+      // Meta delete succeeded — log as ERROR so the inconsistency is visible
+      // and the operator knows to run reconcile.
+      this.logger.error(
+        `[CATALOG_MANAGER] ✗ Product id=${productItemId} deleted from Meta but ` +
+        `Firestore cleanup FAILED: ${(err as Error).message} — run reconcile to repair`,
+      );
+    }
+
     this.logger.log(`[CATALOG_MANAGER] ✓ Product deleted id=${productItemId}`);
+  }
+
+  /**
+   * Finds the `catalog_products` Firestore document whose `metaProductId`
+   * matches the given Meta product ID. If no document is found (the product
+   * was created before Firestore tracking was introduced), creates a minimal
+   * stub so variants always have a valid parent document to nest under.
+   */
+  private async findOrCreateProductRef(
+    businessId: string,
+    metaProductId: string,
+  ) {
+    const db = this.firebase.getFirestore();
+    const colRef = db
+      .collection('integrations')
+      .doc(businessId)
+      .collection('catalog_products');
+
+    const snap = await colRef
+      .where('metaProductId', '==', metaProductId)
+      .limit(1)
+      .get();
+
+    if (!snap.empty) return snap.docs[0].ref;
+
+    // Stub: product predates Firestore tracking — create a minimal doc
+    this.logger.warn(
+      `[CATALOG_MANAGER] No catalog_products doc found for metaProductId=${metaProductId} — creating stub`,
+    );
+    const stubRef = colRef.doc();
+    const now = new Date().toISOString();
+    await this.firebase.set(stubRef, {
+      metaProductId,
+      retailerId: '',
+      name: '',
+      catalogId: '',
+      status: 'ACTIVE',
+      createdAt: now,
+      updatedAt: now,
+    });
+    return stubRef;
+  }
+
+  // ─── Variant Operations ───────────────────────────────────────────────────
+
+  /**
+   * Lists all variants for a product from the Firestore subcollection.
+   *
+   * Returns records in all states (including ARCHIVED and FAILED_INTEGRATION)
+   * so the UI can surface sync errors and historical items to the operator.
+   */
+  async listVariants(
+    businessId: string,
+    parentMetaProductId: string,
+  ): Promise<FirestoreVariantRecord[]> {
+    this.logger.log(
+      `[CATALOG_MANAGER] Listing variants for metaProductId=${parentMetaProductId}`,
+    );
+    const parentRef = await this.findOrCreateProductRef(
+      businessId,
+      parentMetaProductId,
+    );
+    const snap = await parentRef.collection('variants').get();
+    return snap.docs.map((d) => d.data() as FirestoreVariantRecord);
+  }
+
+  /**
+   * Creates a new variant under a parent product.
+   *
+   * Meta model: each variant is an independent product item POSTed to
+   * /{catalogId}/products with an `item_group_id` field set to the parent's
+   * retailer_id. This groups them into a product family in Commerce Manager.
+   *
+   * Transactional flow:
+   *   1. Optimistic Firestore write → SYNCING_WITH_META
+   *   2. POST to Meta Graph API
+   *   3a. On success → update to ACTIVE + set metaVariantId
+   *   3b. On failure → update to FAILED_INTEGRATION + record failureReason
+   */
+  async createVariant(
+    catalogId: string,
+    parentMetaProductId: string,
+    dto: CreateVariantDto,
+  ): Promise<MetaProductItem> {
+    const catalogToken = await this.getCatalogToken(dto.businessId);
+
+    // ── Step 0: Resolve canonical parent metadata from Meta ───────────────────
+    //
+    // Meta's grouping algorithm requires that the variant's `item_group_id`,
+    // `name`, and `description` match the parent product EXACTLY.
+    //
+    // The `item_group_id` problem:
+    //   • Products created via our API have item_group_id = their own retailer_id
+    //     (set explicitly in createProduct).
+    //   • Products created in Commerce Manager have a Meta-auto-generated
+    //     item_group_id (e.g. "j7rpi46x21") that does NOT equal the retailer_id.
+    //
+    // We always perform a preflight GET so we use whatever Meta actually stored,
+    // regardless of how the parent was created.
+    this.logger.log(
+      `[CATALOG_MANAGER] Fetching parent product id=${parentMetaProductId} to resolve canonical grouping fields`,
+    );
+
+    // Meta naming asymmetry:
+    //   GET  ?fields=retailer_product_group_id  ← read-side name
+    //   POST { item_group_id: "..." }            ← write-side name (different!)
+    // Requesting `item_group_id` on a GET returns Error 100 "Tried accessing
+    // nonexisting field" — always use `retailer_product_group_id` when reading.
+    const parentMeta = await this.defLogger.request<MetaProductItem>({
+      method: 'GET',
+      url: `${META_GRAPH_V19}/${parentMetaProductId}`,
+      params: { fields: 'retailer_product_group_id,name,description' },
+      headers: { Authorization: `Bearer ${catalogToken}` },
+    });
+
+    const resolvedItemGroupId = parentMeta.retailer_product_group_id ?? dto.itemGroupId;
+    const resolvedName        = parentMeta.name        ?? dto.name;
+    const resolvedDescription = parentMeta.description ?? dto.description;
+
+    if (resolvedItemGroupId !== dto.itemGroupId) {
+      this.logger.warn(
+        `[CATALOG_MANAGER] retailer_product_group_id mismatch for parent id=${parentMetaProductId}: ` +
+        `DTO sent "${dto.itemGroupId}" but Meta has "${resolvedItemGroupId}" — ` +
+        `using Meta's value (parent was likely created in Commerce Manager)`,
+      );
+    }
+
+    const parentRef = await this.findOrCreateProductRef(
+      dto.businessId,
+      parentMetaProductId,
+    );
+
+    // 1. Optimistic Firestore write — uses resolved (canonical) values.
+    // The document ID is the variant's retailer_id (not an auto-generated UUID)
+    // so the document path is deterministic and can be looked up directly on
+    // update/archive without requiring a collectionGroup query.
+    const variantRef = parentRef.collection('variants').doc(dto.retailerId);
+    const now = new Date().toISOString();
+    const firestoreRecord: FirestoreVariantRecord = {
+      retailerId:     dto.retailerId,
+      name:           resolvedName,
+      itemGroupId:    resolvedItemGroupId,
+      catalogId,
+      attributeKey:   dto.attributeKey,
+      attributeValue: dto.attributeValue,
+      price:          dto.price,
+      currency:       dto.currency,
+      availability:   dto.availability,
+      status:         'SYNCING_WITH_META',
+      createdAt:      now,
+      updatedAt:      now,
+    };
+    await this.firebase.set(variantRef, firestoreRecord);
+
+    this.logger.log(
+      `[CATALOG_MANAGER] Creating variant retailerId="${dto.retailerId}" ` +
+      `itemGroupId="${resolvedItemGroupId}" name="${resolvedName}" ` +
+      `in catalogId=${catalogId} (Firestore: SYNCING_WITH_META)`,
+    );
+
+    try {
+      // 2. POST to Meta with canonical values — ensures Meta groups this variant
+      // under the correct product family and does not create an orphan product.
+      const resp = await this.defLogger.request<MetaProductItem>({
+        method: 'POST',
+        url: `${META_GRAPH_V19}/${catalogId}/products`,
+        headers: {
+          Authorization: `Bearer ${catalogToken}`,
+          'Content-Type': 'application/json',
+        },
+        data: {
+          retailer_id:                dto.retailerId,
+          // Meta naming asymmetry: `item_group_id` is the write-side key (POST),
+          // `retailer_product_group_id` is the read-side key (GET).
+          // Both sides must use their respective names — sending `item_group_id`
+          // on a GET or `retailer_product_group_id` on a POST will be silently
+          // ignored by the Graph API, breaking variant grouping.
+          retailer_product_group_id:  resolvedItemGroupId, // POST write-side key
+          name:                       resolvedName,         // exact match to parent
+          description:                resolvedDescription,  // exact match to parent
+          [dto.attributeKey]:         dto.attributeValue,   // differentiator (color/size/…)
+          availability:               dto.availability,
+          condition:                  dto.condition,
+          price:                      dto.price,
+          currency:                   dto.currency,
+          image_url:                  dto.imageUrl,
+          url:                        dto.url,
+        },
+      });
+
+      // 3a. Transition to ACTIVE.
+      // Use set({ merge: true }) instead of update() — if the initial SYNCING write
+      // was silently lost, update() would throw FAILED_PRECONDITION on a missing doc.
+      // Merge semantics: creates the full record if absent, or patches existing fields.
+      const activeVariantPatch = {
+        ...firestoreRecord,
+        metaVariantId: resp.id,
+        status:        'ACTIVE',
+        updatedAt:     new Date().toISOString(),
+      };
+      await this.firebase.set(variantRef, activeVariantPatch, { merge: true });
+
+      // 3b. Post-write verify: read back and repair if the write was silently lost
+      await this.verifyAndRepairFirestoreWrite(
+        variantRef,
+        'ACTIVE',
+        activeVariantPatch,
+        `createVariant retailerId="${dto.retailerId}"`,
+      );
+
+      this.logger.log(
+        `[CATALOG_MANAGER] ✓ Variant created metaVariantId=${resp.id} (Firestore: ACTIVE, verified)`,
+      );
+      return resp;
+    } catch (err: unknown) {
+      // 4. Compensatory rollback — use set({ merge: true }) for the same reason
+      // as the ACTIVE transition: the initial SYNCING write may be missing.
+      const reason = this.describeMetaError(err);
+      await this.firebase.set(
+        variantRef,
+        {
+          ...firestoreRecord,
+          status:        'FAILED_INTEGRATION',
+          failureReason: reason,
+          updatedAt:     new Date().toISOString(),
+        },
+        { merge: true },
+      );
+      this.logger.error(
+        `[CATALOG_MANAGER] ✗ Variant creation failed retailerId="${dto.retailerId}" — ` +
+        `Firestore: FAILED_INTEGRATION | ${reason}`,
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * Updates an existing variant in Meta and syncs the change to Firestore.
+   *
+   * Meta first: if the Graph API call fails, Firestore is not touched.
+   */
+  async updateVariant(
+    variantItemId: string,
+    dto: UpdateVariantDto,
+  ): Promise<MetaProductItem> {
+    const catalogToken = await this.getCatalogToken(dto.businessId);
+    this.logger.log(
+      `[CATALOG_MANAGER] Updating variant id=${variantItemId}`,
+    );
+
+    const metaData: Record<string, unknown> = {};
+    if (dto.name !== undefined)           metaData['name']          = dto.name;
+    if (dto.description !== undefined)    metaData['description']   = dto.description;
+    if (dto.availability !== undefined)   metaData['availability']  = dto.availability;
+    if (dto.condition !== undefined)      metaData['condition']     = dto.condition;
+    if (dto.price !== undefined)          metaData['price']         = dto.price;
+    if (dto.currency !== undefined)       metaData['currency']      = dto.currency;
+    if (dto.imageUrl !== undefined)       metaData['image_url']     = dto.imageUrl;
+    if (dto.url !== undefined)            metaData['url']           = dto.url;
+    if (dto.attributeKey !== undefined && dto.attributeValue !== undefined) {
+      metaData[dto.attributeKey] = dto.attributeValue;
+    }
+
+    // 1. Meta first
+    const resp = await this.defLogger.request<MetaProductItem>({
+      method: 'POST',
+      url: `${META_GRAPH_V19}/${variantItemId}`,
+      headers: {
+        Authorization: `Bearer ${catalogToken}`,
+        'Content-Type': 'application/json',
+      },
+      data: metaData,
+    });
+
+    this.logger.log(
+      `[CATALOG_MANAGER] ✓ Variant updated id=${variantItemId} — syncing Firestore`,
+    );
+
+    // 2. Sync Firestore — fatal: if Firestore fails, surface the error
+    const dbForUpdate = this.firebase.getFirestore();
+    const variantUpdateSnap = await dbForUpdate
+      .collectionGroup('variants')
+      .where('metaVariantId', '==', variantItemId)
+      .limit(1)
+      .get();
+
+    if (!variantUpdateSnap.empty) {
+      const firestoreUpdate: Record<string, unknown> = {
+        status:    'ACTIVE',
+        updatedAt: new Date().toISOString(),
+      };
+      if (dto.name !== undefined)           firestoreUpdate['name']           = dto.name;
+      if (dto.availability !== undefined)   firestoreUpdate['availability']   = dto.availability;
+      if (dto.attributeKey !== undefined)   firestoreUpdate['attributeKey']   = dto.attributeKey;
+      if (dto.attributeValue !== undefined) firestoreUpdate['attributeValue'] = dto.attributeValue;
+
+      await this.firebase.update(variantUpdateSnap.docs[0].ref, firestoreUpdate);
+      this.logger.log(
+        `[CATALOG_MANAGER] ✓ Firestore variants synced for id=${variantItemId}`,
+      );
+    } else {
+      this.logger.error(
+        `[CATALOG_MANAGER] ✗ No variants doc found for metaVariantId=${variantItemId} — ` +
+        `Firestore not updated. Run reconcile to repair.`,
+      );
+    }
+
+    return resp;
+  }
+
+  /**
+   * Soft-deletes a variant: deletes it from Meta, then marks the Firestore
+   * record as ARCHIVED (preserves history, excludes from active UI lists).
+   *
+   * Firestore lookup strategy:
+   *   We scope the query to `parentRef.collection('variants')` rather than
+   *   `db.collectionGroup('variants')` because collectionGroup queries require
+   *   a Firestore composite index that is not auto-created — missing indexes
+   *   throw FAILED_PRECONDITION. A scoped subcollection query only needs the
+   *   default single-field index that Firestore creates automatically.
+   *
+   * The success log is emitted INSIDE the try block so it only fires after
+   * the Firestore promise resolves successfully, never on error paths.
+   */
+  async deleteVariant(
+    businessId: string,
+    parentMetaProductId: string,
+    variantItemId: string,
+  ): Promise<void> {
+    const catalogToken = await this.getCatalogToken(businessId);
+    this.logger.log(
+      `[CATALOG_MANAGER] Deleting variant id=${variantItemId} (parent=${parentMetaProductId})`,
+    );
+
+    // 1. Delete from Meta first
+    await this.defLogger.request<{ success: boolean }>({
+      method: 'DELETE',
+      url: `${META_GRAPH_V19}/${variantItemId}`,
+      headers: { Authorization: `Bearer ${catalogToken}` },
+    });
+
+    // 2. Soft-delete in Firestore — scoped to the parent product's subcollection
+    try {
+      const parentRef = await this.findOrCreateProductRef(
+        businessId,
+        parentMetaProductId,
+      );
+
+      const snap = await parentRef
+        .collection('variants')
+        .where('metaVariantId', '==', variantItemId)
+        .limit(1)
+        .get();
+
+      if (snap.empty) {
+        this.logger.error(
+          `[CATALOG_MANAGER] ✗ Variant metaVariantId=${variantItemId} not found in Firestore ` +
+          `(parent=${parentMetaProductId}) — Meta delete succeeded but Firestore was not updated. ` +
+          `Run reconcile to repair.`,
+        );
+        return;
+      }
+
+      await this.firebase.set(
+        snap.docs[0].ref,
+        { status: 'ARCHIVED', updatedAt: new Date().toISOString() },
+        { merge: true },
+      );
+
+      // Success log is here — only reachable after the Firestore set() resolves
+      this.logger.log(
+        `[CATALOG_MANAGER] ✓ Variant deleted id=${variantItemId} (Firestore: ARCHIVED)`,
+      );
+    } catch (err: unknown) {
+      // Meta delete succeeded — log as ERROR so the inconsistency is clearly visible
+      this.logger.error(
+        `[CATALOG_MANAGER] ✗ Variant id=${variantItemId} deleted from Meta but ` +
+        `ARCHIVED update FAILED: ${(err as Error).message} — run reconcile to repair`,
+      );
+    }
+  }
+
+  // ─── Post-write Verify ────────────────────────────────────────────────────
+
+  /**
+   * Reads a Firestore document back after an `update()` call and verifies the
+   * expected status was actually persisted. If the document is missing or has
+   * a stale status, forces a `.set({ merge: true })` repair write.
+   *
+   * Rationale: The Admin SDK's `update()` is `await`-able and throws on error,
+   * but network partitions or Firestore emulator quirks can cause a write to
+   * return success while the document remains unchanged. This guard detects
+   * silent write failures early and self-heals.
+   */
+  private async verifyAndRepairFirestoreWrite(
+    ref: FirebaseFirestore.DocumentReference,
+    expectedStatus: string,
+    patch: Record<string, unknown>,
+    label: string,
+  ): Promise<void> {
+    const snap = await ref.get();
+
+    if (!snap.exists) {
+      this.logger.error(
+        `[FIRESTORE_VERIFY] ✗ ${label} — document MISSING after write. Forcing repair.`,
+      );
+      await this.firebase.set(
+        ref,
+        { ...patch, repairedAt: new Date().toISOString() },
+        { merge: true },
+      );
+      return;
+    }
+
+    const actual = (snap.data() as Record<string, unknown>)['status'] as string | undefined;
+    if (actual !== expectedStatus) {
+      this.logger.error(
+        `[FIRESTORE_VERIFY] ✗ ${label} — status mismatch ` +
+        `(stored="${actual ?? 'undefined'}" expected="${expectedStatus}"). Forcing repair.`,
+      );
+      await this.firebase.set(
+        ref,
+        { ...patch, repairedAt: new Date().toISOString() },
+        { merge: true },
+      );
+    }
+  }
+
+  // ─── Reconciliation ───────────────────────────────────────────────────────
+
+  /**
+   * Reconciles the local Firestore mirror against Meta's catalog (source of truth).
+   *
+   * Algorithm:
+   *   1. Fetch all active products from Meta Graph API.
+   *   2. Fetch all `catalog_products` docs from Firestore for this businessId.
+   *   3. For every item Meta has that Firestore doesn't → create a Firestore doc (ACTIVE).
+   *   4. For every ACTIVE Firestore item that Meta no longer has → mark DELETED_IN_META.
+   *   5. Log every correction at WARN level for auditability.
+   *
+   * Exposed via POST /catalog-manager/catalogs/:catalogId/reconcile
+   */
+  async reconcileCatalog(
+    businessId: string,
+    catalogId: string,
+  ): Promise<ReconciliationReport> {
+    const catalogToken = await this.getCatalogToken(businessId);
+    const now = new Date().toISOString();
+
+    const report: ReconciliationReport = {
+      checkedAt:        now,
+      businessId,
+      catalogId,
+      totalInMeta:      0,
+      totalInFirestore: 0,
+      addedToFirestore: 0,
+      archivedInFirestore: 0,
+      alreadySynced:    0,
+      corrections:      [],
+    };
+
+    // ── Step 1: Fetch all products from Meta ──────────────────────────────────
+    this.logger.log(
+      `[RECONCILE] Starting reconciliation for catalogId=${catalogId} businessId=${businessId}`,
+    );
+
+    const metaResp = await this.defLogger.request<{ data: MetaProductItem[] }>({
+      method: 'GET',
+      url: `${META_GRAPH_V19}/${catalogId}/products`,
+      params: {
+        // Use `retailer_product_group_id` — the read-side name for item_group_id
+        fields: 'id,name,retailer_id,retailer_product_group_id,availability,price,currency',
+        limit: 200,
+      },
+      headers: { Authorization: `Bearer ${catalogToken}` },
+    });
+
+    const metaProducts = metaResp.data ?? [];
+    report.totalInMeta = metaProducts.length;
+
+    const metaByRetailerId = new Map<string, MetaProductItem>(
+      metaProducts
+        .filter((p) => !!p.retailer_id)
+        .map((p) => [p.retailer_id as string, p]),
+    );
+
+    // ── Step 2: Fetch all Firestore catalog_products docs ────────────────────
+    const db = this.firebase.getFirestore();
+    const firestoreSnap = await db
+      .collection('integrations')
+      .doc(businessId)
+      .collection('catalog_products')
+      .get();
+
+    report.totalInFirestore = firestoreSnap.docs.length;
+
+    const firestoreByRetailerId = new Map<string, FirestoreProductRecord & { docId: string }>(
+      firestoreSnap.docs
+        .filter((d) => !!(d.data() as FirestoreProductRecord).retailerId)
+        .map((d) => [
+          (d.data() as FirestoreProductRecord).retailerId,
+          { ...(d.data() as FirestoreProductRecord), docId: d.id },
+        ]),
+    );
+
+    // ── Step 3: Meta has → Firestore doesn't ────────────────────────────────
+    for (const [retailerId, metaProduct] of metaByRetailerId) {
+      if (firestoreByRetailerId.has(retailerId)) {
+        report.alreadySynced++;
+        continue;
+      }
+
+      const correction: ReconciliationCorrection = {
+        retailerId,
+        action: 'ADDED_TO_FIRESTORE',
+        detail: `Meta id=${metaProduct.id}`,
+      };
+
+      this.logger.warn(
+        `[RECONCILE] retailer_id="${retailerId}" present in Meta but MISSING from Firestore — creating record`,
+      );
+
+      const newRef = db
+        .collection('integrations')
+        .doc(businessId)
+        .collection('catalog_products')
+        .doc();
+
+      // Use read-side field name; fall back to retailerId for legacy products
+      const resolvedGroupId = metaProduct.retailer_product_group_id ?? retailerId;
+
+      await this.firebase.set(newRef, {
+        retailerId,
+        itemGroupId:  resolvedGroupId,
+        name:         metaProduct.name,
+        catalogId,
+        metaProductId: metaProduct.id,
+        availability: metaProduct.availability,
+        price:        metaProduct.price,
+        currency:     metaProduct.currency,
+        status:       'ACTIVE',
+        createdAt:    now,
+        updatedAt:    now,
+      });
+
+      report.addedToFirestore++;
+      report.corrections.push(correction);
+    }
+
+    // ── Step 4: Firestore ACTIVE → Meta doesn't have ─────────────────────────
+    for (const [retailerId, fsRecord] of firestoreByRetailerId) {
+      if (fsRecord.status !== 'ACTIVE') continue; // only flag ACTIVE records
+      if (metaByRetailerId.has(retailerId)) continue;
+
+      const correction: ReconciliationCorrection = {
+        retailerId,
+        action: 'MARKED_DELETED_IN_META',
+        detail: `Firestore docId=${fsRecord.docId}`,
+      };
+
+      this.logger.warn(
+        `[RECONCILE] retailer_id="${retailerId}" is ACTIVE in Firestore but NOT in Meta — marking DELETED_IN_META`,
+      );
+
+      const docRef = db
+        .collection('integrations')
+        .doc(businessId)
+        .collection('catalog_products')
+        .doc(fsRecord.docId);
+
+      await this.firebase.update(docRef, {
+        status:    'DELETED_IN_META',
+        updatedAt: now,
+      });
+
+      report.archivedInFirestore++;
+      report.corrections.push(correction);
+    }
+
+    this.logger.log(
+      `[RECONCILE] ✓ Done — Meta=${report.totalInMeta} Firestore=${report.totalInFirestore} ` +
+      `added=${report.addedToFirestore} archived=${report.archivedInFirestore} ` +
+      `synced=${report.alreadySynced} corrections=${report.corrections.length}`,
+    );
+
+    return report;
   }
 }

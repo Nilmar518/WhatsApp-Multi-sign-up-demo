@@ -11,6 +11,7 @@ import { IntegrationsModule } from './integrations/integrations.module';
 import { RegistrationModule } from './registration/registration.module';
 import { MigrationModule } from './migration/migration.module';
 import { CatalogManagerModule } from './catalog-manager/catalog-manager.module';
+import { AutoReplyModule } from './auto-reply/auto-reply.module';
 
 @Module({
   imports: [
@@ -29,6 +30,8 @@ import { CatalogManagerModule } from './catalog-manager/catalog-manager.module';
     MigrationModule,
     // Catalog ABM — isolated from the Multi Sign-Up demo logic
     CatalogManagerModule,
+    // Rule Engine — keyword-based auto-reply CRUD
+    AutoReplyModule,
   ],
 })
 export class AppModule {}
