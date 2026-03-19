@@ -75,6 +75,13 @@ export interface FirestoreProductRecord {
    */
   itemGroupId?: string;
   name: string;
+  /**
+   * Product image URL sourced from the `image_url` field on Meta's ProductItem object.
+   * Optional — not every product has a configured image in Commerce Manager.
+   * Populated on creation, on update (when the caller supplies a new URL), and
+   * during reconciliation so the local mirror stays in sync with Meta.
+   */
+  imageUrl?: string;
   catalogId: string;
   /** Set to the Meta product item ID once the API call succeeds */
   metaProductId?: string;

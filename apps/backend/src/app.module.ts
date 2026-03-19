@@ -12,6 +12,7 @@ import { RegistrationModule } from './registration/registration.module';
 import { MigrationModule } from './migration/migration.module';
 import { CatalogManagerModule } from './catalog-manager/catalog-manager.module';
 import { AutoReplyModule } from './auto-reply/auto-reply.module';
+import { CartModule } from './cart/cart.module';
 
 @Module({
   imports: [
@@ -32,6 +33,8 @@ import { AutoReplyModule } from './auto-reply/auto-reply.module';
     CatalogManagerModule,
     // Rule Engine — keyword-based auto-reply CRUD
     AutoReplyModule,
+    // Cart ABM — Firestore-backed cart with soft deletes and real-time sync
+    CartModule,
   ],
 })
 export class AppModule {}

@@ -9,6 +9,7 @@ import CatalogView from './components/CatalogView';
 import BusinessToggle from './components/BusinessToggle';
 import ConversationList from './components/ConversationList';
 import DisconnectButton from './components/ResetButton';
+import { CartPanel } from './components/CartPanel';
 
 const BUSINESS_IDS = ['demo-business-001', 'demo-business-002'] as const;
 type BusinessId = (typeof BUSINESS_IDS)[number];
@@ -40,8 +41,8 @@ export default function App() {
   const showDashboard = isActive || status === 'PENDING_TOKEN';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-3xl space-y-6">
+    <div className="min-h-screen bg-gray-50 flex items-start justify-center p-6">
+      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-7xl space-y-6">
         {/* ── Header + Business Toggle ─────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -93,16 +94,42 @@ export default function App() {
           <>
             {isActive && <CatalogView businessId={businessId} catalog={catalog} />}
 
-            {/* Split panel: ConversationList (left) + ChatConsole (right) */}
-            <div
-              className="flex border border-gray-200 rounded-xl overflow-hidden"
-              style={{ minHeight: '22rem' }}
-            >
+            {/*
+              3-column dashboard panel
+              ─────────────────────────────────────────────────────────────────
+              Col 1 (w-72)   Cart Panel     — real-time active cart viewer
+              Col 2 (w-52)   Conversations  — contact list (ConversationList)
+              Col 3 (flex-1) Chat           — message thread (ChatConsole)
+
+              h-[600px] on the wrapper is the single source of truth for row
+              height — all three children use h-full internally so they stretch
+              to fill it uniformly.
+
+              overflow-x-auto lets the row scroll sideways on narrow viewports
+              rather than breaking the layout.
+            */}
+            <div className="flex border border-gray-200 rounded-xl overflow-hidden h-[600px] overflow-x-auto">
+
+              {/* ── Col 1: Cart Panel ──────────────────────────────────────── */}
+              <div className="w-72 shrink-0 border-r border-gray-200 flex flex-col">
+                <CartPanel
+                  businessId={businessId}
+                  contactWaId={activeContact}
+                />
+              </div>
+
+              {/* ── Col 2: Conversation List ───────────────────────────────── */}
+              {/*
+                ConversationList already declares w-52 shrink-0 and
+                border-r border-gray-100 internally — no wrapper needed.
+              */}
               <ConversationList
                 contacts={conversations}
                 activeContact={activeContact}
                 onSelect={setActiveContact}
               />
+
+              {/* ── Col 3: Chat Window ─────────────────────────────────────── */}
               <div className="flex-1 min-w-0 p-4 flex flex-col">
                 <ChatConsole
                   businessId={businessId}

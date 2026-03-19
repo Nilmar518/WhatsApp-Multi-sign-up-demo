@@ -21,6 +21,9 @@ interface MetaProduct {
   availability?: string;
   price?: string;
   currency?: string;
+  /** Product image URL as returned by the Meta Graph API v25.0 ProductItem object.
+   *  Optional — Meta omits the field entirely for products without a configured image. */
+  image_url?: string;
 }
 
 export interface CatalogData {
@@ -118,7 +121,7 @@ export class CatalogService {
       {
         method: 'GET',
         url: `https://graph.facebook.com/v25.0/${firstCatalog.id}/products`,
-        params: { fields: 'id,name,retailer_id,availability,price,currency' },
+        params: { fields: 'id,name,retailer_id,availability,price,currency,image_url' },
         headers: { Authorization: `Bearer ${systemToken}` },
       },
     );

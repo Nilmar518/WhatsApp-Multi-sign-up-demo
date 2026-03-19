@@ -732,6 +732,9 @@ export class CatalogManagerService {
       retailerId:  dto.retailerId,
       itemGroupId, // persisted so the reconciler and variant queries can use it
       name:        dto.name,
+      // imageUrl is omitted entirely when undefined — Firestore Admin SDK skips
+      // undefined fields, keeping the document clean for products without images.
+      ...(dto.imageUrl ? { imageUrl: dto.imageUrl } : {}),
       catalogId,
       status:      'SYNCING_WITH_META',
       createdAt:   now,
@@ -849,8 +852,13 @@ export class CatalogManagerService {
         status: 'ACTIVE',
         updatedAt: new Date().toISOString(),
       };
-      if (dto.name !== undefined) firestoreUpdate['name'] = dto.name;
+      if (dto.name !== undefined)         firestoreUpdate['name']         = dto.name;
       if (dto.availability !== undefined) firestoreUpdate['availability'] = dto.availability;
+      // imageUrl: mirror the update to Firestore so the local record stays in
+      // sync with what was just written to Meta. An explicit undefined check is
+      // used (not a truthiness check) so that callers can deliberately clear the
+      // field by passing imageUrl: '' — matching the same guard used for metaData.
+      if (dto.imageUrl !== undefined)     firestoreUpdate['imageUrl']     = dto.imageUrl;
 
       await this.firebase.update(snap.docs[0].ref, firestoreUpdate);
       this.logger.log(
@@ -1376,8 +1384,10 @@ export class CatalogManagerService {
       method: 'GET',
       url: `${META_GRAPH_V19}/${catalogId}/products`,
       params: {
-        // Use `retailer_product_group_id` — the read-side name for item_group_id
-        fields: 'id,name,retailer_id,retailer_product_group_id,availability,price,currency',
+        // Use `retailer_product_group_id` — the read-side name for item_group_id.
+        // `image_url` is included so the Firestore mirror stays in sync with Meta's
+        // current product images without requiring a separate enrichment request.
+        fields: 'id,name,retailer_id,retailer_product_group_id,availability,price,currency,image_url',
         limit: 200,
       },
       headers: { Authorization: `Bearer ${catalogToken}` },
@@ -1439,16 +1449,20 @@ export class CatalogManagerService {
 
       await this.firebase.set(newRef, {
         retailerId,
-        itemGroupId:  resolvedGroupId,
-        name:         metaProduct.name,
+        itemGroupId:   resolvedGroupId,
+        name:          metaProduct.name,
+        // Spread imageUrl only when Meta provides a non-empty value.
+        // Products without a configured image are simply stored without the field
+        // rather than with imageUrl: undefined, keeping Firestore documents clean.
+        ...(metaProduct.image_url ? { imageUrl: metaProduct.image_url } : {}),
         catalogId,
         metaProductId: metaProduct.id,
-        availability: metaProduct.availability,
-        price:        metaProduct.price,
-        currency:     metaProduct.currency,
-        status:       'ACTIVE',
-        createdAt:    now,
-        updatedAt:    now,
+        availability:  metaProduct.availability,
+        price:         metaProduct.price,
+        currency:      metaProduct.currency,
+        status:        'ACTIVE',
+        createdAt:     now,
+        updatedAt:     now,
       });
 
       report.addedToFirestore++;

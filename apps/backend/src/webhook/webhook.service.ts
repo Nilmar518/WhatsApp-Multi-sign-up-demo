@@ -4,6 +4,12 @@ import { DefensiveLoggerService } from '../common/logger/defensive-logger.servic
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import type { AutoReply } from '../auto-reply/auto-reply.types';
 import { MatchType } from '../auto-reply/auto-reply.types';
+import { CartService } from '../cart/cart.service';
+import type { IncomingOrderItem } from '../cart/cart.types';
+import {
+  sendWhatsAppText,
+  sendWhatsAppInteractive,
+} from '../common/utils/send-whatsapp-text';
 
 // ─── Meta Webhook payload types ──────────────────────────────────────────────
 
@@ -60,6 +66,36 @@ interface MetaInboundMessage {
   timestamp: string;
   type: string;
   text?: { body: string };
+  /** Present when type === 'order' (native WhatsApp Cart) */
+  order?: {
+    catalog_id: string;
+    text?: string;
+    product_items: Array<{
+      product_retailer_id: string;
+      quantity: number;
+      item_price: number;
+      currency: string;
+    }>;
+  };
+  /**
+   * Present when type === 'interactive' — the customer tapped a button or
+   * selected a list item in one of our interactive messages.
+   */
+  interactive?: {
+    /** Discriminates button replies from list replies */
+    type: 'button_reply' | 'list_reply' | string;
+    /** Populated for button messages (our cart action buttons) */
+    button_reply?: {
+      /** The id we set when building the button — e.g. "CMD_VIEW_MPM" */
+      id: string;
+      title: string;
+    };
+    list_reply?: {
+      id: string;
+      title: string;
+      description?: string;
+    };
+  };
 }
 
 // ─── Internal parsed shape ───────────────────────────────────────────────────
@@ -67,9 +103,15 @@ interface MetaInboundMessage {
 interface ParsedInboundMessage {
   waMessageId: string;
   from: string;
+  /** 'text' | 'order' | 'interactive' — controls routing in evaluateAndRespond */
+  type: string;
   text: string;
   timestamp: string;
   phoneNumberId: string;
+  /** Populated when type === 'order' */
+  orderItems?: IncomingOrderItem[];
+  /** Populated when type === 'interactive' — the button id the customer tapped */
+  buttonReplyId?: string;
 }
 
 // ─── Integration context returned after persistence ──────────────────────────
@@ -98,6 +140,7 @@ export class WebhookService {
     private readonly firebase: FirebaseService,
     private readonly defLogger: DefensiveLoggerService,
     private readonly secrets: SecretManagerService,
+    private readonly cartService: CartService,
   ) {}
 
   /**
@@ -247,21 +290,55 @@ export class WebhookService {
         const phoneNumberId = value?.metadata?.phone_number_id ?? '';
 
         for (const msg of value?.messages ?? []) {
-          if (msg.type !== 'text' || !msg.text?.body) {
-            this.logger.warn(
-              `[WEBHOOK_SKIP] Unsupported message type="${msg.type}" from=${msg.from} — only "text" is handled`,
-            );
-            continue;
-          }
+          // Meta timestamps are Unix seconds — convert to ISO
+          const ts = new Date(parseInt(msg.timestamp, 10) * 1000).toISOString();
 
-          results.push({
-            waMessageId: msg.id,
-            from: msg.from,
-            text: msg.text.body,
-            // Meta timestamps are Unix seconds — convert to ISO
-            timestamp: new Date(parseInt(msg.timestamp, 10) * 1000).toISOString(),
-            phoneNumberId,
-          });
+          if (msg.type === 'text' && msg.text?.body) {
+            results.push({
+              waMessageId: msg.id,
+              from: msg.from,
+              type: 'text',
+              text: msg.text.body,
+              timestamp: ts,
+              phoneNumberId,
+            });
+          } else if (msg.type === 'order' && msg.order?.product_items?.length) {
+            // Native WhatsApp Cart — route to CartService in evaluateAndRespond
+            results.push({
+              waMessageId: msg.id,
+              from: msg.from,
+              type: 'order',
+              text: `[Carrito: ${msg.order.product_items.length} producto(s)]`,
+              timestamp: ts,
+              phoneNumberId,
+              orderItems: msg.order.product_items.map((item) => ({
+                productRetailerId: item.product_retailer_id,
+                quantity: item.quantity,
+                itemPrice: item.item_price,
+                currency: item.currency,
+              })),
+            });
+          } else if (
+            msg.type === 'interactive' &&
+            msg.interactive?.type === 'button_reply' &&
+            msg.interactive.button_reply?.id
+          ) {
+            // Button-reply from one of our interactive messages (CMD_VIEW_MPM, CMD_PAY_CART, …)
+            results.push({
+              waMessageId:   msg.id,
+              from:          msg.from,
+              type:          'interactive',
+              // Human-readable label stored in Firestore for the chat timeline
+              text:          `[Button: ${msg.interactive.button_reply.title ?? msg.interactive.button_reply.id}]`,
+              timestamp:     ts,
+              phoneNumberId,
+              buttonReplyId: msg.interactive.button_reply.id,
+            });
+          } else {
+            this.logger.warn(
+              `[WEBHOOK_SKIP] Unsupported message type="${msg.type}" from=${msg.from} — skipping`,
+            );
+          }
         }
       }
     }
@@ -383,6 +460,115 @@ export class WebhookService {
   ): Promise<void> {
     const { businessId, docRef, accessToken, phoneNumberId, catalog } = context;
 
+    // ── Handle interactive button replies (CMD_VIEW_MPM, CMD_PAY_CART, …) ──────
+    // Routed first — these come from our own interactive messages and are
+    // entirely distinct from text commands or native cart orders.
+    if (msg.type === 'interactive' && msg.buttonReplyId) {
+      try {
+        await this.handleInteractiveReply(msg, context);
+      } catch (err: unknown) {
+        this.logger.error(
+          `[INTERACTIVE] ✗ handleInteractiveReply failed for id="${msg.buttonReplyId}": ` +
+          `${(err as Error).message}`,
+        );
+      }
+      return;
+    }
+
+    // ── Handle native WhatsApp Cart (type === 'order') ────────────────────────
+    // Sync the customer's cart to Firestore and skip the keyword rule engine.
+    if (msg.type === 'order' && msg.orderItems?.length) {
+      try {
+        await this.cartService.syncFromNativeOrder(
+          businessId,
+          msg.from,
+          msg.orderItems,
+          msg.waMessageId,
+        );
+        this.logger.log(
+          `[CART_ENGINE] ✓ Native order synced — businessId=${businessId} from=${msg.from} items=${msg.orderItems.length}`,
+        );
+      } catch (err: unknown) {
+        this.logger.error(
+          `[CART_ENGINE] ✗ syncFromNativeOrder failed: ${(err as Error).message}`,
+        );
+      }
+      return; // Do not run keyword rule engine for cart messages
+    }
+
+    // ── Handle cart text commands ─────────────────────────────────────────────
+    // Check before the keyword rule engine so "borrar carrito" doesn't
+    // accidentally trigger an unrelated keyword rule.
+    let cartResult: Awaited<ReturnType<CartService['tryHandleTextCommand']>> = null;
+    try {
+      cartResult = await this.cartService.tryHandleTextCommand(
+        businessId,
+        msg.from,
+        msg.text,
+      );
+    } catch (err: unknown) {
+      this.logger.error(
+        `[CART_ENGINE] ✗ tryHandleTextCommand failed: ${(err as Error).message}`,
+      );
+    }
+
+    if (cartResult) {
+      this.logger.log(
+        `[CART_ENGINE] ✓ Cart command "${cartResult.action}" — businessId=${businessId} from=${msg.from}`,
+      );
+
+      // Send WhatsApp reply with the cart command result.
+      // view_cart with items → interactive button message.
+      // All other actions  → plain text message.
+      if (accessToken && phoneNumberId) {
+        const systemToken = this.secrets.get('META_SYSTEM_USER_TOKEN') ?? accessToken;
+        try {
+          let wamid: string;
+
+          if (cartResult.interactivePayload) {
+            // ── Interactive button message (VIEW CART — populated) ───────────
+            ({ wamid } = await sendWhatsAppInteractive({
+              phoneNumberId,
+              recipientWaId: msg.from,
+              interactive:   cartResult.interactivePayload,
+              accessToken:   systemToken,
+            }));
+          } else {
+            // ── Plain text (ADD, SUBTRACT, CLEAR, VIEW empty) ────────────────
+            ({ wamid } = await sendWhatsAppText({
+              phoneNumberId,
+              recipientWaId: msg.from,
+              text:          cartResult.responseText,
+              accessToken:   systemToken,
+            }));
+          }
+
+          // Persist to Firestore regardless of message type.
+          // responseText is used as the chat-timeline label in both cases.
+          await docRef.collection('messages').doc(wamid).set({
+            id:        wamid,
+            direction: 'outbound',
+            from:      phoneNumberId,
+            to:        msg.from,
+            text:      cartResult.responseText,
+            timestamp: new Date().toISOString(),
+          });
+          await this.firebase.update(docRef, { updatedAt: new Date().toISOString() });
+
+          this.logger.log(
+            `[CART_ENGINE] ✓ Cart reply sent — wamid=${wamid} to=${msg.from} ` +
+            `action=${cartResult.action} type=${cartResult.interactivePayload ? 'interactive' : 'text'}`,
+          );
+        } catch (err: unknown) {
+          this.logger.error(
+            `[CART_ENGINE] ✗ Failed to send cart reply: ${(err as Error).message}`,
+          );
+        }
+      }
+      return; // Do not run keyword rule engine for cart commands
+    }
+
+    // ── Keyword auto-reply rule engine (existing logic, unchanged) ─────────────
     // Fetch active rules from subcollection
     const rulesSnap = await docRef
       .collection('auto_replies')
@@ -719,5 +905,285 @@ export class WebhookService {
         `[CATALOG_POLICY] ✗ Failed to update Firestore for retailer_id=${retailer_id}: ${(err as Error).message}`,
       );
     }
+  }
+
+  // ── Interactive button-reply router ────────────────────────────────────────
+
+  /**
+   * Dispatches an interactive button_reply to the correct handler based on
+   * the button id set when the interactive message was originally sent.
+   *
+   * Recognised ids:
+   *   CMD_VIEW_MPM  → send a product_list interactive showing the cart items
+   *   CMD_PAY_CART  → send an order_details interactive for payment
+   *
+   * Unknown ids are logged at WARN and silently dropped so unknown future
+   * button ids do not cause unhandled errors in production.
+   */
+  private async handleInteractiveReply(
+    msg: ParsedInboundMessage,
+    context: IntegrationContext,
+  ): Promise<void> {
+    const { buttonReplyId, from: contactWaId } = msg;
+    const { businessId } = context;
+
+    this.logger.log(
+      `[INTERACTIVE] Button reply received — id="${buttonReplyId}" from=${contactWaId}`,
+    );
+
+    switch (buttonReplyId) {
+      case 'CMD_VIEW_MPM':
+        await this.sendProductListFromCart(contactWaId, businessId, context);
+        break;
+
+      case 'CMD_PAY_CART':
+        await this.sendPaymentReceiptFromCart(contactWaId, businessId, context);
+        break;
+
+      default:
+        this.logger.warn(
+          `[INTERACTIVE] Unrecognised button id="${buttonReplyId}" — no handler registered`,
+        );
+    }
+  }
+
+  // ── CMD_VIEW_MPM — product_list interactive ────────────────────────────────
+
+  /**
+   * Sends a WhatsApp `product_list` interactive message containing every
+   * item currently in the customer's active cart.
+   *
+   * Meta payload structure (v25.0):
+   * ```json
+   * {
+   *   "type": "interactive",
+   *   "interactive": {
+   *     "type": "product_list",
+   *     "header": { "type": "text", "text": "Tu Carrito" },
+   *     "body":   { "text": "Aquí tienes los ítems que agregaste:" },
+   *     "action": {
+   *       "catalog_id": "<catalogId>",
+   *       "sections": [{
+   *         "title": "Artículos en tu carrito",
+   *         "product_items": [
+   *           { "product_retailer_id": "sku-001" },
+   *           { "product_retailer_id": "sku-002" }
+   *         ]
+   *       }]
+   *     }
+   *   }
+   * }
+   * ```
+   *
+   * Falls back to a plain-text reply if the cart is empty or no catalog
+   * is linked to the integration.
+   */
+  private async sendProductListFromCart(
+    contactWaId: string,
+    businessId: string,
+    context: IntegrationContext,
+  ): Promise<void> {
+    const { docRef, accessToken, phoneNumberId, catalog } = context;
+    const systemToken = this.secrets.get('META_SYSTEM_USER_TOKEN') ?? accessToken;
+
+    // ── Guard: catalog must be linked ────────────────────────────────────────
+    if (!catalog?.catalogId) {
+      this.logger.warn(
+        `[INTERACTIVE][MPM] No catalog linked for businessId=${businessId} — cannot send product_list`,
+      );
+      return;
+    }
+
+    // ── Fetch active cart ─────────────────────────────────────────────────────
+    const cart = await this.cartService.getActiveCart(businessId, contactWaId);
+
+    if (!cart || cart.items.length === 0) {
+      // Send a plain-text fallback rather than an empty product_list
+      await sendWhatsAppText({
+        phoneNumberId,
+        recipientWaId: contactWaId,
+        text:          '🛒 Tu carrito está vacío. Usá *"agregar [código]"* para añadir productos.',
+        accessToken:   systemToken,
+      });
+      return;
+    }
+
+    // ── Build the product_list payload ────────────────────────────────────────
+    const productItems = cart.items.map((item) => ({
+      product_retailer_id: item.productRetailerId,
+    }));
+
+    const interactivePayload = {
+      type:   'product_list',
+      header: { type: 'text', text: 'Tu Carrito' },
+      body:   { text: 'Aquí tienes los ítems que agregaste:' },
+      action: {
+        catalog_id: catalog.catalogId,
+        sections: [
+          {
+            title:         'Artículos en tu carrito',
+            product_items: productItems,
+          },
+        ],
+      },
+    };
+
+    // ── Send to Meta ──────────────────────────────────────────────────────────
+    const response = await this.defLogger.request<{ messages: { id: string }[] }>({
+      method: 'POST',
+      url:    `${META_GRAPH_V25}/${phoneNumberId}/messages`,
+      headers: { Authorization: `Bearer ${systemToken}` },
+      data: {
+        messaging_product: 'whatsapp',
+        recipient_type:    'individual',
+        to:                contactWaId,
+        type:              'interactive',
+        interactive:       interactivePayload,
+      },
+    });
+
+    const wamid = response.messages?.[0]?.id ?? 'unknown';
+
+    // ── Persist to Firestore for chat timeline ────────────────────────────────
+    await docRef.collection('messages').doc(wamid).set({
+      id:        wamid,
+      direction: 'outbound',
+      from:      phoneNumberId,
+      to:        contactWaId,
+      text:      `[Catálogo: ${cart.items.length} producto(s)]`,
+      timestamp: new Date().toISOString(),
+    });
+    await this.firebase.update(docRef, { updatedAt: new Date().toISOString() });
+
+    this.logger.log(
+      `[INTERACTIVE][MPM] ✓ product_list sent — wamid=${wamid} items=${cart.items.length} to=${contactWaId}`,
+    );
+  }
+
+  // ── CMD_PAY_CART — formatted text receipt ─────────────────────────────────
+
+  /**
+   * Sends a plain-text payment receipt to the customer and locks the cart.
+   *
+   * Replaces the native `order_details` interactive message which is
+   * geo-restricted to markets where WhatsApp Pay is available (error #131009
+   * when used with BOB/Bolivianos).
+   *
+   * Flow:
+   *   1. Fetch the active cart from Firestore.
+   *   2. Build a formatted receipt string with per-item subtotals + grand total.
+   *   3. Send as a standard `type:'text'` message via sendWhatsAppText().
+   *   4. Lock the cart by setting status = 'pending_payment' so further
+   *      add/remove commands cannot modify it while payment is in progress.
+   *   5. Persist the receipt text to the Firestore chat timeline.
+   *
+   * Receipt format (WhatsApp markdown rendered on-device):
+   *
+   *   🧾 *DETALLE DE TU PEDIDO* 🧾
+   *   ━━━━━━━━━━━━━━━━━━━
+   *
+   *   🛍️ *2x Playera azul*
+   *   ↳ Precio: Bs. 100
+   *   ↳ Subtotal: Bs. 200
+   *
+   *   ━━━━━━━━━━━━━━━━━━━
+   *   💳 *TOTAL A PAGAR: Bs. 200*
+   *
+   *   Para completar tu compra, por favor ingresa al siguiente enlace:
+   *   👉 https://wa.me/59169775986?text=Hola,...
+   */
+  private async sendPaymentReceiptFromCart(
+    contactWaId: string,
+    businessId: string,
+    context: IntegrationContext,
+  ): Promise<void> {
+    const { docRef, accessToken, phoneNumberId } = context;
+    const systemToken = this.secrets.get('META_SYSTEM_USER_TOKEN') ?? accessToken;
+
+    // ── Fetch active cart ─────────────────────────────────────────────────────
+    const cart = await this.cartService.getActiveCart(businessId, contactWaId);
+
+    if (!cart || cart.items.length === 0) {
+      await sendWhatsAppText({
+        phoneNumberId,
+        recipientWaId: contactWaId,
+        text:          '🛒 Tu carrito está vacío. No hay nada que pagar.',
+        accessToken:   systemToken,
+      });
+      return;
+    }
+
+    // ── Price formatter ───────────────────────────────────────────────────────
+    // unitPrice is stored as a direct major-unit value (e.g. 68, not 6800).
+    // No division needed. Whole numbers are shown without decimals ("Bs. 68"),
+    // fractional values with two decimal places ("Bs. 68.50").
+    const fmt = (amount: number): string =>
+      `Bs. ${Number.isInteger(amount) ? amount : amount.toFixed(2)}`;
+
+    // ── Build receipt lines ───────────────────────────────────────────────────
+    const SEPARATOR  = '━'.repeat(19);
+    const PAYMENT_URL =
+      `https://wa.me/59169775986?text=Hola,%20quiero%20pagar%20el%20pedido%20` +
+      encodeURIComponent(cart.id);
+
+    const lines: string[] = [
+      `🧾 *DETALLE DE TU PEDIDO* 🧾`,
+      SEPARATOR,
+      '',
+    ];
+
+    let grandTotal = 0;
+
+    for (const item of cart.items) {
+      const subtotal = item.unitPrice * item.quantity;
+      grandTotal    += subtotal;
+
+      lines.push(`🛍️ *${item.quantity}x ${item.name}*`);
+      lines.push(`↳ Precio: ${fmt(item.unitPrice)}`);
+      lines.push(`↳ Subtotal: ${fmt(subtotal)}`);
+      lines.push('');
+    }
+
+    lines.push(SEPARATOR);
+    lines.push(`💳 *TOTAL A PAGAR: ${fmt(grandTotal)}*`);
+    lines.push('');
+    lines.push('Para completar tu compra, por favor ingresa al siguiente enlace:');
+    lines.push(`👉 ${PAYMENT_URL}`);
+
+    const receiptText = lines.join('\n');
+
+    // ── Send receipt as plain text ────────────────────────────────────────────
+    const { wamid } = await sendWhatsAppText({
+      phoneNumberId,
+      recipientWaId: contactWaId,
+      text:          receiptText,
+      accessToken:   systemToken,
+    });
+
+    // ── Lock cart — status → 'pending_payment' ────────────────────────────────
+    // Prevents the customer from modifying the cart while payment is pending.
+    // The cart is NOT archived yet; it will be transitioned to 'checked_out'
+    // once payment is confirmed, or back to 'active' if it is cancelled.
+    const cartRef = docRef.collection('carts').doc(cart.id);
+    await this.firebase.update(cartRef, {
+      status:    'pending_payment',
+      updatedAt: new Date().toISOString(),
+    });
+
+    // ── Persist receipt to Firestore chat timeline ────────────────────────────
+    await docRef.collection('messages').doc(wamid).set({
+      id:        wamid,
+      direction: 'outbound',
+      from:      phoneNumberId,
+      to:        contactWaId,
+      text:      receiptText,
+      timestamp: new Date().toISOString(),
+    });
+    await this.firebase.update(docRef, { updatedAt: new Date().toISOString() });
+
+    this.logger.log(
+      `[INTERACTIVE][PAY] ✓ Receipt sent — wamid=${wamid} ` +
+      `total=${fmt(grandTotal)} items=${cart.items.length} cartId=${cart.id} to=${contactWaId}`,
+    );
   }
 }
