@@ -10,6 +10,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { RequestCodeDto } from './dto/request-code.dto';
 import { VerifyCodeDto } from './dto/verify-code.dto';
 import { RegisterPhoneDto } from './dto/register-phone.dto';
+import { META_API } from '../integrations/meta/meta-api-versions';
 
 type MigrationStep = 'request_code' | 'verify_code' | 'register';
 
@@ -128,7 +129,7 @@ export class RegistrationService {
     try {
       const result = await this.defLogger.request<RequestCodeResponse>({
         method: 'POST',
-        url: `https://graph.facebook.com/v19.0/${phoneNumberId}/request_code`,
+        url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/${phoneNumberId}/request_code`,
         headers: { Authorization: `Bearer ${token}` },
         data: { code_method: codeMethod, language: 'en_US' },
       });
@@ -184,7 +185,7 @@ export class RegistrationService {
     try {
       const result = await this.defLogger.request<VerifyCodeResponse>({
         method: 'POST',
-        url: `https://graph.facebook.com/v19.0/${phoneNumberId}/verify_code`,
+        url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/${phoneNumberId}/verify_code`,
         headers: { Authorization: `Bearer ${token}` },
         data: { code },
       });
@@ -248,7 +249,7 @@ export class RegistrationService {
       // ── 3a: Register the phone number ──────────────────────────────────────
       const registerResult = await this.defLogger.request<RegisterResponse>({
         method: 'POST',
-        url: `https://graph.facebook.com/v19.0/${phoneNumberId}/register`,
+        url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/${phoneNumberId}/register`,
         headers: { Authorization: `Bearer ${token}` },
         data: { messaging_product: 'whatsapp', pin },
       });
@@ -268,7 +269,7 @@ export class RegistrationService {
       try {
         await this.defLogger.request<SubscribedAppsResponse>({
           method: 'POST',
-          url: `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`,
+          url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/${wabaId}/subscribed_apps`,
           headers: { Authorization: `Bearer ${token}` },
         });
         this.logger.log(

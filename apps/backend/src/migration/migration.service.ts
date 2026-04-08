@@ -6,18 +6,20 @@ import {
 } from '@nestjs/common';
 import { DefensiveLoggerService } from '../common/logger/defensive-logger.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
+import { buildMetaTokenSecret } from '../common/secrets/get-meta-token';
 import { FirebaseService } from '../firebase/firebase.service';
 import { StartMigrationDto } from './dto/start-migration.dto';
 import { ProvisionPhoneDto } from './dto/provision-phone.dto';
 import { MigrationRequestCodeDto } from './dto/migration-request-code.dto';
 import { MigrationVerifyCodeDto } from './dto/migration-verify-code.dto';
 import { MigrationCompleteDto } from './dto/migration-complete.dto';
+import { META_API } from '../integrations/meta/meta-api-versions';
 
 /** Transient status that locks the businessId slot during an active migration. */
 export const MIGRATING_STATUS = 'MIGRATING';
 
 /** All v25.0 — isolated from the v19.0 calls in auth.service.ts */
-const GRAPH_VERSION = 'v25.0';
+const GRAPH_VERSION = META_API.WABA_ADMIN;
 
 interface PhoneNumberProvisionResponse {
   id: string;
@@ -333,14 +335,19 @@ export class MigrationService {
         }
       }
 
-      // 3c: Write ACTIVE — schema identical to auth.service.ts ACTIVE write
+      // 3c: Store token securely, then write ACTIVE to Firestore.
+      // accessToken is NOT written to Firestore — stored in SecretManagerService.
+      this.secrets.set(
+        `META_TOKEN__${businessId}`,
+        buildMetaTokenSecret(token, 'SYSTEM_USER'),
+      );
+
       const activePayload = {
         businessId,
         status: 'ACTIVE',
         metaData: {
           wabaId,
           phoneNumberId,
-          accessToken: token,   // System User permanent token
           tokenType: 'SYSTEM_USER',
         },
         updatedAt: new Date().toISOString(),
@@ -360,6 +367,11 @@ export class MigrationService {
         this.logger.log(
           `[MIGRATION] ✓ phoneNumberId=${phoneNumberId} already registered — writing ACTIVE`,
         );
+        // Store token securely even on the idempotent path.
+        this.secrets.set(
+          `META_TOKEN__${businessId}`,
+          buildMetaTokenSecret(token, 'SYSTEM_USER'),
+        );
         await this.firebase
           .set(
             docRef,
@@ -369,7 +381,6 @@ export class MigrationService {
               metaData: {
                 wabaId,
                 phoneNumberId,
-                accessToken: token,
                 tokenType: 'SYSTEM_USER',
               },
               updatedAt: new Date().toISOString(),

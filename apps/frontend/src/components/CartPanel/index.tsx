@@ -6,21 +6,21 @@
  * imports — those live exclusively in their respective layers.
  *
  * Usage:
- *   <CartPanel businessId="demo-business-001" contactWaId={activeContact?.waId ?? null} />
+ *   <CartPanel integrationId={integrationId} contactWaId={activeContact?.waId ?? null} />
  */
 import React from 'react';
 import { useActiveCart } from '../../hooks/useActiveCart';
 import { CartViewer } from './CartViewer';
 
 interface CartPanelProps {
-  businessId: string;
+  integrationId: string | null;
   /** wa_id of the currently selected conversation contact, or null */
   contactWaId: string | null;
 }
 
-export function CartPanel({ businessId, contactWaId }: CartPanelProps) {
+export function CartPanel({ integrationId, contactWaId }: CartPanelProps) {
   const { cart, isLoading, isArchiving, archiveCart } = useActiveCart(
-    businessId,
+    integrationId,
     contactWaId,
   );
 

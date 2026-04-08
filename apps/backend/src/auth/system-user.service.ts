@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DefensiveLoggerService } from '../common/logger/defensive-logger.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
+import { buildMetaTokenSecret } from '../common/secrets/get-meta-token';
 import { FirebaseService } from '../firebase/firebase.service';
+import { META_API } from '../integrations/meta/meta-api-versions';
 
 interface SystemUserTokenResponse {
   access_token: string;
@@ -48,7 +50,7 @@ export class SystemUserService {
     try {
       const response = await this.defLogger.request<SystemUserTokenResponse>({
         method: 'POST',
-        url: `https://graph.facebook.com/v19.0/${metaBusinessId}/system_user_access_tokens`,
+        url: `${META_API.base(META_API.WABA_ADMIN)}/${metaBusinessId}/system_user_access_tokens`,
         headers: { Authorization: `Bearer ${longLivedToken}` },
         data: {
           system_user_id: systemUserId,
@@ -58,11 +60,18 @@ export class SystemUserService {
       });
 
       const permanentToken = response.access_token;
+
+      // Token stored in SecretManagerService — overwrites the LONG_LIVED entry
+      // written by AuthService. accessToken is never written to Firestore.
+      this.secrets.set(
+        `META_TOKEN__${businessId}`,
+        buildMetaTokenSecret(permanentToken, 'SYSTEM_USER'),
+      );
+
+      // Only non-sensitive metadata is persisted to Firestore.
       const db = this.firebase.getFirestore();
       const docRef = db.collection('integrations').doc(businessId);
-
       await this.firebase.update(docRef, {
-        'metaData.accessToken': permanentToken,
         'metaData.tokenType': 'SYSTEM_USER',
         updatedAt: new Date().toISOString(),
       });

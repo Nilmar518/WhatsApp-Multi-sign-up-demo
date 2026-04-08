@@ -7,6 +7,7 @@ import {
 import { DefensiveLoggerService } from '../common/logger/defensive-logger.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
+import { getMetaToken } from '../common/secrets/get-meta-token';
 import { CreateCatalogDto } from './dto/create-catalog.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -22,15 +23,16 @@ import type {
   ReconciliationReport,
   ReconciliationCorrection,
 } from './catalog-manager.types';
+import { META_API } from '../integrations/meta/meta-api-versions';
 
 /**
  * Graph API base URLs.
  *
- * v19.0 — all catalog/product CRUD (stable endpoints).
- * v25.0 — WABA owner discovery and Commerce Account operations (as required).
+ * v19.0 -> PHONE_CATALOG — all catalog/product CRUD (stable endpoints).
+ * v25.0 -> WABA_ADMIN — WABA owner discovery and Commerce Account operations.
  */
-const META_GRAPH_V19 = 'https://graph.facebook.com/v19.0';
-const META_GRAPH_V25 = 'https://graph.facebook.com/v25.0';
+const META_GRAPH_V19 = META_API.base(META_API.PHONE_CATALOG);
+const META_GRAPH_V25 = META_API.base(META_API.WABA_ADMIN);
 
 const REQUIRED_SCOPES = [
   'business_management',
@@ -43,8 +45,8 @@ interface WabaOwnerResponse {
   owner_business_info?: { id: string; name?: string } | null;
 }
 
-interface IntegrationCredentials {
-  accessToken: string;
+/** Non-sensitive integration identifiers stored in Firestore. */
+interface IntegrationIdentifiers {
   wabaId: string;
   phoneNumberId: string;
 }
@@ -62,12 +64,15 @@ export class CatalogManagerService {
   // ─── Private helpers ──────────────────────────────────────────────────────
 
   /**
-   * Reads the Firestore integration document and returns all credentials
-   * needed for Meta API calls (accessToken, wabaId, phoneNumberId).
+   * Reads the Firestore integration document and returns the non-sensitive
+   * identifiers needed for Meta API calls (wabaId, phoneNumberId).
+   *
+   * The access token is NOT stored in Firestore — callers must obtain it
+   * via getCatalogToken() which reads from SecretManagerService.
    */
-  private async getIntegrationCredentials(
+  private async getIntegrationIdentifiers(
     businessId: string,
-  ): Promise<IntegrationCredentials> {
+  ): Promise<IntegrationIdentifiers> {
     const db = this.firebase.getFirestore();
     const snap = await db.collection('integrations').doc(businessId).get();
 
@@ -78,19 +83,11 @@ export class CatalogManagerService {
     }
 
     const metaData = (snap.data()?.metaData ?? {}) as {
-      accessToken?: string;
       wabaId?: string;
       phoneNumberId?: string;
     };
 
-    if (!metaData.accessToken) {
-      throw new BadRequestException(
-        'Integration is not active. Connect via the main app before managing catalogs.',
-      );
-    }
-
     return {
-      accessToken: metaData.accessToken,
       wabaId: metaData.wabaId ?? '',
       phoneNumberId: metaData.phoneNumberId ?? '',
     };
@@ -120,11 +117,11 @@ export class CatalogManagerService {
 
     this.logger.warn(
       '[CATALOG_MANAGER] META_SYSTEM_USER_TOKEN not set in .env.secrets — ' +
-        'falling back to integration token. This will cause Meta Error 10 ' +
+        'falling back to integration token from SecretManager. This will cause Meta Error 10 ' +
         'because the WABA token lacks catalog_management scope.',
     );
-    const { accessToken } = await this.getIntegrationCredentials(businessId);
-    return accessToken;
+    // accessToken is no longer stored in Firestore — retrieve from SecretManagerService.
+    return getMetaToken(this.secrets, businessId);
   }
 
   /**
@@ -217,6 +214,35 @@ export class CatalogManagerService {
   private isMetaError(err: unknown, code: number): boolean {
     const metaCode = (err as any)?.response?.data?.error?.code;
     return metaCode === code;
+  }
+
+  /**
+   * Normalizes a price value for Meta payloads by stripping all non-numeric
+   * characters except the decimal point.
+   */
+  private sanitizeMetaPrice(value: unknown): string | undefined {
+    if (value === null || value === undefined) return undefined;
+
+    const cleaned = String(value).replace(/[^\d.]/g, '').trim();
+    return cleaned.length > 0 ? cleaned : undefined;
+  }
+
+  /**
+   * Normalizes currency values for Meta payloads. The catalog flow always
+   * sends BOB to Meta, regardless of how the UI formats the local display.
+   */
+  private sanitizeMetaCurrency(value: unknown): string | undefined {
+    if (value === null || value === undefined) return undefined;
+
+    const cleaned = String(value).trim().toUpperCase();
+    return cleaned.length > 0 ? cleaned : undefined;
+  }
+
+  /**
+   * Trims retailer/content IDs without altering their exact characters.
+   */
+  private sanitizeMetaRetailerId(value: unknown): string {
+    return String(value).trim();
   }
 
   /**
@@ -346,7 +372,7 @@ export class CatalogManagerService {
    * NOTE: `catalog_management` scope is required for either edge to return data.
    */
   async listCatalogs(businessId: string): Promise<MetaCatalogItem[]> {
-    const { wabaId } = await this.getIntegrationCredentials(businessId);
+    const { wabaId } = await this.getIntegrationIdentifiers(businessId);
     const catalogToken = await this.getCatalogToken(businessId);
     const ownerBusinessId = await this.resolveOwnerBusinessId(
       businessId,
@@ -393,7 +419,7 @@ export class CatalogManagerService {
    * acceptance), automatically retries via an existing Commerce Account.
    */
   async createCatalog(dto: CreateCatalogDto): Promise<MetaCatalogItem> {
-    const { wabaId } = await this.getIntegrationCredentials(dto.businessId);
+    const { wabaId } = await this.getIntegrationIdentifiers(dto.businessId);
     const catalogToken = await this.getCatalogToken(dto.businessId);
     const ownerBusinessId = await this.resolveOwnerBusinessId(
       dto.businessId,
@@ -497,7 +523,7 @@ export class CatalogManagerService {
     businessId: string,
     catalogId: string,
   ): Promise<void> {
-    const { phoneNumberId } = await this.getIntegrationCredentials(businessId);
+    const { phoneNumberId } = await this.getIntegrationIdentifiers(businessId);
     const catalogToken = await this.getCatalogToken(businessId);
 
     if (!phoneNumberId) {
@@ -536,7 +562,7 @@ export class CatalogManagerService {
    * no additional client-side sync call is required.
    */
   async unlinkCatalogFromWaba(businessId: string): Promise<void> {
-    const { phoneNumberId } = await this.getIntegrationCredentials(businessId);
+    const { phoneNumberId } = await this.getIntegrationIdentifiers(businessId);
     const catalogToken = await this.getCatalogToken(businessId);
 
     if (!phoneNumberId) {
@@ -600,10 +626,13 @@ export class CatalogManagerService {
       warnings,
     };
 
-    // Get credentials (non-fatal — we still return a result on partial failure)
-    let creds: IntegrationCredentials;
+    // Get identifiers (non-fatal — we still return a result on partial failure)
+    let identifiers: IntegrationIdentifiers;
+    let accessToken: string;
     try {
-      creds = await this.getIntegrationCredentials(businessId);
+      identifiers = await this.getIntegrationIdentifiers(businessId);
+      // accessToken is no longer stored in Firestore — retrieve from SecretManagerService.
+      accessToken = getMetaToken(this.secrets, businessId);
     } catch (err: unknown) {
       warnings.push(
         err instanceof Error ? err.message : 'Integration credentials unavailable',
@@ -612,7 +641,7 @@ export class CatalogManagerService {
       return result;
     }
 
-    const { accessToken, wabaId } = creds;
+    const { wabaId } = identifiers;
 
     // ── Token validity + scopes via debug_token ─────────────────────────────
     const appId = this.secrets.get('META_APP_ID');
@@ -748,6 +777,9 @@ export class CatalogManagerService {
     );
 
     try {
+      const sanitizedRetailerId = this.sanitizeMetaRetailerId(dto.retailerId);
+      const sanitizedPrice = this.sanitizeMetaPrice(dto.price);
+
       // 2. Call Meta Graph API — item_group_id is mandatory so Meta groups this
       // product and its future variants under a single product family, rather
       // than auto-generating a random group ID that variants cannot reference.
@@ -759,14 +791,14 @@ export class CatalogManagerService {
           'Content-Type': 'application/json',
         },
         data: {
-          retailer_id:   dto.retailerId,
+          retailer_id:   sanitizedRetailerId,
           item_group_id: itemGroupId,
           name:          dto.name,
           description:   dto.description,
           availability:  dto.availability,
           condition:     dto.condition,
-          price:         dto.price,
-          currency:      dto.currency,
+          price:         sanitizedPrice,
+          currency:      'BOB',
           image_url:     dto.imageUrl,
           url:           dto.url,
         },
@@ -819,8 +851,8 @@ export class CatalogManagerService {
     if (dto.description !== undefined) metaData['description'] = dto.description;
     if (dto.availability !== undefined) metaData['availability'] = dto.availability;
     if (dto.condition !== undefined) metaData['condition'] = dto.condition;
-    if (dto.price !== undefined) metaData['price'] = dto.price;
-    if (dto.currency !== undefined) metaData['currency'] = dto.currency;
+    if (dto.price !== undefined) metaData['price'] = this.sanitizeMetaPrice(dto.price);
+    if (dto.currency !== undefined) metaData['currency'] = this.sanitizeMetaCurrency(dto.currency) ?? 'BOB';
     if (dto.imageUrl !== undefined) metaData['image_url'] = dto.imageUrl;
     if (dto.url !== undefined) metaData['url'] = dto.url;
 
@@ -1032,6 +1064,8 @@ export class CatalogManagerService {
     const resolvedItemGroupId = parentMeta.retailer_product_group_id ?? dto.itemGroupId;
     const resolvedName        = parentMeta.name        ?? dto.name;
     const resolvedDescription = parentMeta.description ?? dto.description;
+    const sanitizedRetailerId = this.sanitizeMetaRetailerId(dto.retailerId);
+    const sanitizedPrice = this.sanitizeMetaPrice(dto.price);
 
     if (resolvedItemGroupId !== dto.itemGroupId) {
       this.logger.warn(
@@ -1053,7 +1087,7 @@ export class CatalogManagerService {
     const variantRef = parentRef.collection('variants').doc(dto.retailerId);
     const now = new Date().toISOString();
     const firestoreRecord: FirestoreVariantRecord = {
-      retailerId:     dto.retailerId,
+      retailerId:     sanitizedRetailerId,
       name:           resolvedName,
       itemGroupId:    resolvedItemGroupId,
       catalogId,
@@ -1085,7 +1119,7 @@ export class CatalogManagerService {
           'Content-Type': 'application/json',
         },
         data: {
-          retailer_id:                dto.retailerId,
+          retailer_id:                sanitizedRetailerId,
           // Meta naming asymmetry: `item_group_id` is the write-side key (POST),
           // `retailer_product_group_id` is the read-side key (GET).
           // Both sides must use their respective names — sending `item_group_id`
@@ -1097,8 +1131,8 @@ export class CatalogManagerService {
           [dto.attributeKey]:         dto.attributeValue,   // differentiator (color/size/…)
           availability:               dto.availability,
           condition:                  dto.condition,
-          price:                      dto.price,
-          currency:                   dto.currency,
+          price:                      sanitizedPrice,
+          currency:                   'BOB',
           image_url:                  dto.imageUrl,
           url:                        dto.url,
         },

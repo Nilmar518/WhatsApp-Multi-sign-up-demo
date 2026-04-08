@@ -4,25 +4,29 @@ import { db } from '../firebase/firebase';
 import type { Message } from '../types/message';
 
 /**
- * useMessages
+ * useMessages  (Phase 4 — UUID-keyed documents)
  *
- * Real-time listener on `integrations/{businessId}/messages` sub-collection.
- * Returns messages sorted by timestamp ascending, updating immediately as
- * the backend writes inbound or outbound documents.
+ * Real-time listener on `integrations/{integrationId}/messages` where
+ * integrationId is the UUID Firestore document ID (not the businessId).
  *
- * Re-runs automatically when businessId changes (BusinessToggle).
+ * When integrationId is null (not yet resolved by useIntegrationId), returns
+ * an empty array immediately without opening a Firestore listener.
+ *
+ * Re-runs automatically when integrationId changes (BusinessToggle → useIntegrationId).
  */
-export function useMessages(businessId: string): Message[] {
+export function useMessages(integrationId: string | null): Message[] {
   const [messages, setMessages] = useState<Message[]>([]);
 
   useEffect(() => {
     setMessages([]);
 
-    const path = `integrations/${businessId}/messages`;
+    if (!integrationId) return;
+
+    const path = `integrations/${integrationId}/messages`;
     console.log(`LISTENING_TO_FIRESTORE_PATH: ${path}`);
 
     const q = query(
-      collection(db, 'integrations', businessId, 'messages'),
+      collection(db, 'integrations', integrationId, 'messages'),
       orderBy('timestamp', 'asc'),
     );
 
@@ -38,7 +42,8 @@ export function useMessages(businessId: string): Message[] {
     );
 
     return () => unsubscribe();
-  }, [businessId]);
+  }, [integrationId]);
 
   return messages;
 }
+

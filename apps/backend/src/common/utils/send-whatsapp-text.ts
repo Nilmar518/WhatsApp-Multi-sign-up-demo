@@ -14,8 +14,10 @@ import axios from 'axios';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+import { META_API } from '../../integrations/meta/meta-api-versions';
+
 const META_MESSAGES_ENDPOINT =
-  'https://graph.facebook.com/v25.0/{phoneNumberId}/messages';
+  `${META_API.base(META_API.PHONE_CATALOG)}/{phoneNumberId}/messages`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

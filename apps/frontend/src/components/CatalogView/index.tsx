@@ -1,23 +1,47 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { CatalogData } from '../../types/catalog';
+import type { IntegrationStatus } from '../../types/integration';
 import type { MetaCatalog, CatalogHealth } from '../../catalog-manager/api/catalogManagerApi';
 import {
   listCatalogs,
   createCatalog,
-  linkCatalog,
   unlinkCatalog,
   checkHealth,
 } from '../../catalog-manager/api/catalogManagerApi';
 
 interface Props {
-  businessId: string;
+  integrationId: string;
+  status: IntegrationStatus;
   catalog: CatalogData | null;
 }
 
 // ─── Health badge ──────────────────────────────────────────────────────────────
 
-function HealthBadge({ health }: { health: CatalogHealth | null }) {
+function HealthBadge({
+  health,
+  status,
+}: {
+  health: CatalogHealth | null;
+  status: IntegrationStatus;
+}) {
   if (!health) return null;
+
+  const missingTokenWarning = health.warnings.some((w) =>
+    /no meta access token found|no access token/i.test(w),
+  );
+
+  // Hybrid POC guard: setup can be valid at WEBHOOKS_SUBSCRIBED even when
+  // health endpoint still reports a transient token warning.
+  if (status === 'WEBHOOKS_SUBSCRIBED' && missingTokenWarning) {
+    return (
+      <span
+        className="text-xs font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full cursor-default"
+        title="Connected (WEBHOOKS_SUBSCRIBED)"
+      >
+        ● Connected
+      </span>
+    );
+  }
 
   const allOk =
     health.appIsValid &&
@@ -82,7 +106,7 @@ function HealthBadge({ health }: { health: CatalogHealth | null }) {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export default function CatalogView({ businessId, catalog }: Props) {
+export default function CatalogView({ integrationId, status, catalog }: Props) {
   // ── Meta sync ─────────────────────────────────────────────────────────────
   const [isSyncing, setIsSyncing]   = useState(false);
   const [syncError, setSyncError]   = useState<string | null>(null);
@@ -112,7 +136,7 @@ export default function CatalogView({ businessId, catalog }: Props) {
     setSyncError(null);
     try {
       const res = await fetch(
-        `/api/catalog?businessId=${encodeURIComponent(businessId)}`,
+        `/api/catalog?businessId=${encodeURIComponent(integrationId)}`,
       );
       if (!res.ok) {
         const body = (await res.json()) as { message?: string };
@@ -123,27 +147,27 @@ export default function CatalogView({ businessId, catalog }: Props) {
     } finally {
       setIsSyncing(false);
     }
-  }, [businessId]);
+  }, [integrationId]);
 
   const fetchAvailableCatalogs = useCallback(async () => {
     setCatalogsLoading(true);
     try {
-      const data = await listCatalogs(businessId);
+      const data = await listCatalogs(integrationId);
       setAvailableCatalogs(data);
     } catch {
       setAvailableCatalogs([]);
     } finally {
       setCatalogsLoading(false);
     }
-  }, [businessId]);
+  }, [integrationId]);
 
   // ── Effects ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    checkHealth(businessId)
+    checkHealth(integrationId)
       .then(setHealth)
       .catch(() => setHealth(null));
-  }, [businessId]);
+  }, [integrationId]);
 
   useEffect(() => {
     if (!catalog?.catalogId) {
@@ -153,11 +177,24 @@ export default function CatalogView({ businessId, catalog }: Props) {
 
   // ── Catalog: link existing ────────────────────────────────────────────────
 
-  const handleLinkCatalog = async (cat: MetaCatalog) => {
-    setLinkingId(cat.id);
+  const handleLinkCatalog = async (catalogId: string) => {
+    setLinkingId(catalogId);
     setCatalogError(null);
     try {
-      await linkCatalog(businessId, cat.id);
+      const res = await fetch(
+        `/api/integrations/meta/${encodeURIComponent(integrationId)}/catalogs`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ catalogId }),
+        },
+      );
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(body.message ?? `Failed to link catalog (HTTP ${res.status})`);
+      }
+
       await syncFromMeta();
     } catch (err: unknown) {
       setCatalogError(err instanceof Error ? err.message : 'Failed to link catalog');
@@ -178,7 +215,7 @@ export default function CatalogView({ businessId, catalog }: Props) {
     setIsUnlinking(true);
     setUnlinkError(null);
     try {
-      await unlinkCatalog(businessId);
+      await unlinkCatalog(integrationId);
       // Firestore is updated by the backend; onSnapshot propagates to App.tsx
     } catch (err: unknown) {
       setUnlinkError(err instanceof Error ? err.message : 'Failed to unlink catalog');
@@ -195,7 +232,7 @@ export default function CatalogView({ businessId, catalog }: Props) {
     setCatalogCreating(true);
     setCatalogError(null);
     try {
-      await createCatalog(businessId, newCatalogName.trim());
+      await createCatalog(integrationId, newCatalogName.trim());
       setNewCatalogName('');
       setShowCatalogForm(false);
       await syncFromMeta();
@@ -225,7 +262,7 @@ export default function CatalogView({ businessId, catalog }: Props) {
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
             Product Catalog
           </h2>
-          <HealthBadge health={health} />
+          <HealthBadge health={health} status={status} />
         </div>
         <div className="flex items-center gap-3">
           {hasCatalog && (
@@ -323,7 +360,7 @@ export default function CatalogView({ businessId, catalog }: Props) {
                     </p>
                   </div>
                   <button
-                    onClick={() => void handleLinkCatalog(cat)}
+                    onClick={() => void handleLinkCatalog(cat.id)}
                     disabled={linkingId === cat.id}
                     className="shrink-0 text-xs font-medium text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-lg disabled:opacity-40 transition-colors"
                   >

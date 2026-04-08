@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useIntegrationId } from './hooks/useIntegrationId';
 import { useIntegrationStatus } from './hooks/useIntegrationStatus';
 import { useMessages } from './hooks/useMessages';
 import { useConversations } from './hooks/useConversations';
+import type { SetupStep } from './hooks/useWhatsAppConnect';
 import ConnectionGateway from './components/ConnectionGateway';
 import StatusDisplay from './components/StatusDisplay';
 import ChatConsole from './components/ChatConsole';
@@ -11,14 +13,54 @@ import ConversationList from './components/ConversationList';
 import DisconnectButton from './components/ResetButton';
 import { CartPanel } from './components/CartPanel';
 
-const BUSINESS_IDS = ['demo-business-001', 'demo-business-002'] as const;
-type BusinessId = (typeof BUSINESS_IDS)[number];
+// ── Phase 4: business IDs loaded dynamically from the backend ─────────────────
+// Fallback to the fixture IDs while fetch is in flight so the UI renders
+// immediately; once the response arrives the toggle updates.
+const FALLBACK_BUSINESS_IDS = ['787167007221172', 'demo-business-002'];
 
 export default function App() {
-  const [businessId, setBusinessId] = useState<BusinessId>(BUSINESS_IDS[0]);
-  const { status, catalog, isLoading } = useIntegrationStatus(businessId);
-  const messages = useMessages(businessId);
+  // ── Dynamic business list (Phase 4) ─────────────────────────────────────────
+  const [businessIds, setBusinessIds] = useState<string[]>(FALLBACK_BUSINESS_IDS);
+  const [businessId, setBusinessId] = useState<string>(FALLBACK_BUSINESS_IDS[0]);
+
+  useEffect(() => {
+    fetch('/api/integrations/businesses')
+      .then((r) => r.json())
+      .then((ids: string[]) => {
+        if (ids.length > 0) {
+          setBusinessIds(ids);
+          // Only reset selection if the current one is not in the new list
+          setBusinessId((prev) => (ids.includes(prev) ? prev : ids[0]));
+        }
+      })
+      .catch((err) =>
+        console.warn('[App] Failed to load business IDs from backend, using fallback', err),
+      );
+  }, []);
+
+  // ── Resolve integrationId (UUID) for the selected business (Phase 4) ─────────
+  // When the business has no active integration yet, integrationId is null and
+  // all downstream hooks short-circuit gracefully.
+  const { integrationId, isLoading: isResolvingId } = useIntegrationId(businessId);
+
+  const { status, catalog, isLoading: isLoadingStatus } = useIntegrationStatus(integrationId);
+  const messages = useMessages(integrationId);
   const conversations = useConversations(messages);
+
+  const isLoading = isResolvingId || isLoadingStatus;
+
+  // ── Phase 5: lift setupStep from ConnectionGateway → StatusDisplay ────────────
+  // ConnectionGateway owns the useWhatsAppConnect hook; it reports step changes
+  // here so the global StatusDisplay can show in-flight progress.
+  const [setupStep, setSetupStep] = useState<SetupStep>('idle');
+  const handleSetupStepChange = useCallback((step: SetupStep) => {
+    setSetupStep(step);
+    // Reset to idle when the Firestore listener fires ACTIVE — avoids the
+    // 'complete' step persisting after the full round-trip to Firestore.
+    if (step === 'complete') {
+      setSetupStep('idle');
+    }
+  }, []);
 
   const [activeContact, setActiveContact] = useState<string | null>(null);
 
@@ -34,7 +76,11 @@ export default function App() {
     setActiveContact(null);
   }, [businessId]);
 
-  const isActive = status === 'ACTIVE';
+  // Treat the integration as active if it's in any fully connected state.
+  // The setup flow completes at WEBHOOKS_SUBSCRIBED (or CATALOG_SELECTED).
+  const connectedStatuses = ['ACTIVE', 'WEBHOOKS_SUBSCRIBED', 'CATALOG_SELECTED'];
+  const isActive = Boolean(status && connectedStatuses.includes(status));
+
   // Show the dashboard pane whenever the integration is in a "connected or
   // connecting" state. MIGRATING is excluded here — the modal stays open
   // mid-migration and there is no dashboard token to display yet.
@@ -52,9 +98,9 @@ export default function App() {
             </p>
           </div>
           <BusinessToggle
-            businessIds={BUSINESS_IDS}
+            businessIds={businessIds}
             selected={businessId}
-            onChange={(id) => setBusinessId(id as BusinessId)}
+            onChange={(id) => setBusinessId(id)}
           />
         </div>
 
@@ -71,14 +117,18 @@ export default function App() {
         )}
 
         {/* ── Connection Status ────────────────────────────────────────────── */}
-        <StatusDisplay status={status} isLoading={isLoading} />
+        <StatusDisplay status={status} isLoading={isLoading} setupStep={setupStep} />
 
         {/* ── Connection gateway (hidden once active or token pending) ────────── */}
         {/* Renders a trigger button that opens the pre-connection modal. The     */}
         {/* modal offers Standard Connect (Meta Embedded Signup) and Force        */}
         {/* Migration (API-driven OTP bypass for numbers on a handset).           */}
         {!showDashboard && (
-          <ConnectionGateway businessId={businessId} currentStatus={status} />
+          <ConnectionGateway
+            businessId={businessId}
+            currentStatus={status}
+            onSetupStepChange={handleSetupStepChange}
+          />
         )}
 
         {status === 'ERROR' && (
@@ -92,7 +142,9 @@ export default function App() {
         {/* because no access token is available yet to fetch catalog data.      */}
         {showDashboard && (
           <>
-            {isActive && <CatalogView businessId={businessId} catalog={catalog} />}
+            {isActive && integrationId && (
+              <CatalogView integrationId={integrationId} status={status} catalog={catalog} />
+            )}
 
             {/*
               3-column dashboard panel
@@ -113,7 +165,7 @@ export default function App() {
               {/* ── Col 1: Cart Panel ──────────────────────────────────────── */}
               <div className="w-72 shrink-0 border-r border-gray-200 flex flex-col">
                 <CartPanel
-                  businessId={businessId}
+                  integrationId={integrationId}
                   contactWaId={activeContact}
                 />
               </div>
@@ -147,3 +199,5 @@ export default function App() {
     </div>
   );
 }
+
+

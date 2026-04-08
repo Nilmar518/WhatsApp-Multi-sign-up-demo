@@ -8,6 +8,7 @@ import { WebhookModule } from './webhook/webhook.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+// MetaIntegrationModule is imported transitively via IntegrationsModule — no direct import needed here.
 import { RegistrationModule } from './registration/registration.module';
 import { MigrationModule } from './migration/migration.module';
 import { CatalogManagerModule } from './catalog-manager/catalog-manager.module';

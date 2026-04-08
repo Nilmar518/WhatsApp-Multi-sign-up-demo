@@ -10,6 +10,7 @@ import {
   sendWhatsAppText,
   sendWhatsAppInteractive,
 } from '../common/utils/send-whatsapp-text';
+import { META_API } from '../integrations/meta/meta-api-versions';
 
 // ─── Meta Webhook payload types ──────────────────────────────────────────────
 
@@ -127,8 +128,8 @@ interface IntegrationContext {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const DEFAULT_PROVISIONING_BUSINESS_ID = 'demo-business-001';
-const META_GRAPH_V25 = 'https://graph.facebook.com/v25.0';
+const DEFAULT_PROVISIONING_BUSINESS_ID = '787167007221172';
+const META_GRAPH_MESSAGES = META_API.base(META_API.PHONE_CATALOG);
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 
@@ -429,15 +430,30 @@ export class WebhookService {
       `[WEBHOOK_STORE] ✓ Saved inbound wamid=${msg.waMessageId} from=${msg.from} → ${subcollectionPath}`,
     );
 
-    // Return integration context for rule evaluation
+    // Return integration context for rule evaluation.
+    // In Hybrid POC, token + phoneNumberId are read directly from metaData.
+    const connectedBusinessIds = (data.connectedBusinessIds ?? []) as string[];
+    const realBusinessId = connectedBusinessIds[0] ?? '';
     const metaData = (data.metaData ?? {}) as {
       accessToken?: string;
       phoneNumberId?: string;
     };
     const catalog = data.catalog as { catalogId?: string } | undefined;
 
+    if (!realBusinessId) {
+      this.logger.warn(
+        `[WEBHOOK_CTX] connectedBusinessIds missing for integrationId=${doc.id} — rule evaluation may be skipped`,
+      );
+    }
+
+    if (!metaData.accessToken) {
+      this.logger.warn(
+        `[WEBHOOK_CTX] No Meta token found in integration metaData for integrationId=${doc.id}`,
+      );
+    }
+
     return {
-      businessId: doc.id,
+      businessId: realBusinessId || doc.id,
       docRef,
       accessToken: metaData.accessToken ?? '',
       phoneNumberId: metaData.phoneNumberId ?? '',
@@ -568,12 +584,15 @@ export class WebhookService {
       return; // Do not run keyword rule engine for cart commands
     }
 
-    // ── Keyword auto-reply rule engine (existing logic, unchanged) ─────────────
-    // Fetch active rules from subcollection
-    const rulesSnap = await docRef
-      .collection('auto_replies')
-      .where('isActive', '==', true)
-      .get();
+    // ── Keyword auto-reply rule engine ─────────────────────────────────────────
+    // Rules are keyed by tenant businessId, not integrationId.
+    const rulesRef = this.firebase
+      .getFirestore()
+      .collection('integrations')
+      .doc(businessId)
+      .collection('auto_replies');
+
+    const rulesSnap = await rulesRef.where('isActive', '==', true).get();
 
     if (rulesSnap.empty) {
       this.logger.debug(
@@ -685,17 +704,17 @@ export class WebhookService {
       interactive,
     };
 
-    // Prefer the System User token for catalog-scoped operations.
-    // The WABA access token lacks catalog_management permission, which Meta
-    // requires to validate catalog_id during outbound product messages.
-    const systemToken = this.secrets.get('META_SYSTEM_USER_TOKEN') ?? accessToken;
+    // Use the integration-scoped token from the hybrid document for outbound
+    // messaging on this WABA. A global system-user token can belong to a
+    // different business context and trigger Meta auth error 190.
+    const outboundToken = accessToken;
 
     const response = await this.defLogger.request<{
       messages: { id: string }[];
     }>({
       method: 'POST',
-      url: `${META_GRAPH_V25}/${phoneNumberId}/messages`,
-      headers: { Authorization: `Bearer ${systemToken}` },
+      url: `${META_GRAPH_MESSAGES}/${phoneNumberId}/messages`,
+      headers: { Authorization: `Bearer ${outboundToken}` },
       data: interactivePayload,
     });
 
@@ -1031,7 +1050,7 @@ export class WebhookService {
     // ── Send to Meta ──────────────────────────────────────────────────────────
     const response = await this.defLogger.request<{ messages: { id: string }[] }>({
       method: 'POST',
-      url:    `${META_GRAPH_V25}/${phoneNumberId}/messages`,
+      url:    `${META_GRAPH_MESSAGES}/${phoneNumberId}/messages`,
       headers: { Authorization: `Bearer ${systemToken}` },
       data: {
         messaging_product: 'whatsapp',

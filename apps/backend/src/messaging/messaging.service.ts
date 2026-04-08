@@ -7,6 +7,7 @@ import {
 import { DefensiveLoggerService } from '../common/logger/defensive-logger.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SendMessageDto } from './dto/send-message.dto';
+import { META_API } from '../integrations/meta/meta-api-versions';
 
 interface MetaMessageResponse {
   messaging_product: string;
@@ -35,20 +36,30 @@ export class MessagingService {
   async sendMessage(dto: SendMessageDto): Promise<{ messageId: string }> {
     const { businessId, recipientPhoneNumber, text } = dto;
     const db = this.firebase.getFirestore();
-    const docRef = db.collection('integrations').doc(businessId);
-    const snap = await docRef.get();
 
-    if (!snap.exists) {
+    // Phase 4: businessId is linked via connectedBusinessIds[]; Firestore doc ID is integrationId (UUID)
+    const integrationSnap = await db
+      .collection('integrations')
+      .where('connectedBusinessIds', 'array-contains', businessId)
+      .limit(1)
+      .get();
+
+    if (integrationSnap.empty) {
       throw new NotFoundException(
         `No integration found for businessId=${businessId}`,
       );
     }
 
-    const { accessToken, phoneNumberId } = (snap.data()?.metaData ?? {}) as {
+    const docRef = integrationSnap.docs[0].ref;
+    const integrationId = integrationSnap.docs[0].id;
+    const data = integrationSnap.docs[0].data();
+
+    const { accessToken, phoneNumberId } = (data.metaData ?? {}) as {
       accessToken?: string;
       phoneNumberId?: string;
     };
 
+    // Capability-based validation: do not block on status value (ACTIVE/WEBHOOKS_SUBSCRIBED/etc).
     if (!accessToken || !phoneNumberId) {
       throw new BadRequestException(
         'Integration is not fully connected. Run the Embedded Signup flow first.',
@@ -57,7 +68,7 @@ export class MessagingService {
 
     const response = await this.defLogger.request<MetaMessageResponse>({
       method: 'POST',
-      url: `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
+      url: `${META_API.base(META_API.PHONE_CATALOG)}/${phoneNumberId}/messages`,
       headers: { Authorization: `Bearer ${accessToken}` },
       data: {
         messaging_product: 'whatsapp',
@@ -69,7 +80,9 @@ export class MessagingService {
     });
 
     const messageId = response.messages?.[0]?.id ?? 'unknown';
-    this.logger.log(`[SEND] ✓ wamid=${messageId} → ${recipientPhoneNumber}`);
+    this.logger.log(
+      `[SEND] ✓ integrationId=${integrationId} wamid=${messageId} → ${recipientPhoneNumber}`,
+    );
 
     const outboundMsg: StoredMessage = {
       id: messageId,

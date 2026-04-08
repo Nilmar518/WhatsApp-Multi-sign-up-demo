@@ -2,20 +2,63 @@ import { useEffect, useState } from 'react';
 import type { IntegrationStatus } from '../../types/integration';
 import ConnectButton from '../ConnectButton';
 import ForceMigrationForm from '../ForceMigrationForm';
+import { useWhatsAppConnect } from '../../hooks/useWhatsAppConnect';
 
 interface Props {
   businessId: string;
   currentStatus: IntegrationStatus;
+  /**
+   * Phase 5 — called after the setup flow completes so App.tsx can surface
+   * the hook's setupStep to StatusDisplay without lifting state all the way up.
+   * Optional: if not provided, StatusDisplay continues to read from Firestore.
+   */
+  onSetupStepChange?: (step: ReturnType<typeof useWhatsAppConnect>['step']) => void;
 }
 
 type ModalView = 'choice' | 'standard' | 'force_migration';
 
-export default function ConnectionGateway({ businessId, currentStatus }: Props) {
+/**
+ * ConnectionGateway  (Phase 5 — hosts useWhatsAppConnect)
+ *
+ * This component is the owner of the useWhatsAppConnect hook instance.
+ * It passes the hook's `exchangeToken` action and `setupStep` state down to
+ * ConnectButton so the button can delegate all HTTP calls while retaining
+ * ownership of the FB.login popup flow.
+ *
+ * Auto-close rules (in priority order):
+ *   1. Hook reaches 'complete' — all steps succeeded, Firestore is settling
+ *   2. Firestore status becomes 'ACTIVE' or 'PENDING_TOKEN'
+ *
+ * The modal stays open during:
+ *   - Active in-flight steps (exchanging_token, registering_phone, etc.)
+ *   - 'error' step — user should see the error message and can retry
+ *   - MIGRATING — migration form must stay open for OTP input
+ */
+export default function ConnectionGateway({ businessId, currentStatus, onSetupStepChange }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<ModalView>('choice');
   const [fromFailedPopup, setFromFailedPopup] = useState(false);
 
-  // Auto-close when the integration reaches a success state.
+  const {
+    step: setupStep,
+    error: setupError,
+    exchangeToken,
+    reset: resetSetup,
+  } = useWhatsAppConnect(businessId);
+
+  // Notify the parent whenever setupStep changes (so App.tsx can pass it to StatusDisplay)
+  useEffect(() => {
+    onSetupStepChange?.(setupStep);
+  }, [setupStep, onSetupStepChange]);
+
+  // Auto-close: hook completed all steps (Firestore will settle to ACTIVE shortly)
+  useEffect(() => {
+    if (isOpen && setupStep === 'complete') {
+      setIsOpen(false);
+    }
+  }, [setupStep, isOpen]);
+
+  // Auto-close: Firestore-driven success (ACTIVE or PENDING_TOKEN)
   // Keep open during MIGRATING so the user can progress through OTP steps.
   useEffect(() => {
     if (isOpen && (currentStatus === 'ACTIVE' || currentStatus === 'PENDING_TOKEN')) {
@@ -24,20 +67,23 @@ export default function ConnectionGateway({ businessId, currentStatus }: Props) 
   }, [currentStatus, isOpen]);
 
   const open = () => {
+    resetSetup();    // clear any previous error/step before re-opening
     setView('choice');
     setFromFailedPopup(false);
     setIsOpen(true);
   };
 
-  const close = () => setIsOpen(false);
+  const close = () => {
+    setIsOpen(false);
+    // Don't reset the hook on manual close — if setup is mid-flight (unlikely
+    // since the overlay blocks interaction) we want to preserve step state.
+  };
 
   /**
    * Called by ConnectButton when the Embedded Signup popup exits without a
    * usable payload (CANCEL, ERROR, or FINISH with no phone_number_id).
-   *
-   * We skip the WABA discovery step entirely here — the customer just enters
-   * their phone number in the Force Migration form and POST /migration/start
-   * handles all backend discovery and provisioning automatically.
+   * We skip WABA discovery here — the customer enters their phone number in
+   * the Force Migration form and POST /migration/start handles discovery.
    */
   const handleRecovery = () => {
     setFromFailedPopup(true);
@@ -50,13 +96,13 @@ export default function ConnectionGateway({ businessId, currentStatus }: Props) 
     currentStatus === 'PENDING_TOKEN' ||
     currentStatus === 'MIGRATING';
 
-  const triggerLabel: Record<IntegrationStatus, string> = {
-    IDLE: 'Connect WhatsApp',
-    CONNECTING: 'Connecting...',
+  const triggerLabel: Partial<Record<IntegrationStatus, string>> = {
+    IDLE:          'Connect WhatsApp',
+    CONNECTING:    'Connecting...',
     PENDING_TOKEN: 'Awaiting Token...',
-    MIGRATING: 'Migrating...',
-    ACTIVE: 'Connected',
-    ERROR: 'Retry Connection',
+    MIGRATING:     'Migrating...',
+    ACTIVE:        'Connected',
+    ERROR:         'Retry Connection',
   };
 
   return (
@@ -74,7 +120,7 @@ export default function ConnectionGateway({ businessId, currentStatus }: Props) 
               : 'bg-green-500 hover:bg-green-600 active:bg-green-700',
         ].join(' ')}
       >
-        {triggerLabel[currentStatus]}
+        {triggerLabel[currentStatus] ?? 'Connect WhatsApp'}
       </button>
 
       {/* ── Modal overlay ────────────────────────────────────────────────── */}
@@ -153,10 +199,19 @@ export default function ConnectionGateway({ businessId, currentStatus }: Props) 
                   Opens the Meta Embedded Signup popup. If it fails or closes unexpectedly,
                   you'll be guided to Force Migration automatically.
                 </p>
+
+                {/* Step progress bar — visible once the hook leaves idle  */}
+                {setupStep !== 'idle' && setupStep !== 'error' && (
+                  <SetupProgressBar step={setupStep} />
+                )}
+
                 <ConnectButton
                   businessId={businessId}
                   currentStatus={currentStatus}
                   onRecoveryNeeded={handleRecovery}
+                  onExchangeToken={exchangeToken}
+                  setupStep={setupStep}
+                  setupError={setupError}
                 />
               </>
             )}
@@ -183,5 +238,61 @@ export default function ConnectionGateway({ businessId, currentStatus }: Props) 
         </div>
       )}
     </>
+  );
+}
+
+// ─── SetupProgressBar ─────────────────────────────────────────────────────────
+
+type SetupStep = ReturnType<typeof useWhatsAppConnect>['step'];
+
+const STEPS: { key: SetupStep; label: string }[] = [
+  { key: 'exchanging_token',    label: 'Verify account'   },
+  { key: 'registering_phone',   label: 'Activate number'  },
+  { key: 'verifying_status',    label: 'Confirm status'   },
+  { key: 'subscribing_webhooks', label: 'Subscribe'       },
+  { key: 'complete',            label: 'Done'             },
+];
+
+function SetupProgressBar({ step }: { step: SetupStep }) {
+  const currentIndex = STEPS.findIndex((s) => s.key === step);
+
+  return (
+    <div className="flex items-center gap-1">
+      {STEPS.map((s, i) => {
+        const isDone    = currentIndex > i;
+        const isActive  = currentIndex === i;
+
+        return (
+          <div key={s.key} className="flex items-center gap-1 flex-1">
+            <div className="flex flex-col items-center gap-0.5 flex-1">
+              <div
+                className={[
+                  'w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold transition-colors',
+                  isDone   ? 'bg-green-500 text-white'
+                  : isActive ? 'bg-yellow-400 text-white animate-pulse'
+                  : 'bg-gray-200 text-gray-400',
+                ].join(' ')}
+              >
+                {isDone ? '✓' : i + 1}
+              </div>
+              <span className={[
+                'text-[9px] leading-none whitespace-nowrap',
+                isDone   ? 'text-green-600 font-medium'
+                : isActive ? 'text-yellow-600 font-medium'
+                : 'text-gray-400',
+              ].join(' ')}>
+                {s.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={[
+                'h-0.5 flex-1 mb-3 transition-colors',
+                isDone ? 'bg-green-400' : 'bg-gray-200',
+              ].join(' ')} />
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

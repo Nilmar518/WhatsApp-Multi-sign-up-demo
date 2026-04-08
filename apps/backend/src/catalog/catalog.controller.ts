@@ -18,6 +18,6 @@ export class CatalogController {
    */
   @Get()
   getCatalog(@Query() query: CatalogQueryDto) {
-    return this.catalogService.getCatalog(query.businessId);
+    return this.catalogService.getCatalog(query.businessId, query.catalogId);
   }
 }

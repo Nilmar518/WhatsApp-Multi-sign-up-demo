@@ -9,9 +9,12 @@ import {
   TokenExpiredError,
 } from '../common/logger/defensive-logger.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
+import { buildMetaTokenSecret } from '../common/secrets/get-meta-token';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SystemUserService } from './system-user.service';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
+import { MetaSetupStatus } from '../integrations/meta/meta-setup-status.enum';
+import { META_API } from '../integrations/meta/meta-api-versions';
 
 export enum IntegrationStatus {
   IDLE = 'IDLE',
@@ -116,13 +119,15 @@ export class AuthService {
     const existingSnap = await docRef.get();
     if (existingSnap.exists) {
       const existing = existingSnap.data()!;
-      const cachedToken = (existing.metaData as Record<string, string>)?.accessToken;
+      // Token is now stored in SecretManagerService, not Firestore.
+      // Cache hit requires: ACTIVE status, a non-empty secret, and freshness.
+      const cachedSecret = this.secrets.get(`META_TOKEN__${businessId}`);
       const updatedAt = existing.updatedAt as string | undefined;
       const ageMs = updatedAt ? Date.now() - new Date(updatedAt).getTime() : Infinity;
 
       if (
         existing.status === IntegrationStatus.ACTIVE &&
-        cachedToken &&
+        cachedSecret &&
         ageMs < ACTIVE_CACHE_TTL_MS
       ) {
         this.logger.log(
@@ -172,7 +177,7 @@ export class AuthService {
       this.logger.log('[AUTH FLOW] Step 1 — exchanging code for short-lived token');
       const shortLived = await this.defLogger.request<GraphTokenResponse>({
         method: 'GET',
-        url: 'https://graph.facebook.com/v19.0/oauth/access_token',
+        url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/oauth/access_token`,
         params: { client_id: appId, client_secret: appSecret, code },
       });
       this.logger.log('[AUTH FLOW] ✓ Short-lived token received');
@@ -181,7 +186,7 @@ export class AuthService {
       this.logger.log('[AUTH FLOW] Step 2 — extending to long-lived token');
       const longLived = await this.defLogger.request<GraphTokenResponse>({
         method: 'GET',
-        url: 'https://graph.facebook.com/v19.0/oauth/access_token',
+        url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/oauth/access_token`,
         params: {
           grant_type: 'fb_exchange_token',
           client_id: appId,
@@ -191,6 +196,17 @@ export class AuthService {
       });
       this.logger.log('[AUTH FLOW] ✓ Long-lived token received');
 
+      // ── setupStatus: TOKEN_EXCHANGED ─────────────────────────────────────────
+      // Best-effort write — non-fatal if it fails. The facade ends with ACTIVE so
+      // this intermediate state is only visible during the brief window between steps.
+      try {
+        await this.firebase.set(docRef, {
+          setupStatus: MetaSetupStatus.TOKEN_EXCHANGED,
+          status: MetaSetupStatus.TOKEN_EXCHANGED,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+      } catch { /* non-fatal */ }
+
       // ── Step 2.5: Confirm the long-lived token resolves to a real user ────────
       // A quick /me call verifies the token is well-formed and accepted by Meta
       // before we make the more expensive WABA and phone-list calls.
@@ -198,7 +214,7 @@ export class AuthService {
       this.logger.log('[AUTH FLOW] Step 2.5 — verifying token via GET /me');
       const meResult = await this.defLogger.request<MeResponse>({
         method: 'GET',
-        url: 'https://graph.facebook.com/v19.0/me',
+        url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/me`,
         params: { fields: 'id', access_token: longLived.access_token },
       });
       this.logger.log(`[AUTH FLOW] ✓ /me confirmed — fbUserId=${meResult.id}`);
@@ -212,7 +228,7 @@ export class AuthService {
       this.logger.log(`[AUTH FLOW] Step 3 — verifying token access to WABA ${wabaId}`);
       const wabaResult = await this.defLogger.request<WabaResponse>({
         method: 'GET',
-        url: `https://graph.facebook.com/v19.0/${wabaId}`,
+        url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/${wabaId}`,
         params: { fields: 'id', access_token: longLived.access_token },
       });
 
@@ -233,7 +249,7 @@ export class AuthService {
       this.logger.log(`[AUTH FLOW] Step 4 — fetching phone list for WABA ${wabaId}`);
       const phonesResult = await this.defLogger.request<PhoneNumberListResponse>({
         method: 'GET',
-        url: `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers`,
+        url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/${wabaId}/phone_numbers`,
         params: {
           fields: 'id,verified_name,display_phone_number',
           access_token: longLived.access_token,
@@ -297,7 +313,7 @@ export class AuthService {
       try {
         const registerResult = await this.defLogger.request<RegisterResponse>({
           method: 'POST',
-          url: `https://graph.facebook.com/v19.0/${resolvedPhoneNumberId}/register`,
+          url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/${resolvedPhoneNumberId}/register`,
           headers: { Authorization: `Bearer ${longLived.access_token}` },
           data: { messaging_product: 'whatsapp', pin },
         });
@@ -328,6 +344,15 @@ export class AuthService {
         }
       }
 
+      // ── setupStatus: PHONE_REGISTERED ────────────────────────────────────────
+      try {
+        await this.firebase.set(docRef, {
+          setupStatus: MetaSetupStatus.PHONE_REGISTERED,
+          status: MetaSetupStatus.PHONE_REGISTERED,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+      } catch { /* non-fatal */ }
+
       // ── Step 5.5: Subscribe app to WABA webhook messages ─────────────────────
       // POST /{wabaId}/subscribed_apps tells Meta's routing layer to forward all
       // `messages` events for this WABA to our app's webhook URL.
@@ -340,7 +365,7 @@ export class AuthService {
       try {
         const subResult = await this.defLogger.request<SubscribedAppsResponse>({
           method: 'POST',
-          url: `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`,
+          url: `${META_API.base(META_API.TOKEN_EXCHANGE)}/${wabaId}/subscribed_apps`,
           headers: { Authorization: `Bearer ${longLived.access_token}` },
         });
         if (subResult?.success) {
@@ -366,7 +391,16 @@ export class AuthService {
         }
       }
 
-      // ── Step 6: Write ACTIVE to Firestore ────────────────────────────────────
+      // ── setupStatus: WEBHOOKS_SUBSCRIBED ─────────────────────────────────────
+      try {
+        await this.firebase.set(docRef, {
+          setupStatus: MetaSetupStatus.WEBHOOKS_SUBSCRIBED,
+          status: MetaSetupStatus.WEBHOOKS_SUBSCRIBED,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+      } catch { /* non-fatal */ }
+
+      // ── Step 6: Store token securely + write ACTIVE to Firestore ────────────
       const freshSnap = await docRef.get();
       const priorStatus = freshSnap.exists
         ? (freshSnap.data()?.status as string)
@@ -377,13 +411,27 @@ export class AuthService {
         );
       }
 
+      // Token stored in SecretManagerService — never written to Firestore.
+      // Key: META_TOKEN__{integrationId}  (integrationId === businessId until Phase 4)
+      this.secrets.set(
+        `META_TOKEN__${businessId}`,
+        buildMetaTokenSecret(longLived.access_token, 'LONG_LIVED'),
+      );
+      this.logger.log(
+        `[AUTH FLOW] ✓ Long-lived token stored in SecretManager for businessId=${businessId}`,
+      );
+
+      // Firestore doc holds only non-sensitive metadata — accessToken is absent.
+      // `setupStatus` is kept at WEBHOOKS_SUBSCRIBED (the final setup step).
+      // `status` is set back to ACTIVE for backward compatibility with the
+      // existing `useIntegrationStatus` hook and `isActive` check in App.tsx.
       const activePayload = {
         businessId,
         status: IntegrationStatus.ACTIVE,
+        setupStatus: MetaSetupStatus.WEBHOOKS_SUBSCRIBED,
         metaData: {
           wabaId,
           phoneNumberId: resolvedPhoneNumberId,
-          accessToken: longLived.access_token,
           tokenType: 'LONG_LIVED',
         },
         updatedAt: new Date().toISOString(),
@@ -420,7 +468,7 @@ export class AuthService {
             : Infinity;
           if (
             recheckData?.status === IntegrationStatus.ACTIVE &&
-            recheckData.metaData?.accessToken &&
+            this.secrets.get(`META_TOKEN__${businessId}`) &&
             recheckAge < ACTIVE_CACHE_TTL_MS
           ) {
             this.logger.log(

@@ -46,4 +46,20 @@ export class SecretManagerService implements OnModuleInit {
     this.logger.log(`[GCP-SECRET-EMULATOR] Accessing secret: ${secretName}`);
     return this.secrets[secretName] ?? process.env[secretName];
   }
+
+  /**
+   * Writes (or overwrites) a secret value by name.
+   *
+   * In development: stored in the in-memory map for the lifetime of the process.
+   * Note: in-memory secrets do not survive a server restart. Pre-seed persistent
+   * tokens in `.env.secrets` using the META_TOKEN__{integrationId} convention.
+   *
+   * PRODUCTION SWAP: Replace this method body with a call to
+   *   secretManagerClient.addSecretVersion({ parent: `projects/.../secrets/${name}`, payload: { data: value } })
+   * No other code changes are required — all callers use the same .set() API.
+   */
+  set(secretName: string, value: string): void {
+    this.logger.log(`[GCP-SECRET-EMULATOR] Writing secret: ${secretName}`);
+    this.secrets[secretName] = value;
+  }
 }

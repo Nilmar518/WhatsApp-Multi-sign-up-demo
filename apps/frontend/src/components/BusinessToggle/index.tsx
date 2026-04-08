@@ -5,7 +5,7 @@ interface Props {
 }
 
 const LABELS: Record<string, string> = {
-  'demo-business-001': 'Number 1',
+  '787167007221172': 'Number 1',
   'demo-business-002': 'Number 2',
 };
 

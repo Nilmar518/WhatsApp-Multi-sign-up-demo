@@ -37,7 +37,7 @@ export interface UseActiveCartResult {
  * **Data layer only** — no JSX, no UI logic.
  *
  * Opens a real-time Firestore listener on:
- *   `integrations/{businessId}/carts`
+ *   `integrations/{integrationId}/carts`
  *   where contactWaId == contactWaId AND status == 'active'
  *
  * Exposes:
@@ -49,10 +49,10 @@ export interface UseActiveCartResult {
  * Required Firestore composite index (create once in Firebase console):
  *   Collection group: carts | Fields: contactWaId ASC, status ASC
  *
- * Re-subscribes automatically when businessId or contactWaId changes.
+ * Re-subscribes automatically when integrationId or contactWaId changes.
  */
 export function useActiveCart(
-  businessId: string,
+  integrationId: string | null,
   contactWaId: string | null,
 ): UseActiveCartResult {
   const [cart, setCart] = useState<Cart | null>(null);
@@ -61,7 +61,7 @@ export function useActiveCart(
 
   // ── Real-time listener ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!contactWaId) {
+    if (!integrationId || !contactWaId) {
       setCart(null);
       setIsLoading(false);
       return;
@@ -71,14 +71,14 @@ export function useActiveCart(
     setCart(null);
 
     const q = query(
-      collection(db, 'integrations', businessId, 'carts'),
+      collection(db, 'integrations', integrationId, 'carts'),
       where('contactWaId', '==', contactWaId),
       where('status', '==', 'active'),
       limit(1),
     );
 
     console.log(
-      `[useActiveCart] LISTENING — integrations/${businessId}/carts (contactWaId=${contactWaId})`,
+      `[useActiveCart] LISTENING — integrations/${integrationId}/carts (contactWaId=${contactWaId})`,
     );
 
     const unsubscribe = onSnapshot(
@@ -97,15 +97,15 @@ export function useActiveCart(
       console.log(`[useActiveCart] UNSUBSCRIBED (contactWaId=${contactWaId})`);
       unsubscribe();
     };
-  }, [businessId, contactWaId]);
+  }, [integrationId, contactWaId]);
 
   // ── Archive mutation ─────────────────────────────────────────────────────
   const archiveCart = useCallback(async () => {
-    if (!cart) return;
+    if (!cart || !integrationId) return;
 
     setIsArchiving(true);
     try {
-      const cartRef = doc(db, 'integrations', businessId, 'carts', cart.id);
+      const cartRef = doc(db, 'integrations', integrationId, 'carts', cart.id);
       const now = new Date().toISOString();
 
       // Writing status='archived' causes this document to fall outside the
@@ -124,7 +124,7 @@ export function useActiveCart(
     } finally {
       setIsArchiving(false);
     }
-  }, [businessId, cart]);
+  }, [integrationId, cart]);
 
   return { cart, isLoading, isArchiving, archiveCart };
 }

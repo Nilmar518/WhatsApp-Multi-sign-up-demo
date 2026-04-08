@@ -7,6 +7,8 @@ import {
 import { DefensiveLoggerService } from '../common/logger/defensive-logger.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
+import { getMetaToken } from '../common/secrets/get-meta-token';
+import { META_API } from '../integrations/meta/meta-api-versions';
 
 interface MetaCatalogItem {
   id: string;
@@ -43,7 +45,7 @@ export class CatalogService {
     private readonly secrets: SecretManagerService,
   ) {}
 
-  async getCatalog(businessId: string): Promise<CatalogData> {
+  async getCatalog(businessId: string, catalogId?: string): Promise<CatalogData> {
     const db = this.firebase.getFirestore();
     const docRef = db.collection('integrations').doc(businessId);
     const snap = await docRef.get();
@@ -54,21 +56,27 @@ export class CatalogService {
       );
     }
 
-    const { accessToken, wabaId } = (snap.data()?.metaData ?? {}) as {
-      accessToken?: string;
+    const docData = snap.data() ?? {};
+    const { wabaId, catalogId: storedMetaCatalogId } = (docData.metaData ?? {}) as {
       wabaId?: string;
+      catalogId?: string;
+    };
+    const storedCatalog = (docData.catalog ?? {}) as {
+      catalogId?: string;
     };
 
-    if (!accessToken || !wabaId) {
+    if (!wabaId) {
       throw new BadRequestException(
-        'Integration is not fully connected. accessToken or wabaId missing.',
+        'Integration is not fully connected. wabaId missing.',
       );
     }
 
     const businessIdMeta = this.secrets.get('META_BUSINESS_ID') || businessId;
-    
-    // 🔥 EL SECRETO ESTÁ AQUÍ: Usamos el System Token para tener permisos de ver los catálogos
-    const systemToken = this.secrets.get('META_SYSTEM_USER_TOKEN') || accessToken;
+
+    // Priority: META_SYSTEM_USER_TOKEN (catalog scope) → integration token from SecretManager.
+    // accessToken is no longer stored in Firestore — use getMetaToken() for the fallback.
+    const systemToken =
+      this.secrets.get('META_SYSTEM_USER_TOKEN') ?? getMetaToken(this.secrets, businessId);
 
     this.logger.log(`[CATALOG] Fetching catalogs for businessId=${businessIdMeta} using System Token`);
 
@@ -77,7 +85,7 @@ export class CatalogService {
       data: MetaCatalogItem[];
     }>({
       method: 'GET',
-      url: `https://graph.facebook.com/v25.0/${businessIdMeta}/owned_product_catalogs`,
+      url: `${META_API.base(META_API.PHONE_CATALOG)}/${businessIdMeta}/owned_product_catalogs`,
       headers: { Authorization: `Bearer ${systemToken}` },
     });
 
@@ -90,7 +98,7 @@ export class CatalogService {
         data: MetaCatalogItem[];
       }>({
         method: 'GET',
-        url: `https://graph.facebook.com/v25.0/${businessIdMeta}/client_product_catalogs`,
+        url: `${META_API.base(META_API.PHONE_CATALOG)}/${businessIdMeta}/client_product_catalogs`,
         headers: { Authorization: `Bearer ${systemToken}` },
       });
       catalogs = clientCatalogsResp.data ?? [];
@@ -110,25 +118,35 @@ export class CatalogService {
       return empty;
     }
 
-    // Tomamos el primer catálogo que encuentre el negocio
-    const firstCatalog = catalogs[0];
+    const requestedCatalogId = catalogId ?? storedMetaCatalogId ?? storedCatalog.catalogId;
+    const targetCatalog = requestedCatalogId
+      ? catalogs.find((c) => c.id === requestedCatalogId)
+      : catalogs[0];
+
+    if (!targetCatalog) {
+      throw new BadRequestException(
+        `Requested catalogId=${requestedCatalogId} is not available for businessId=${businessIdMeta}`,
+      );
+    }
+
     this.logger.log(
-      `[CATALOG] Found catalog id=${firstCatalog.id} name="${firstCatalog.name}"`,
+      `[CATALOG] Using catalog id=${targetCatalog.id} name="${targetCatalog.name}"` +
+      (requestedCatalogId ? ` (requested=${requestedCatalogId})` : ' (default)'),
     );
 
-    // Step 2 — Descargamos los productos usando también el SYSTEM TOKEN
+    // Step 2 — Fetch products only for the selected/requested catalog
     const productsResp = await this.defLogger.request<{ data: MetaProduct[] }>(
       {
         method: 'GET',
-        url: `https://graph.facebook.com/v25.0/${firstCatalog.id}/products`,
+        url: `${META_API.base(META_API.PHONE_CATALOG)}/${targetCatalog.id}/products`,
         params: { fields: 'id,name,retailer_id,availability,price,currency,image_url' },
         headers: { Authorization: `Bearer ${systemToken}` },
       },
     );
 
     const catalogData: CatalogData = {
-      catalogId: firstCatalog.id,
-      catalogName: firstCatalog.name,
+      catalogId: targetCatalog.id,
+      catalogName: targetCatalog.name,
       products: productsResp.data ?? [],
       fetchedAt: new Date().toISOString(),
     };
