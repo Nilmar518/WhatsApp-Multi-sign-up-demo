@@ -12,6 +12,8 @@ import BusinessToggle from './components/BusinessToggle';
 import ConversationList from './components/ConversationList';
 import DisconnectButton from './components/ResetButton';
 import { CartPanel } from './components/CartPanel';
+import ChannelTabs, { type Channel } from './components/ChannelTabs';
+import MessengerConnect from './components/MessengerConnect';
 
 // ── Phase 4: business IDs loaded dynamically from the backend ─────────────────
 // Fallback to the fixture IDs while fetch is in flight so the UI renders
@@ -38,63 +40,94 @@ export default function App() {
       );
   }, []);
 
-  // ── Resolve integrationId (UUID) for the selected business (Phase 4) ─────────
-  // When the business has no active integration yet, integrationId is null and
-  // all downstream hooks short-circuit gracefully.
-  const { integrationId, isLoading: isResolvingId } = useIntegrationId(businessId);
+  // ── Channel navigation ────────────────────────────────────────────────────────
+  const [activeChannel, setActiveChannel] = useState<Channel>('whatsapp');
+  const [integrationsRefreshNonce, setIntegrationsRefreshNonce] = useState(0);
 
-  const { status, catalog, isLoading: isLoadingStatus } = useIntegrationStatus(integrationId);
-  const messages = useMessages(integrationId);
-  const conversations = useConversations(messages);
+  // ── WhatsApp integration (filtered to META provider) ─────────────────────────
+  // The provider filter is needed once a business can have multiple integrations
+  // (META + META_MESSENGER). Without it, Firestore may return the wrong doc.
+  // Requires a composite index on (connectedBusinessIds, provider) in production.
+  const { integrationId: waIntegrationId, isLoading: isResolvingWa } =
+    useIntegrationId(businessId, 'META', integrationsRefreshNonce);
 
-  const isLoading = isResolvingId || isLoadingStatus;
+  const {
+    status: waStatus,
+    metaData: waMetaData,
+    isLoading: isLoadingWaStatus,
+  } = useIntegrationStatus(waIntegrationId, integrationsRefreshNonce);
+
+  const waMessages      = useMessages(waIntegrationId);
+  const waConversations = useConversations(waMessages);
+
+  // ── Messenger integration (filtered to META_MESSENGER provider) ───────────────
+  const { integrationId: msgrIntegrationId, isLoading: isResolvingMsgr } =
+    useIntegrationId(businessId, 'META_MESSENGER', integrationsRefreshNonce);
+
+  const {
+    status: msgrStatus,
+    metaData: msgrMetaData,
+    isLoading: isLoadingMsgrStatus,
+  } = useIntegrationStatus(msgrIntegrationId, integrationsRefreshNonce);
+
+  const msgrMessages      = useMessages(msgrIntegrationId);
+  const msgrConversations = useConversations(msgrMessages);
+
+  // ── Derived channel-aware values ──────────────────────────────────────────────
+  const integrationId  = activeChannel === 'whatsapp' ? waIntegrationId  : msgrIntegrationId;
+  const status         = activeChannel === 'whatsapp' ? waStatus          : msgrStatus;
+  const activeMetaData = activeChannel === 'whatsapp' ? waMetaData : msgrMetaData;
+  const activeCatalogId = (activeMetaData?.catalogId as string | undefined) ?? undefined;
+  const conversations  = activeChannel === 'whatsapp' ? waConversations   : msgrConversations;
+  const messages       = activeChannel === 'whatsapp' ? waMessages        : msgrMessages;
+  const isLoading      = activeChannel === 'whatsapp'
+    ? isResolvingWa   || isLoadingWaStatus
+    : isResolvingMsgr || isLoadingMsgrStatus;
 
   // ── Phase 5: lift setupStep from ConnectionGateway → StatusDisplay ────────────
-  // ConnectionGateway owns the useWhatsAppConnect hook; it reports step changes
-  // here so the global StatusDisplay can show in-flight progress.
   const [setupStep, setSetupStep] = useState<SetupStep>('idle');
   const handleSetupStepChange = useCallback((step: SetupStep) => {
     setSetupStep(step);
-    // Reset to idle when the Firestore listener fires ACTIVE — avoids the
-    // 'complete' step persisting after the full round-trip to Firestore.
     if (step === 'complete') {
       setSetupStep('idle');
     }
   }, []);
 
+  // ── Active contact — shared slot, reset on business or channel change ─────────
   const [activeContact, setActiveContact] = useState<string | null>(null);
 
-  // Auto-select the first contact as soon as conversations populate
+  useEffect(() => {
+    setActiveContact(null);
+  }, [businessId, activeChannel]);
+
+  // Auto-select first contact in the active channel's conversation list
   useEffect(() => {
     if (conversations.length > 0 && !activeContact) {
       setActiveContact(conversations[0].waId);
     }
   }, [conversations, activeContact]);
 
-  // Reset contact selection when switching business integrations
-  useEffect(() => {
-    setActiveContact(null);
-  }, [businessId]);
-
-  // Treat the integration as active if it's in any fully connected state.
-  // The setup flow completes at WEBHOOKS_SUBSCRIBED (or CATALOG_SELECTED).
+  // ── WhatsApp connection state ─────────────────────────────────────────────────
   const connectedStatuses = ['ACTIVE', 'WEBHOOKS_SUBSCRIBED', 'CATALOG_SELECTED'];
-  const isActive = Boolean(status && connectedStatuses.includes(status));
+  const isWaActive    = Boolean(waStatus && connectedStatuses.includes(waStatus));
+  const showWaDashboard = isWaActive || waStatus === 'PENDING_TOKEN';
 
-  // Show the dashboard pane whenever the integration is in a "connected or
-  // connecting" state. MIGRATING is excluded here — the modal stays open
-  // mid-migration and there is no dashboard token to display yet.
-  const showDashboard = isActive || status === 'PENDING_TOKEN';
+  // ── Messenger connection state ────────────────────────────────────────────────
+  // A Messenger integration is "connected" as soon as the Firestore document
+  // exists (msgrIntegrationId !== null). The backend only writes the document
+  // after PAGE_SUBSCRIBED, so its existence is a sufficient connected signal.
+  const isMsgrConnected = msgrIntegrationId !== null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-start justify-center p-6">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-7xl space-y-6">
+
         {/* ── Header + Business Toggle ─────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Migo UIT</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              WhatsApp Business onboarding dashboard.
+              Multi-channel Business Messaging dashboard.
             </p>
           </div>
           <BusinessToggle
@@ -103,6 +136,35 @@ export default function App() {
             onChange={(id) => setBusinessId(id)}
           />
         </div>
+
+        {/* ── Channel Tabs ─────────────────────────────────────────────────── */}
+        <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              Catalog Setup (Business Global)
+            </h2>
+            <p className="text-xs text-gray-500">
+              Shared catalog for WhatsApp and Messenger.
+            </p>
+          </div>
+
+            {integrationId ? (
+            <CatalogView
+                businessId={businessId}
+                status={status}
+                activeCatalogId={activeCatalogId}
+                onCatalogLinked={() =>
+                  setIntegrationsRefreshNonce((prev) => prev + 1)
+                }
+            />
+          ) : (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Connect at least one channel to configure the centralized catalog for this business.
+            </div>
+          )}
+        </div>
+
+        <ChannelTabs active={activeChannel} onChange={setActiveChannel} />
 
         {/* ── HTTPS guard — Meta Live Mode requires a secure origin ────────── */}
         {window.location.protocol === 'http:' && (
@@ -116,88 +178,127 @@ export default function App() {
           </div>
         )}
 
-        {/* ── Connection Status ────────────────────────────────────────────── */}
-        <StatusDisplay status={status} isLoading={isLoading} setupStep={setupStep} />
-
-        {/* ── Connection gateway (hidden once active or token pending) ────────── */}
-        {/* Renders a trigger button that opens the pre-connection modal. The     */}
-        {/* modal offers Standard Connect (Meta Embedded Signup) and Force        */}
-        {/* Migration (API-driven OTP bypass for numbers on a handset).           */}
-        {!showDashboard && (
-          <ConnectionGateway
-            businessId={businessId}
-            currentStatus={status}
-            onSetupStepChange={handleSetupStepChange}
-          />
-        )}
-
-        {status === 'ERROR' && (
-          <p className="text-xs text-red-500 text-center -mt-2">
-            Connection failed. Retry above or contact support.
-          </p>
-        )}
-
-        {/* ── Active + pending dashboard ────────────────────────────────────── */}
-        {/* CatalogView and DisconnectButton are hidden during PENDING_TOKEN     */}
-        {/* because no access token is available yet to fetch catalog data.      */}
-        {showDashboard && (
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/*  WHATSAPP CHANNEL                                                 */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeChannel === 'whatsapp' && (
           <>
-            {isActive && integrationId && (
-              <CatalogView integrationId={integrationId} status={status} catalog={catalog} />
+            {/* ── Connection Status ────────────────────────────────────────── */}
+            <StatusDisplay status={waStatus} isLoading={isLoading} setupStep={setupStep} />
+
+            {/* ── Connection gateway (hidden once active or token pending) ──── */}
+            {!showWaDashboard && (
+              <ConnectionGateway
+                businessId={businessId}
+                currentStatus={waStatus}
+                onSetupStepChange={handleSetupStepChange}
+              />
             )}
 
-            {/*
-              3-column dashboard panel
-              ─────────────────────────────────────────────────────────────────
-              Col 1 (w-72)   Cart Panel     — real-time active cart viewer
-              Col 2 (w-52)   Conversations  — contact list (ConversationList)
-              Col 3 (flex-1) Chat           — message thread (ChatConsole)
+            {waStatus === 'ERROR' && (
+              <p className="text-xs text-red-500 text-center -mt-2">
+                Connection failed. Retry above or contact support.
+              </p>
+            )}
 
-              h-[600px] on the wrapper is the single source of truth for row
-              height — all three children use h-full internally so they stretch
-              to fill it uniformly.
+            {/* ── Active + pending dashboard ─────────────────────────────────── */}
+            {showWaDashboard && (
+              <>
+                {/*
+                  3-column dashboard panel
+                  ─────────────────────────────────────────────────────────────
+                  Col 1 (w-72)   Cart Panel     — real-time active cart viewer
+                  Col 2 (w-52)   Conversations  — contact list
+                  Col 3 (flex-1) Chat           — message thread
+                */}
+                <div className="flex border border-gray-200 rounded-xl overflow-hidden h-[600px] overflow-x-auto">
+                  <div className="w-72 shrink-0 border-r border-gray-200 flex flex-col">
+                    <CartPanel
+                      integrationId={waIntegrationId}
+                      contactWaId={activeContact}
+                    />
+                  </div>
 
-              overflow-x-auto lets the row scroll sideways on narrow viewports
-              rather than breaking the layout.
-            */}
-            <div className="flex border border-gray-200 rounded-xl overflow-hidden h-[600px] overflow-x-auto">
+                  <ConversationList
+                    contacts={waConversations}
+                    activeContact={activeContact}
+                    onSelect={setActiveContact}
+                  />
 
-              {/* ── Col 1: Cart Panel ──────────────────────────────────────── */}
-              <div className="w-72 shrink-0 border-r border-gray-200 flex flex-col">
-                <CartPanel
-                  integrationId={integrationId}
-                  contactWaId={activeContact}
-                />
-              </div>
+                  <div className="flex-1 min-w-0 p-4 flex flex-col">
+                    <ChatConsole
+                      businessId={businessId}
+                      messages={waMessages}
+                      status={waStatus}
+                      activeChannel={activeChannel}
+                      activeContact={activeContact}
+                    />
+                  </div>
+                </div>
 
-              {/* ── Col 2: Conversation List ───────────────────────────────── */}
-              {/*
-                ConversationList already declares w-52 shrink-0 and
-                border-r border-gray-100 internally — no wrapper needed.
-              */}
-              <ConversationList
-                contacts={conversations}
-                activeContact={activeContact}
-                onSelect={setActiveContact}
-              />
-
-              {/* ── Col 3: Chat Window ─────────────────────────────────────── */}
-              <div className="flex-1 min-w-0 p-4 flex flex-col">
-                <ChatConsole
-                  businessId={businessId}
-                  messages={messages}
-                  status={status}
-                  activeContact={activeContact}
-                />
-              </div>
-            </div>
-
-            {isActive && <DisconnectButton businessId={businessId} />}
+                {isWaActive && <DisconnectButton businessId={businessId} />}
+              </>
+            )}
           </>
         )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/*  MESSENGER CHANNEL                                                */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeChannel === 'messenger' && (
+          <>
+            {/* Loading state while Firestore resolves */}
+            {isResolvingMsgr && (
+              <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
+                <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+                Checking Messenger integration...
+              </div>
+            )}
+
+            {/* Not connected — show onboarding */}
+            {!isResolvingMsgr && !isMsgrConnected && (
+              <MessengerConnect businessId={businessId} />
+            )}
+
+            {/* Connected — 2-column chat view (no Cart, no Catalog) */}
+            {!isResolvingMsgr && isMsgrConnected && (
+              <>
+                {/* Slim status indicator */}
+                <StatusDisplay
+                  status={msgrStatus}
+                  isLoading={isLoadingMsgrStatus}
+                  setupStep="idle"
+                />
+
+                {/*
+                  2-column Messenger dashboard
+                  ─────────────────────────────────────────────────────────────
+                  Cart and Catalog panels are WhatsApp-specific features.
+                  Messenger shows Conversations + Chat only.
+                */}
+                <div className="flex border border-gray-200 rounded-xl overflow-hidden h-[600px] overflow-x-auto">
+                  <ConversationList
+                    contacts={msgrConversations}
+                    activeContact={activeContact}
+                    onSelect={setActiveContact}
+                  />
+
+                  <div className="flex-1 min-w-0 p-4 flex flex-col">
+                    <ChatConsole
+                      businessId={businessId}
+                      messages={msgrMessages}
+                      status={msgrStatus}
+                      activeChannel={activeChannel}
+                      activeContact={activeContact}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
       </div>
     </div>
   );
 }
-
-

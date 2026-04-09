@@ -6,6 +6,7 @@ import {
   HealthStatus,
 } from './integration-provider.contract';
 import { MetaProvider } from './meta/meta.provider';
+import { MessengerProvider } from './messenger/messenger.provider';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import { FirebaseService } from '../firebase/firebase.service';
 
@@ -36,12 +37,13 @@ export class IntegrationsService {
   constructor(
     // Register all providers here. Each must implement IntegrationProviderContract.
     private readonly meta: MetaProvider,
-    // Phase 3+ adds Google, BNB etc. as additional constructor parameters.
+    private readonly messenger: MessengerProvider,
     private readonly secrets: SecretManagerService,
     private readonly firebase: FirebaseService,
   ) {
     this.providers = new Map<IntegrationProvider, IntegrationProviderContract>([
       ['META', this.meta],
+      ['META_MESSENGER', this.messenger],
     ]);
     this.logger.log(
       `[INTEGRATIONS] Registered providers: [${[...this.providers.keys()].join(', ')}]`,
@@ -141,6 +143,41 @@ export class IntegrationsService {
     return ['787167007221172', 'demo-business-002'];
   }
 
+  // ─── Provider resolution (multi-provider support) ───────────────────────────
+
+  /**
+   * Reads the `provider` field from the Firestore integration document and
+   * returns the matching registered IntegrationProvider enum value.
+   *
+   * Used by generic lifecycle endpoints (disconnect, health) to route to the
+   * correct provider without requiring the caller to know the provider upfront.
+   *
+   * Throws NotFoundException when the document is missing or its provider is
+   * not registered in the providers Map.
+   */
+  async resolveProvider(integrationId: string): Promise<IntegrationProvider> {
+    const db   = this.firebase.getFirestore();
+    const snap = await db.collection('integrations').doc(integrationId).get();
+
+    if (!snap.exists) {
+      throw new NotFoundException(
+        `No integration found for integrationId=${integrationId}`,
+      );
+    }
+
+    const provider = snap.data()?.provider as IntegrationProvider | undefined;
+
+    if (!provider || !this.providers.has(provider)) {
+      throw new NotFoundException(
+        `Unknown or unregistered provider '${String(provider)}' ` +
+          `for integrationId=${integrationId}. ` +
+          `Available: [${[...this.providers.keys()].join(', ')}]`,
+      );
+    }
+
+    return provider;
+  }
+
   // ─── Non-contract operations (dev/demo only) ────────────────────────────────────
 
   /**
@@ -152,9 +189,9 @@ export class IntegrationsService {
    * disconnect lifecycle (e.g. no Meta Graph API call to unsubscribe).
    */
   async reset(integrationId: string): Promise<void> {
-    const db = this.firebase.getFirestore();
+    const db     = this.firebase.getFirestore();
     const docRef = db.collection('integrations').doc(integrationId);
-    const snap = await docRef.get();
+    const snap   = await docRef.get();
 
     if (!snap.exists) {
       throw new NotFoundException(
@@ -162,8 +199,13 @@ export class IntegrationsService {
       );
     }
 
-    // Invalidate any provider tokens for this integration
-    this.secrets.set(`META_TOKEN__${integrationId}`, '');
+    // Invalidate stored token — key format differs per provider.
+    const provider = snap.data()?.provider as string | undefined;
+    if (provider === 'META_MESSENGER') {
+      this.secrets.set(`META_PAGE_TOKEN__${integrationId}`, '');
+    } else {
+      this.secrets.set(`META_TOKEN__${integrationId}`, '');
+    }
 
     await docRef.delete();
 

@@ -69,7 +69,20 @@ export class WebhookController {
     // Dispatch processing outside the current event-loop tick so the HTTP
     // response is flushed before any awaitable work starts.
     setImmediate(() => {
-      this.webhookService.processInbound(body).catch((err: unknown) => {
+      const objectType = (body as { object?: string })?.object;
+
+      const processor =
+        objectType === 'page'
+          ? this.webhookService.processMessengerInbound(body)
+          : objectType === 'whatsapp_business_account'
+            ? this.webhookService.processWhatsAppInbound(body)
+            : Promise.resolve(
+                this.logger.warn(
+                  `[WEBHOOK_SKIP] Unsupported webhook object="${objectType ?? 'undefined'}"`,
+                ),
+              );
+
+      processor.catch((err: unknown) => {
         this.logger.error(
           `[WEBHOOK_BG_ERROR] Unhandled error in background processor: ${(err as Error).message ?? err}`,
         );

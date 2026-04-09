@@ -254,17 +254,18 @@ export class MetaIntegrationService {
           connectedBusinessIds: [businessId],
           status: MetaSetupStatus.TOKEN_EXCHANGED,
           setupStatus: MetaSetupStatus.TOKEN_EXCHANGED,
-          metaData: {
-            accessToken: longLived.access_token, // RESTORED FOR POC HYBRID
-            wabaId,
-            phoneNumberId: phoneNumberId || null,
-            tokenType: 'LONG_LIVED',
-          },
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
         { merge: true },
       );
+
+      await this.firebase.update(docRef, {
+        'metaData.accessToken': longLived.access_token, // RESTORED FOR POC HYBRID
+        'metaData.wabaId': wabaId,
+        'metaData.phoneNumberId': phoneNumberId || null,
+        'metaData.tokenType': 'LONG_LIVED',
+      });
 
       this.logger.log(
         `[META_STEP_1] ✓ TOKEN_EXCHANGED — integrationId=${integrationId} connectedBusinessIds=[${businessId}]`,

@@ -9,7 +9,7 @@ export class CatalogController {
   /**
    * GET /catalog?businessId={id}
    *
-   * Fetches the product catalog from Meta for the given integration,
+    * Fetches/discovers product catalogs from Meta for the given business,
    * persists it to Firestore (triggering a real-time UI update via onSnapshot),
    * and returns the full catalog data.
    *

@@ -3,6 +3,8 @@ import { IntegrationsController } from './integrations.controller';
 import { IntegrationsService } from './integrations.service';
 import { MetaProvider } from './meta/meta.provider';
 import { MetaIntegrationModule } from './meta/meta-integration.module';
+import { MessengerProvider } from './messenger/messenger.provider';
+import { MessengerIntegrationModule } from './messenger/messenger-integration.module';
 
 /**
  * IntegrationsModule — aggregates all provider implementations under a single
@@ -23,10 +25,13 @@ import { MetaIntegrationModule } from './meta/meta-integration.module';
   imports: [
     // MetaIntegrationModule provides MetaIntegrationService (used by MetaProvider).
     MetaIntegrationModule,
+    // MessengerIntegrationModule provides MessengerIntegrationService (used by MessengerProvider).
+    MessengerIntegrationModule,
   ],
   controllers: [IntegrationsController],
   providers: [
     MetaProvider,
+    MessengerProvider,
     IntegrationsService,
   ],
   exports: [IntegrationsService],

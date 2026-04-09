@@ -15,9 +15,13 @@ import type { CatalogData } from '../types/catalog';
  *
  * Re-runs automatically when integrationId changes.
  */
-export function useIntegrationStatus(integrationId: string | null) {
+export function useIntegrationStatus(
+  integrationId: string | null,
+  refreshKey = 0,
+) {
   const [status, setStatus] = useState<IntegrationStatus>('IDLE');
   const [catalog, setCatalog] = useState<CatalogData | null>(null);
+  const [metaData, setMetaData] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +29,7 @@ export function useIntegrationStatus(integrationId: string | null) {
     setIsLoading(true);
     setStatus('IDLE');
     setCatalog(null);
+    setMetaData(null);
 
     // If no integration has been created yet for this business, stay IDLE
     if (!integrationId) {
@@ -41,9 +46,11 @@ export function useIntegrationStatus(integrationId: string | null) {
           const data = snapshot.data();
           setStatus(data.status as IntegrationStatus);
           setCatalog((data.catalog ?? null) as CatalogData | null);
+          setMetaData((data.metaData ?? null) as Record<string, unknown> | null);
         } else {
           setStatus('IDLE');
           setCatalog(null);
+          setMetaData(null);
         }
         setIsLoading(false);
       },
@@ -54,7 +61,7 @@ export function useIntegrationStatus(integrationId: string | null) {
     );
 
     return () => unsubscribe();
-  }, [integrationId]);
+  }, [integrationId, refreshKey]);
 
-  return { status, catalog, isLoading };
+  return { status, catalog, metaData, isLoading };
 }
