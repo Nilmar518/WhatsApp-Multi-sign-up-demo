@@ -2,14 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 import type { Message } from '../../types/message';
 import type { IntegrationStatus } from '../../types/integration';
 
+type ChatChannel = 'whatsapp' | 'messenger';
+
 interface Props {
   businessId: string;
   messages: Message[];
   status: IntegrationStatus;
+  activeChannel: ChatChannel;
   activeContact: string | null; // customer wa_id; null = no conversation selected
 }
 
-export default function ChatConsole({ businessId, messages, status, activeContact }: Props) {
+export default function ChatConsole({
+  businessId,
+  messages,
+  status,
+  activeChannel,
+  activeContact,
+}: Props) {
   const [text, setText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -39,12 +48,15 @@ export default function ChatConsole({ businessId, messages, status, activeContac
     setSendError(null);
 
     try {
+      const provider = activeChannel === 'whatsapp' ? 'META' : 'META_MESSENGER';
+
       const res = await fetch('/api/messages/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           businessId,
-          recipientPhoneNumber: activeContact,
+          provider,
+          recipientId: activeContact,
           text: trimmedText,
         }),
       });

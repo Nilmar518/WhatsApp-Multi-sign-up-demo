@@ -51,6 +51,17 @@ interface IntegrationIdentifiers {
   phoneNumberId: string;
 }
 
+interface BusinessIntegrationRecord {
+  integrationId: string;
+  provider: string;
+  status: string;
+  metaData: {
+    phoneNumberId?: string;
+    wabaId?: string;
+    catalogId?: string;
+  };
+}
+
 @Injectable()
 export class CatalogManagerService {
   private readonly logger = new Logger(CatalogManagerService.name);
@@ -122,6 +133,90 @@ export class CatalogManagerService {
     );
     // accessToken is no longer stored in Firestore — retrieve from SecretManagerService.
     return getMetaToken(this.secrets, businessId);
+  }
+
+  private async findIntegrationsByBusinessId(
+    businessId: string,
+  ): Promise<BusinessIntegrationRecord[]> {
+    const db = this.firebase.getFirestore();
+    const snap = await db
+      .collection('integrations')
+      .where('connectedBusinessIds', 'array-contains', businessId)
+      .get();
+
+    return snap.docs.map((doc) => {
+      const d = doc.data() as {
+        provider?: string;
+        status?: string;
+        metaData?: {
+          phoneNumberId?: string;
+          wabaId?: string;
+          catalogId?: string;
+        };
+      };
+
+      return {
+        integrationId: doc.id,
+        provider: d.provider ?? 'META',
+        status: d.status ?? 'UNKNOWN',
+        metaData: d.metaData ?? {},
+      };
+    });
+  }
+
+  private async resolveBusinessScopeId(scopeId: string): Promise<string> {
+    const direct = await this.findIntegrationsByBusinessId(scopeId);
+    if (direct.length > 0) {
+      return scopeId;
+    }
+
+    const db = this.firebase.getFirestore();
+    const integrationSnap = await db.collection('integrations').doc(scopeId).get();
+    if (!integrationSnap.exists) {
+      throw new NotFoundException(
+        `No business/integration found for scopeId=${scopeId}`,
+      );
+    }
+
+    const connectedBusinessIds =
+      ((integrationSnap.data()?.connectedBusinessIds ?? []) as string[]);
+    if (!connectedBusinessIds.length) {
+      throw new BadRequestException(
+        `Integration ${scopeId} has no connectedBusinessIds; cannot resolve business scope.`,
+      );
+    }
+
+    return connectedBusinessIds[0];
+  }
+
+  private async propagateCatalogToBusinessIntegrations(
+    businessId: string,
+    catalogId: string,
+  ): Promise<void> {
+    const db = this.firebase.getFirestore();
+    const integrations = await this.findIntegrationsByBusinessId(businessId);
+
+    if (!integrations.length) {
+      this.logger.warn(
+        `[CATALOG_MANAGER] No integrations found to propagate catalogId=${catalogId} for businessId=${businessId}`,
+      );
+      return;
+    }
+
+    const batch = db.batch();
+    for (const integration of integrations) {
+      const ref = db.collection('integrations').doc(integration.integrationId);
+      batch.update(ref, {
+        'metaData.catalogId': catalogId,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    await batch.commit();
+
+    this.logger.log(
+      `[CATALOG_MANAGER] ✓ Propagated metaData.catalogId=${catalogId} to ${integrations.length} integration(s) for businessId=${businessId}`,
+    );
   }
 
   /**
@@ -520,11 +615,24 @@ export class CatalogManagerService {
    * Body: { catalog_id, is_catalog_visible: true }
    */
   async linkCatalogToWaba(
-    businessId: string,
+    scopeId: string,
     catalogId: string,
   ): Promise<void> {
-    const { phoneNumberId } = await this.getIntegrationIdentifiers(businessId);
-    const catalogToken = await this.getCatalogToken(businessId);
+    const businessId = await this.resolveBusinessScopeId(scopeId);
+
+    const integrations = await this.findIntegrationsByBusinessId(businessId);
+    const whatsappIntegration = integrations.find(
+      (i) => i.provider === 'META' && !!i.metaData.phoneNumberId,
+    );
+
+    if (!whatsappIntegration?.metaData.phoneNumberId) {
+      throw new BadRequestException(
+        `No active WhatsApp integration with phoneNumberId found for businessId=${businessId}.`,
+      );
+    }
+
+    const phoneNumberId = whatsappIntegration.metaData.phoneNumberId;
+    const catalogToken = await this.getCatalogToken(whatsappIntegration.integrationId);
 
     if (!phoneNumberId) {
       throw new BadRequestException(
@@ -549,6 +657,8 @@ export class CatalogManagerService {
     this.logger.log(
       `[CATALOG_MANAGER] ✓ Catalog ${catalogId} linked to phoneNumberId=${phoneNumberId} (visibility=true, cart=true)`,
     );
+
+    await this.propagateCatalogToBusinessIntegrations(businessId, catalogId);
   }
 
   /**

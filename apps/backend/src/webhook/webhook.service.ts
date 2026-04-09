@@ -6,6 +6,7 @@ import type { AutoReply } from '../auto-reply/auto-reply.types';
 import { MatchType } from '../auto-reply/auto-reply.types';
 import { CartService } from '../cart/cart.service';
 import type { IncomingOrderItem } from '../cart/cart.types';
+import { MessagingService } from '../messaging/messaging.service';
 import {
   sendWhatsAppText,
   sendWhatsAppInteractive,
@@ -22,6 +23,8 @@ interface MetaWebhookPayload {
 interface MetaEntry {
   id: string;
   changes?: MetaChange[];
+  messaging?: MessengerEvent[];
+  standby?: MessengerEvent[];
 }
 
 interface MetaChange {
@@ -99,6 +102,16 @@ interface MetaInboundMessage {
   };
 }
 
+interface MessengerEvent {
+  sender?: { id?: string };
+  recipient?: { id?: string };
+  timestamp?: number;
+  message?: {
+    mid?: string;
+    text?: string;
+  };
+}
+
 // ─── Internal parsed shape ───────────────────────────────────────────────────
 
 interface ParsedInboundMessage {
@@ -119,11 +132,18 @@ interface ParsedInboundMessage {
 
 interface IntegrationContext {
   businessId: string;
+  provider: 'META' | 'META_MESSENGER' | 'META_INSTAGRAM' | string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   docRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>;
+  integrationId: string;
   accessToken: string;
   phoneNumberId: string;
   catalog?: { catalogId: string; [key: string]: unknown };
+}
+
+interface BusinessCatalogContext {
+  catalogId: string;
+  catalogDocRef: FirebaseFirestore.DocumentReference;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -142,14 +162,23 @@ export class WebhookService {
     private readonly defLogger: DefensiveLoggerService,
     private readonly secrets: SecretManagerService,
     private readonly cartService: CartService,
+    private readonly messagingService: MessagingService,
   ) {}
 
   /**
    * Entry point called by WebhookController.
+   * Backward-compatible alias for the WhatsApp pipeline.
+   */
+  async processInbound(payload: unknown): Promise<void> {
+    await this.processWhatsAppInbound(payload);
+  }
+
+  /**
+   * WhatsApp pipeline entry point.
    * Always resolves — never throws — so the controller can safely return 200
    * to Meta even when payloads are malformed or unexpected.
    */
-  async processInbound(payload: unknown): Promise<void> {
+  async processWhatsAppInbound(payload: unknown): Promise<void> {
     // ── Detect PARTNER_APP_INSTALLED before normal message parsing ────────────
     // This fires when the BSP app is installed on a WABA, even if the frontend
     // OAuth handshake has not completed yet. We use it as a fail-safe to write
@@ -219,6 +248,155 @@ export class WebhookService {
         }
       }
     }
+  }
+
+  /**
+   * Messenger pipeline entry point for `object=page` webhook payloads.
+   * Parses both active channel events (`messaging`) and passive channel events
+   * (`standby`) and stores inbound text messages under integrations/{id}/messages.
+   */
+  async processMessengerInbound(payload: unknown): Promise<void> {
+    const typed = payload as MetaWebhookPayload;
+
+    for (const entry of typed.entry ?? []) {
+      const pageId = entry.id;
+      if (!pageId) continue;
+
+      const integrationDoc = await this.findMessengerIntegrationByPageId(pageId);
+      if (!integrationDoc) {
+        this.logger.warn(
+          `[MESSENGER_WEBHOOK] No META_MESSENGER integration found for pageId=${pageId}`,
+        );
+        continue;
+      }
+
+      const events = [
+        ...(entry.messaging ?? []).map((event) => ({ channel: 'messaging' as const, event })),
+        ...(entry.standby ?? []).map((event) => ({ channel: 'standby' as const, event })),
+      ];
+
+      const data = integrationDoc.data() as {
+        provider?: string;
+        connectedBusinessIds?: string[];
+        metaData?: { accessToken?: string; pageId?: string; catalogId?: string };
+        catalog?: { catalogId?: string; [key: string]: unknown };
+      };
+
+      const businessId = data.connectedBusinessIds?.[0] ?? integrationDoc.id;
+      const provider = data.provider ?? 'META_MESSENGER';
+      const pageToken = data.metaData?.accessToken ?? '';
+      const pageIdFromDoc = data.metaData?.pageId ?? pageId;
+      const integrationCatalogId = data.metaData?.catalogId ?? data.catalog?.catalogId;
+      const catalog = data.catalog as { catalogId?: string; [key: string]: unknown } | undefined;
+
+      for (const { channel, event } of events) {
+        const senderId = event.sender?.id ?? '';
+        const text = event.message?.text ?? '';
+        const rawTimestamp = event.timestamp;
+        const timestamp =
+          typeof rawTimestamp === 'number'
+            ? new Date(rawTimestamp).toISOString()
+            : new Date().toISOString();
+
+        if (!senderId || !text.trim()) continue;
+
+        const messageId =
+          event.message?.mid ?? `messenger_${pageId}_${senderId}_${rawTimestamp ?? Date.now()}`;
+
+        await this.storeMessengerInboundMessage(
+          integrationDoc.ref,
+          messageId,
+          senderId,
+          text,
+          timestamp,
+          channel,
+          pageId,
+        );
+
+        // Only active-channel text messages feed the rule engine.
+        if (channel === 'messaging') {
+          await this.evaluateAndRespond(
+            {
+              waMessageId: messageId,
+              from: senderId,
+              type: 'text',
+              text,
+              timestamp,
+              phoneNumberId: pageIdFromDoc,
+            },
+            {
+              businessId,
+              provider,
+              docRef: integrationDoc.ref,
+              integrationId: integrationDoc.id,
+              accessToken: pageToken,
+              phoneNumberId: pageIdFromDoc,
+              catalog: integrationCatalogId
+                ? ({ catalogId: integrationCatalogId } as { catalogId: string; [key: string]: unknown })
+                : undefined,
+            },
+          );
+        }
+      }
+    }
+  }
+
+  private async findMessengerIntegrationByPageId(pageId: string) {
+    const db = this.firebase.getFirestore();
+    const snapshot = await db
+      .collection('integrations')
+      .where('provider', '==', 'META_MESSENGER')
+      .where('metaData.pageId', '==', pageId)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) return null;
+    return snapshot.docs[0];
+  }
+
+  private async storeMessengerInboundMessage(
+    docRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,
+    messageId: string,
+    from: string,
+    text: string,
+    timestamp: string,
+    channel: 'messaging' | 'standby',
+    pageId: string,
+  ): Promise<void> {
+    const db = this.firebase.getFirestore();
+    const msgRef = docRef.collection('messages').doc(messageId);
+
+    let isDuplicate = false;
+    await db.runTransaction(async (tx) => {
+      const existing = await tx.get(msgRef);
+      if (existing.exists) {
+        isDuplicate = true;
+        return;
+      }
+
+      tx.set(msgRef, {
+        id: messageId,
+        direction: 'inbound',
+        from,
+        text,
+        timestamp,
+        pageId,
+        channel,
+      });
+    });
+
+    if (isDuplicate) {
+      this.logger.warn(
+        `[MESSENGER_WEBHOOK] Duplicate inbound message ignored id=${messageId} pageId=${pageId}`,
+      );
+      return;
+    }
+
+    await this.firebase.update(docRef, { updatedAt: new Date().toISOString() });
+
+    this.logger.log(
+      `[MESSENGER_WEBHOOK] Saved inbound id=${messageId} pageId=${pageId} channel=${channel}`,
+    );
   }
 
   // ── Provisioning ──────────────────────────────────────────────────────────
@@ -437,8 +615,10 @@ export class WebhookService {
     const metaData = (data.metaData ?? {}) as {
       accessToken?: string;
       phoneNumberId?: string;
+      catalogId?: string;
     };
     const catalog = data.catalog as { catalogId?: string } | undefined;
+    const integrationCatalogId = metaData.catalogId ?? catalog?.catalogId;
 
     if (!realBusinessId) {
       this.logger.warn(
@@ -454,11 +634,13 @@ export class WebhookService {
 
     return {
       businessId: realBusinessId || doc.id,
+      provider: (data.provider as string | undefined) ?? 'META',
       docRef,
+      integrationId: doc.id,
       accessToken: metaData.accessToken ?? '',
       phoneNumberId: metaData.phoneNumberId ?? '',
-      catalog: catalog?.catalogId
-        ? (catalog as { catalogId: string; [key: string]: unknown })
+      catalog: integrationCatalogId
+        ? ({ catalogId: integrationCatalogId } as { catalogId: string; [key: string]: unknown })
         : undefined,
     };
   }
@@ -474,12 +656,12 @@ export class WebhookService {
     msg: ParsedInboundMessage,
     context: IntegrationContext,
   ): Promise<void> {
-    const { businessId, docRef, accessToken, phoneNumberId, catalog } = context;
+    const { businessId, provider, docRef, accessToken, phoneNumberId, catalog, integrationId } = context;
 
     // ── Handle interactive button replies (CMD_VIEW_MPM, CMD_PAY_CART, …) ──────
     // Routed first — these come from our own interactive messages and are
     // entirely distinct from text commands or native cart orders.
-    if (msg.type === 'interactive' && msg.buttonReplyId) {
+    if (provider === 'META' && msg.type === 'interactive' && msg.buttonReplyId) {
       try {
         await this.handleInteractiveReply(msg, context);
       } catch (err: unknown) {
@@ -493,7 +675,7 @@ export class WebhookService {
 
     // ── Handle native WhatsApp Cart (type === 'order') ────────────────────────
     // Sync the customer's cart to Firestore and skip the keyword rule engine.
-    if (msg.type === 'order' && msg.orderItems?.length) {
+    if (provider === 'META' && msg.type === 'order' && msg.orderItems?.length) {
       try {
         await this.cartService.syncFromNativeOrder(
           businessId,
@@ -516,19 +698,21 @@ export class WebhookService {
     // Check before the keyword rule engine so "borrar carrito" doesn't
     // accidentally trigger an unrelated keyword rule.
     let cartResult: Awaited<ReturnType<CartService['tryHandleTextCommand']>> = null;
-    try {
-      cartResult = await this.cartService.tryHandleTextCommand(
-        businessId,
-        msg.from,
-        msg.text,
-      );
-    } catch (err: unknown) {
-      this.logger.error(
-        `[CART_ENGINE] ✗ tryHandleTextCommand failed: ${(err as Error).message}`,
-      );
+    if (provider === 'META') {
+      try {
+        cartResult = await this.cartService.tryHandleTextCommand(
+          businessId,
+          msg.from,
+          msg.text,
+        );
+      } catch (err: unknown) {
+        this.logger.error(
+          `[CART_ENGINE] ✗ tryHandleTextCommand failed: ${(err as Error).message}`,
+        );
+      }
     }
 
-    if (cartResult) {
+    if (provider === 'META' && cartResult) {
       this.logger.log(
         `[CART_ENGINE] ✓ Cart command "${cartResult.action}" — businessId=${businessId} from=${msg.from}`,
       );
@@ -624,15 +808,25 @@ export class WebhookService {
       `[RULE_ENGINE] Rule matched: trigger="${matchedRule.triggerWord}" matchType=${matchedRule.matchType} from=${msg.from}`,
     );
 
-    // A catalog must be linked to send product messages
-    if (!catalog?.catalogId) {
+    const catalogCtx = await this.resolveCatalogContextForIntegration(
+      businessId,
+      integrationId,
+      catalog?.catalogId,
+    );
+
+    // A catalog must be linked somewhere under this business to send product messages
+    if (!catalogCtx) {
       this.logger.warn(
-        `[RULE_ENGINE] Rule matched but no catalog linked for businessId=${businessId} — skipping auto-reply`,
+        `[RULE_ENGINE] Rule matched but no business catalog linked for businessId=${businessId} — skipping auto-reply`,
       );
       return;
     }
 
-    if (!accessToken || !phoneNumberId) {
+    this.logger.debug(
+      `[RULE_ENGINE] Integration fetched for channel=${provider} integrationId=${integrationId} using catalogId=${catalogCtx.catalogId}`,
+    );
+
+    if (provider === 'META' && (!accessToken || !phoneNumberId)) {
       this.logger.warn(
         `[RULE_ENGINE] Missing accessToken or phoneNumberId for businessId=${businessId} — skipping auto-reply`,
       );
@@ -652,7 +846,7 @@ export class WebhookService {
     // Filter orphan/non-ACTIVE items and deduplicate by itemGroupId so that
     // each product family is represented by exactly one retailer_id.
     const retailerIds = await this.resolveActiveUniqueRetailerIds(
-      docRef,
+      catalogCtx.catalogDocRef,
       rawRetailerIds,
     );
 
@@ -674,7 +868,7 @@ export class WebhookService {
           body:   { text: 'Aquí tienes el producto solicitado:' },
           footer: { text: 'Migo UIT' },
           action: {
-            catalog_id:            catalog.catalogId,
+            catalog_id:            catalogCtx.catalogId,
             product_retailer_id:   retailerIds[0],
           },
         }
@@ -684,7 +878,7 @@ export class WebhookService {
           body:   { text: 'Aquí tienes los productos solicitados:' },
           footer: { text: 'Migo UIT' },
           action: {
-            catalog_id: catalog.catalogId,
+            catalog_id: catalogCtx.catalogId,
             sections: [
               {
                 title: collectionTitle,
@@ -696,44 +890,256 @@ export class WebhookService {
           },
         };
 
-    const interactivePayload = {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: msg.from,
-      type: 'interactive',
-      interactive,
-    };
+    if (provider === 'META') {
+      const interactivePayload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: msg.from,
+        type: 'interactive',
+        interactive,
+      };
 
-    // Use the integration-scoped token from the hybrid document for outbound
-    // messaging on this WABA. A global system-user token can belong to a
-    // different business context and trigger Meta auth error 190.
-    const outboundToken = accessToken;
+      // Use the integration-scoped token from the hybrid document for outbound
+      // messaging on this WABA. A global system-user token can belong to a
+      // different business context and trigger Meta auth error 190.
+      const outboundToken = accessToken;
 
-    const response = await this.defLogger.request<{
-      messages: { id: string }[];
-    }>({
-      method: 'POST',
-      url: `${META_GRAPH_MESSAGES}/${phoneNumberId}/messages`,
-      headers: { Authorization: `Bearer ${outboundToken}` },
-      data: interactivePayload,
-    });
+      const response = await this.defLogger.request<{
+        messages: { id: string }[];
+      }>({
+        method: 'POST',
+        url: `${META_GRAPH_MESSAGES}/${phoneNumberId}/messages`,
+        headers: { Authorization: `Bearer ${outboundToken}` },
+        data: interactivePayload,
+      });
 
-    const wamid = response.messages?.[0]?.id ?? 'unknown';
-    this.logger.log(
-      `[RULE_ENGINE] ✓ Sent ${isSingle ? 'product' : 'product_list'} wamid=${wamid} to=${msg.from} (trigger="${triggerWord}", ${retailerIds.length} product(s))`,
+      const wamid = response.messages?.[0]?.id ?? 'unknown';
+      this.logger.log(
+        `[RULE_ENGINE] ✓ Sent ${isSingle ? 'product' : 'product_list'} wamid=${wamid} to=${msg.from} (trigger="${triggerWord}", ${retailerIds.length} product(s))`,
+      );
+
+      // Persist the auto-reply outbound message to Firestore for the chat timeline
+      await docRef.collection('messages').doc(wamid).set({
+        id: wamid,
+        direction: 'outbound',
+        from: phoneNumberId,
+        to: msg.from,
+        text: `[Auto-reply: ${matchedRule.collectionTitle}]`,
+        timestamp: new Date().toISOString(),
+      });
+
+      await this.firebase.update(docRef, { updatedAt: new Date().toISOString() });
+      return;
+    }
+
+    if (provider === 'META_MESSENGER') {
+      const messengerMessage = await this.buildMessengerCatalogTemplate(
+        catalogCtx.catalogDocRef,
+        retailerIds,
+      );
+
+      if (!messengerMessage) {
+        this.logger.warn(
+          `[RULE_ENGINE] Messenger rich product join returned no valid elements for businessId=${businessId} — skipping auto-reply`,
+        );
+        return;
+      }
+
+      const { messageId } = await this.messagingService.sendMessage({
+        businessId,
+        provider: 'META_MESSENGER',
+        recipientId: msg.from,
+        text: `[Auto-reply: ${matchedRule.collectionTitle}]`,
+        message: messengerMessage,
+      });
+
+      this.logger.log(
+        `[RULE_ENGINE] ✓ Sent messenger carousel messageId=${messageId} to=${msg.from} (trigger="${triggerWord}", ${retailerIds.length} product(s))`,
+      );
+      return;
+    }
+
+    this.logger.warn(
+      `[RULE_ENGINE] Unsupported provider=${provider} for catalog reply; skipping`,
+    );
+  }
+
+  private async resolveBusinessCatalogContext(
+    businessId: string,
+  ): Promise<BusinessCatalogContext | null> {
+    const db = this.firebase.getFirestore();
+    const snap = await db
+      .collection('catalogs')
+      .where('businessId', '==', businessId)
+      .where('isActive', '==', true)
+      .limit(1)
+      .get();
+
+    if (!snap.empty) {
+      const doc = snap.docs[0];
+      const data = doc.data() as { catalogId?: string };
+      const catalogId = data.catalogId ?? doc.id;
+      if (catalogId) {
+        return { catalogId, catalogDocRef: doc.ref };
+      }
+    }
+
+    return null;
+  }
+
+  private async resolveCatalogContextForIntegration(
+    businessId: string,
+    integrationId: string,
+    integrationCatalogId?: string,
+  ): Promise<BusinessCatalogContext | null> {
+    const db = this.firebase.getFirestore();
+
+    if (integrationCatalogId) {
+      const doc = await db.collection('catalogs').doc(integrationCatalogId).get();
+      if (doc.exists) {
+        const data = doc.data() as { businessId?: string; catalogId?: string };
+        const catalogBusinessId = data.businessId ?? '';
+        if (!catalogBusinessId || catalogBusinessId === businessId) {
+          this.logger.debug(
+            `[RULE_ENGINE] Integration fetched for channel resolution using catalogId=${data.catalogId ?? doc.id}`,
+          );
+          return {
+            catalogId: data.catalogId ?? doc.id,
+            catalogDocRef: doc.ref,
+          };
+        }
+
+        this.logger.warn(
+          `[RULE_ENGINE] integrationId=${integrationId} has metaData.catalogId=${integrationCatalogId} but catalog businessId=${catalogBusinessId} != ${businessId}`,
+        );
+      } else {
+        this.logger.warn(
+          `[RULE_ENGINE] integrationId=${integrationId} references missing catalogId=${integrationCatalogId}`,
+        );
+      }
+    }
+
+    return this.resolveBusinessCatalogContext(businessId);
+  }
+
+  private async buildMessengerCatalogTemplate(
+    catalogDocRef: FirebaseFirestore.DocumentReference,
+    retailerIds: string[],
+  ): Promise<Record<string, unknown> | null> {
+    const targetRetailerIds = Array.from(new Set(retailerIds)).slice(0, 10);
+    if (!targetRetailerIds.length) {
+      return null;
+    }
+
+    const CHUNK = 30;
+    const chunks: string[][] = [];
+    for (let i = 0; i < targetRetailerIds.length; i += CHUNK) {
+      chunks.push(targetRetailerIds.slice(i, i + CHUNK));
+    }
+
+    this.logger.debug(
+      `[RULE_ENGINE] Querying: ${catalogDocRef.path}/products for retailerIds=[${targetRetailerIds.join(', ')}]`,
     );
 
-    // Persist the auto-reply outbound message to Firestore for the chat timeline
-    await docRef.collection('messages').doc(wamid).set({
-      id: wamid,
-      direction: 'outbound',
-      from: phoneNumberId,
-      to: msg.from,
-      text: `[Auto-reply: ${matchedRule.collectionTitle}]`,
-      timestamp: new Date().toISOString(),
-    });
+    type CatalogProduct = {
+      productId?: string;
+      retailerId?: string;
+      name?: string;
+      price?: string | number;
+      currency?: string;
+      imageUrl?: string;
+      image_url?: string;
+    };
 
-    await this.firebase.update(docRef, { updatedAt: new Date().toISOString() });
+    const byRetailerId = new Map<string, CatalogProduct>();
+    const unresolved = new Set(targetRetailerIds);
+
+    for (const chunk of chunks) {
+      const snap = await catalogDocRef
+        .collection('products')
+        .where('retailerId', 'in', chunk)
+        .get();
+
+      for (const d of snap.docs) {
+        const item = d.data() as CatalogProduct;
+        const retailerId = item.retailerId;
+        if (retailerId) {
+          byRetailerId.set(retailerId, item);
+          unresolved.delete(retailerId);
+        }
+      }
+    }
+
+    this.logger.debug(
+      `[RULE_ENGINE] Fetched ${byRetailerId.size} raw products matching retailerIds`,
+    );
+
+    // Fallback for legacy rules where retailerId may actually match product document id.
+    for (const rid of unresolved) {
+      const doc = await catalogDocRef.collection('products').doc(rid).get();
+      if (!doc.exists) {
+        continue;
+      }
+      const item = doc.data() as CatalogProduct;
+      const retailerId = item.retailerId ?? rid;
+      byRetailerId.set(retailerId, { ...item, retailerId });
+    }
+
+    const elements = targetRetailerIds
+      .map((retailerId) => {
+        const product = byRetailerId.get(retailerId);
+        if (!product) {
+          this.logger.warn(
+            `[RULE_ENGINE] Messenger product join miss for retailerId=${retailerId}`,
+          );
+          return null;
+        }
+
+        const title = product.name?.trim();
+        const imageUrl = product.image_url ?? product.imageUrl;
+        const subtitle = `${product.currency ?? ''} ${product.price ?? ''}`.trim();
+
+        // Strict rich-data rule: do not send placeholder media/text.
+        if (!title || !imageUrl || !subtitle) {
+          this.logger.warn(
+            `[RULE_ENGINE] Skipping incomplete messenger product retailerId=${retailerId}`,
+          );
+          return null;
+        }
+
+        return {
+          title,
+          image_url: imageUrl,
+          subtitle,
+          buttons: [
+            {
+              type: 'postback',
+              title: 'Anadir al carrito',
+              payload: `ADD_CART_${retailerId}`,
+            },
+          ],
+        };
+      })
+      .filter((el): el is {
+        title: string;
+        image_url: string;
+        subtitle: string;
+        buttons: Array<{ type: string; title: string; payload: string }>;
+      } => Boolean(el));
+
+    if (!elements.length) {
+      return null;
+    }
+
+    return {
+      attachment: {
+        type: 'template',
+        payload: {
+          template_type: 'generic',
+          elements,
+        },
+      },
+    };
   }
 
   // ── Retailer ID Resolution ────────────────────────────────────────────────
@@ -752,7 +1158,7 @@ export class WebhookService {
    *      product_items slots (limit: 30 per section).
    *
    * Algorithm:
-   *   a. Query catalog_products subcollection for each retailer_id.
+    *   a. Query catalogs/{catalogId}/products for each retailer_id.
    *   b. For known items: skip those not in ACTIVE status (filter orphans).
    *   c. For unknown items (not tracked in Firestore): keep them unchanged —
    *      conservative behaviour avoids breaking rules created before tracking.
@@ -763,7 +1169,7 @@ export class WebhookService {
    * requiring a composite index on (retailerId, status).
    */
   private async resolveActiveUniqueRetailerIds(
-    docRef: FirebaseFirestore.DocumentReference,
+    catalogDocRef: FirebaseFirestore.DocumentReference,
     retailerIds: string[],
   ): Promise<string[]> {
     if (!retailerIds.length) return [];
@@ -775,27 +1181,35 @@ export class WebhookService {
       chunks.push(retailerIds.slice(i, i + CHUNK));
     }
 
-    // Fetch known records from catalog_products (no composite index needed)
-    const known = new Map<string, { status: string; itemGroupId?: string }>();
+    // Fetch known records from root catalog products (no composite index needed)
+    this.logger.debug(
+      `[RULE_ENGINE] Querying: ${catalogDocRef.path}/products for retailerIds=[${retailerIds.join(', ')}]`,
+    );
+
+    const known = new Map<string, { availability: string; itemGroupId?: string }>();
     for (const chunk of chunks) {
       try {
-        const snap = await docRef
-          .collection('catalog_products')
+        const snap = await catalogDocRef
+          .collection('products')
           .where('retailerId', 'in', chunk)
           .get();
 
+        this.logger.debug(
+          `[RULE_ENGINE] Fetched ${snap.size} raw products matching retailerIds`,
+        );
+
         for (const doc of snap.docs) {
-          const d = doc.data() as { retailerId?: string; status?: string; itemGroupId?: string };
+          const d = doc.data() as { retailerId?: string; availability?: string; itemGroupId?: string };
           if (d.retailerId) {
             known.set(d.retailerId, {
-              status:      d.status ?? 'UNKNOWN',
+              availability: d.availability ?? 'unknown',
               itemGroupId: d.itemGroupId,
             });
           }
         }
       } catch (err: unknown) {
         this.logger.warn(
-          `[RULE_ENGINE] catalog_products lookup failed — proceeding without filter: ` +
+          `[RULE_ENGINE] catalog products lookup failed — proceeding without filter: ` +
           `${(err as Error).message}`,
         );
       }
@@ -806,10 +1220,10 @@ export class WebhookService {
     for (const retailerId of retailerIds) {
       const record = known.get(retailerId);
       if (record) {
-        if (record.status !== 'ACTIVE') {
+        if (record.availability !== 'in stock') {
           this.logger.warn(
             `[RULE_ENGINE] Skipping retailer_id="${retailerId}" — ` +
-            `Firestore status="${record.status}" (not ACTIVE)`,
+            `availability is "${record.availability}" (not in stock)`,
           );
           continue;
         }

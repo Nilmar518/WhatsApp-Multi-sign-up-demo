@@ -79,22 +79,24 @@ export class IntegrationsController {
   /**
    * POST /integrations/:integrationId/disconnect
    *
-   * Gracefully disconnects the Meta/WhatsApp integration for the given ID.
-   * Delegates to MetaProvider.disconnect() via IntegrationsService:
-   *   1. Invalidates the stored token in SecretManagerService.
-   *   2. Resets Firestore status to IDLE and clears credential fields.
+   * Gracefully disconnects any provider integration for the given ID.
+   * Resolves the provider from the Firestore document and delegates to
+   * the appropriate IntegrationProviderContract.disconnect() implementation:
+   *   - META: invalidates META_TOKEN__, resets Firestore status to IDLE.
+   *   - META_MESSENGER: invalidates META_PAGE_TOKEN__, resets status to IDLE.
    *
    * The frontend's onSnapshot listener fires automatically when status
    * becomes 'IDLE', returning the UI to the onboarding flow.
-   * Conversation history (messages sub-collection) is preserved.
+   * Conversation history is preserved.
    */
   @Post(':integrationId/disconnect')
   @HttpCode(HttpStatus.OK)
   async disconnect(@Param('integrationId') integrationId: string) {
-    await this.integrationsService.disconnect('META', integrationId);
+    const provider = await this.integrationsService.resolveProvider(integrationId);
+    await this.integrationsService.disconnect(provider, integrationId);
 
     this.logger.log(
-      `[INTEGRATIONS_CTRL] ✓ POST /${integrationId}/disconnect`,
+      `[INTEGRATIONS_CTRL] ✓ POST /${integrationId}/disconnect — provider=${provider}`,
     );
     return { disconnected: true, integrationId };
   }
@@ -103,18 +105,19 @@ export class IntegrationsController {
    * GET /integrations/:integrationId/health
    *
    * Returns a lightweight health status for the integration.
+   * Resolves the provider from the Firestore document and delegates to
+   * the appropriate IntegrationProviderContract.healthCheck() implementation.
+   *
    * Checks that a valid token exists in SecretManagerService and that
    * the Firestore document is in a connected state.
-   *
-   * Phase 6 extends this to call Meta's /debug_token endpoint for full
-   * token-validity and scope verification.
    */
   @Get(':integrationId/health')
   async healthCheck(@Param('integrationId') integrationId: string) {
-    const health = await this.integrationsService.healthCheck('META', integrationId);
+    const provider = await this.integrationsService.resolveProvider(integrationId);
+    const health   = await this.integrationsService.healthCheck(provider, integrationId);
 
     this.logger.log(
-      `[INTEGRATIONS_CTRL] ✓ GET /${integrationId}/health — healthy=${health.healthy}`,
+      `[INTEGRATIONS_CTRL] ✓ GET /${integrationId}/health — provider=${provider} healthy=${health.healthy}`,
     );
     return health;
   }

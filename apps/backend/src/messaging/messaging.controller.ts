@@ -9,8 +9,8 @@ export class MessagingController {
   /**
    * POST /messages/send
    *
-   * Sends a WhatsApp text message using the Long-Lived token stored in
-   * Firestore for the given businessId.
+    * Sends an outbound message across supported Meta channels.
+    * Routing is determined by dto.provider.
    *
    * ⚠️ IMPORTANT — "User Must Message First" rule:
    * The WhatsApp Cloud API operates on a 24-hour customer service window.

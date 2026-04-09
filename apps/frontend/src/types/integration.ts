@@ -29,12 +29,15 @@ export type IntegrationStatus =
   | 'ACTIVE'
   | 'ERROR'
   | 'MIGRATING'
-  // ── Setup state machine (Phase 2) ─────────────────────────────────────────
+  // ── WhatsApp setup state machine (Phase 2) ────────────────────────────────
   | 'TOKEN_EXCHANGED'
   | 'PHONE_REGISTERED'
   | 'STATUS_VERIFIED'
   | 'CATALOG_SELECTED'
-  | 'WEBHOOKS_SUBSCRIBED';
+  | 'WEBHOOKS_SUBSCRIBED'
+  // ── Messenger setup state machine ─────────────────────────────────────────
+  | 'PAGE_SELECTED'
+  | 'PAGE_SUBSCRIBED';
 
 export interface IntegrationDoc {
   businessId: string;

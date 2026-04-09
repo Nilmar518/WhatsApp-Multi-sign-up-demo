@@ -1,19 +1,26 @@
 import {
   Injectable,
   Logger,
-  NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { DefensiveLoggerService } from '../common/logger/defensive-logger.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
-import { getMetaToken } from '../common/secrets/get-meta-token';
 import { META_API } from '../integrations/meta/meta-api-versions';
 
 interface MetaCatalogItem {
   id: string;
   name: string;
   vertical?: string;
+}
+
+interface MetaCatalogDetail {
+  id: string;
+  name?: string;
+}
+
+interface MetaCatalogListResponse {
+  data: MetaCatalogItem[];
 }
 
 interface MetaProduct {
@@ -35,6 +42,11 @@ export interface CatalogData {
   fetchedAt: string;
 }
 
+interface DeepSyncResult {
+  catalogs: MetaCatalogItem[];
+  productsByCatalogId: Map<string, MetaProduct[]>;
+}
+
 @Injectable()
 export class CatalogService {
   private readonly logger = new Logger(CatalogService.name);
@@ -46,120 +58,308 @@ export class CatalogService {
   ) {}
 
   async getCatalog(businessId: string, catalogId?: string): Promise<CatalogData> {
-    const db = this.firebase.getFirestore();
-    const docRef = db.collection('integrations').doc(businessId);
-    const snap = await docRef.get();
-
-    if (!snap.exists) {
-      throw new NotFoundException(
-        `No integration found for businessId=${businessId}`,
-      );
-    }
-
-    const docData = snap.data() ?? {};
-    const { wabaId, catalogId: storedMetaCatalogId } = (docData.metaData ?? {}) as {
-      wabaId?: string;
-      catalogId?: string;
-    };
-    const storedCatalog = (docData.catalog ?? {}) as {
-      catalogId?: string;
-    };
-
-    if (!wabaId) {
+    const now = new Date().toISOString();
+    const businessIdMeta = await this.resolveMetaBusinessId(businessId);
+    const systemToken = this.secrets.get('META_SYSTEM_USER_TOKEN');
+    if (!systemToken) {
       throw new BadRequestException(
-        'Integration is not fully connected. wabaId missing.',
+        'META_SYSTEM_USER_TOKEN is required to sync centralized catalogs.',
       );
     }
 
-    const businessIdMeta = this.secrets.get('META_BUSINESS_ID') || businessId;
+    const deepSync = await this.syncCatalogDiscovery(
+      businessIdMeta,
+      systemToken,
+      now,
+    );
+    const discoveredCatalogs = deepSync.catalogs;
 
-    // Priority: META_SYSTEM_USER_TOKEN (catalog scope) → integration token from SecretManager.
-    // accessToken is no longer stored in Firestore — use getMetaToken() for the fallback.
-    const systemToken =
-      this.secrets.get('META_SYSTEM_USER_TOKEN') ?? getMetaToken(this.secrets, businessId);
+    if (!discoveredCatalogs.length) {
+      return {
+        catalogId: '',
+        catalogName: 'No catalog linked to this business',
+        products: [],
+        fetchedAt: now,
+      };
+    }
 
-    this.logger.log(`[CATALOG] Fetching catalogs for businessId=${businessIdMeta} using System Token`);
+    if (!catalogId) {
+      await this.ensureOneActiveCatalog(businessIdMeta, discoveredCatalogs, now);
 
-    // Step 1 — Buscamos catálogos propios con el SYSTEM TOKEN
-    let catalogsResp = await this.defLogger.request<{
-      data: MetaCatalogItem[];
-    }>({
+      const activeCatalog = await this.resolveActiveCatalog(businessIdMeta);
+      const activeProducts = activeCatalog
+        ? (deepSync.productsByCatalogId.get(activeCatalog.catalogId) ?? [])
+        : [];
+
+      return {
+        catalogId: activeCatalog?.catalogId ?? '',
+        catalogName: activeCatalog?.catalogName ?? 'Catalog discovery synced',
+        products: activeProducts,
+        fetchedAt: now,
+      };
+    }
+
+    return this.activateCatalogAndReturnSyncedData(
+      businessIdMeta,
+      catalogId,
+      deepSync,
+      now,
+    );
+  }
+
+  private async resolveMetaBusinessId(businessIdOrIntegrationId: string): Promise<string> {
+    const configuredBusinessId = this.secrets.get('META_BUSINESS_ID');
+    if (configuredBusinessId) {
+      return configuredBusinessId;
+    }
+
+    if (/^\d+$/.test(businessIdOrIntegrationId)) {
+      return businessIdOrIntegrationId;
+    }
+
+    const db = this.firebase.getFirestore();
+    const integrationSnap = await db
+      .collection('integrations')
+      .doc(businessIdOrIntegrationId)
+      .get();
+
+    if (integrationSnap.exists) {
+      const data = integrationSnap.data() as { connectedBusinessIds?: string[] };
+      const connectedBusinessIds = data.connectedBusinessIds ?? [];
+      const numericBusinessId = connectedBusinessIds.find((id) => /^\d+$/.test(id));
+      if (numericBusinessId) {
+        return numericBusinessId;
+      }
+      if (connectedBusinessIds[0]) {
+        return connectedBusinessIds[0];
+      }
+    }
+
+    this.logger.warn(
+      `[CATALOG] Could not resolve Meta businessId from input=${businessIdOrIntegrationId}; using input as fallback`,
+    );
+    return businessIdOrIntegrationId;
+  }
+
+  private async syncCatalogDiscovery(
+    businessIdMeta: string,
+    systemToken: string,
+    now: string,
+  ): Promise<DeepSyncResult> {
+    const db = this.firebase.getFirestore();
+
+    this.logger.log(`[CATALOG] Discovery: fetching catalogs for businessId=${businessIdMeta}`);
+
+    const ownedResp = await this.defLogger.request<MetaCatalogListResponse>({
       method: 'GET',
       url: `${META_API.base(META_API.PHONE_CATALOG)}/${businessIdMeta}/owned_product_catalogs`,
       headers: { Authorization: `Bearer ${systemToken}` },
     });
 
-    let catalogs = catalogsResp.data ?? [];
+    const clientResp = await this.defLogger.request<MetaCatalogListResponse>({
+      method: 'GET',
+      url: `${META_API.base(META_API.PHONE_CATALOG)}/${businessIdMeta}/client_product_catalogs`,
+      headers: { Authorization: `Bearer ${systemToken}` },
+    });
 
-    // Plan B — Si no hay propios, buscamos los compartidos/clientes con el SYSTEM TOKEN
-    if (catalogs.length === 0) {
-      this.logger.log(`[CATALOG] No owned catalogs, checking client_product_catalogs...`);
-      const clientCatalogsResp = await this.defLogger.request<{
-        data: MetaCatalogItem[];
-      }>({
-        method: 'GET',
-        url: `${META_API.base(META_API.PHONE_CATALOG)}/${businessIdMeta}/client_product_catalogs`,
-        headers: { Authorization: `Bearer ${systemToken}` },
-      });
-      catalogs = clientCatalogsResp.data ?? [];
-    }
+    const mergedCatalogs = [...(ownedResp.data ?? []), ...(clientResp.data ?? [])];
+    const catalogs = Array.from(new Map(mergedCatalogs.map((c) => [c.id, c])).values());
 
     if (!catalogs.length) {
-      this.logger.warn(
-        `[CATALOG] No catalog found (owned or client) for businessId=${businessIdMeta}. Configure a catalog in Meta Commerce Manager.`,
-      );
-      const empty: CatalogData = {
-        catalogId: '',
-        catalogName: 'No catalog linked to this WABA',
-        products: [],
-        fetchedAt: new Date().toISOString(),
+      this.logger.warn(`[CATALOG] Discovery: no catalogs found for businessId=${businessIdMeta}`);
+      return {
+        catalogs: [],
+        productsByCatalogId: new Map<string, MetaProduct[]>(),
       };
-      await this.firebase.update(docRef, { catalog: empty, updatedAt: new Date().toISOString() });
-      return empty;
     }
 
-    const requestedCatalogId = catalogId ?? storedMetaCatalogId ?? storedCatalog.catalogId;
-    const targetCatalog = requestedCatalogId
-      ? catalogs.find((c) => c.id === requestedCatalogId)
-      : catalogs[0];
+    const productsByCatalogId = new Map<string, MetaProduct[]>();
 
-    if (!targetCatalog) {
-      throw new BadRequestException(
-        `Requested catalogId=${requestedCatalogId} is not available for businessId=${businessIdMeta}`,
+    // Sequential loop to avoid Meta API bursts/rate-limits on businesses with many catalogs.
+    for (const c of catalogs) {
+      const catalogRef = db.collection('catalogs').doc(c.id);
+      await this.firebase.set(
+        catalogRef,
+        {
+          catalogId: c.id,
+          name: c.name,
+          businessId: businessIdMeta,
+          provider: 'META',
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+
+      const productsResp = await this.defLogger.request<{ data: MetaProduct[] }>({
+        method: 'GET',
+        url: `${META_API.base(META_API.PHONE_CATALOG)}/${c.id}/products`,
+        params: { fields: 'id,name,retailer_id,availability,price,currency,image_url' },
+        headers: { Authorization: `Bearer ${systemToken}` },
+      });
+
+      const products = productsResp.data ?? [];
+      productsByCatalogId.set(c.id, products);
+
+      const existing = await catalogRef.collection('products').get();
+      const batch = db.batch();
+      for (const doc of existing.docs) {
+        batch.delete(doc.ref);
+      }
+
+      for (const p of products) {
+        batch.set(catalogRef.collection('products').doc(p.id), {
+          productId: p.id,
+          metaProductId: p.id,
+          retailerId: p.retailer_id ?? p.id,
+          name: p.name,
+          availability: p.availability,
+          price: p.price,
+          currency: p.currency,
+          image_url: p.image_url,
+          updatedAt: now,
+        });
+      }
+
+      await batch.commit();
+
+      this.logger.log(
+        `[CATALOG] Deep sync: catalogId=${c.id} products=${products.length} businessId=${businessIdMeta}`,
       );
     }
 
     this.logger.log(
-      `[CATALOG] Using catalog id=${targetCatalog.id} name="${targetCatalog.name}"` +
-      (requestedCatalogId ? ` (requested=${requestedCatalogId})` : ' (default)'),
+      `[CATALOG] Discovery: deep-synced ${catalogs.length} catalog(s) for businessId=${businessIdMeta}`,
     );
 
-    // Step 2 — Fetch products only for the selected/requested catalog
-    const productsResp = await this.defLogger.request<{ data: MetaProduct[] }>(
+    return { catalogs, productsByCatalogId };
+  }
+
+  private async activateCatalogAndReturnSyncedData(
+    businessIdMeta: string,
+    selectedCatalogId: string,
+    deepSync: DeepSyncResult,
+    now: string,
+  ): Promise<CatalogData> {
+    const db = this.firebase.getFirestore();
+
+    const catalogRef = db.collection('catalogs').doc(selectedCatalogId);
+    const selectedDoc = await catalogRef.get();
+    if (!selectedDoc.exists) {
+      throw new BadRequestException(
+        `catalogId=${selectedCatalogId} was not discovered for businessId=${businessIdMeta}`,
+      );
+    }
+
+    const selectedName = (selectedDoc.data() as { name?: string } | undefined)?.name;
+
+    await this.firebase.set(
+      catalogRef,
       {
-        method: 'GET',
-        url: `${META_API.base(META_API.PHONE_CATALOG)}/${targetCatalog.id}/products`,
-        params: { fields: 'id,name,retailer_id,availability,price,currency,image_url' },
-        headers: { Authorization: `Bearer ${systemToken}` },
+        catalogId: selectedCatalogId,
+        businessId: businessIdMeta,
+        name: selectedName ?? 'Unnamed Catalog',
+        provider: 'META',
+        fetchedAt: now,
+        updatedAt: now,
       },
+      { merge: true },
     );
 
+    const activeSnap = await db
+      .collection('catalogs')
+      .where('businessId', '==', businessIdMeta)
+      .get();
+
+    const activeBatch = db.batch();
+    for (const doc of activeSnap.docs) {
+      activeBatch.set(doc.ref, { isActive: false, updatedAt: now }, { merge: true });
+    }
+    activeBatch.set(catalogRef, { isActive: true, updatedAt: now }, { merge: true });
+    await activeBatch.commit();
+
+    await this.firebase.set(
+      db.collection('businesses').doc(businessIdMeta),
+      {
+        activeCatalogId: selectedCatalogId,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+
+    const selectedProducts = deepSync.productsByCatalogId.get(selectedCatalogId) ?? [];
     const catalogData: CatalogData = {
-      catalogId: targetCatalog.id,
-      catalogName: targetCatalog.name,
-      products: productsResp.data ?? [],
-      fetchedAt: new Date().toISOString(),
+      catalogId: selectedCatalogId,
+      catalogName: selectedName ?? 'Unnamed Catalog',
+      products: selectedProducts,
+      fetchedAt: now,
     };
 
     this.logger.log(
-      `[CATALOG] ✓ Stored ${catalogData.products.length} product(s) for businessId=${businessId}`,
+      `[CATALOG] Activation: catalogId=${selectedCatalogId} products=${catalogData.products.length} businessId=${businessIdMeta}`,
     );
 
-    await this.firebase.update(docRef, {
-      catalog: catalogData,
-      updatedAt: new Date().toISOString(),
-    });
-
     return catalogData;
+  }
+
+  private async ensureOneActiveCatalog(
+    businessIdMeta: string,
+    catalogs: MetaCatalogItem[],
+    now: string,
+  ): Promise<void> {
+    if (!catalogs.length) return;
+
+    const db = this.firebase.getFirestore();
+    const snap = await db
+      .collection('catalogs')
+      .where('businessId', '==', businessIdMeta)
+      .where('isActive', '==', true)
+      .limit(1)
+      .get();
+
+    if (!snap.empty) {
+      return;
+    }
+
+    const fallbackCatalogId = catalogs[0].id;
+    await this.firebase.set(
+      db.collection('catalogs').doc(fallbackCatalogId),
+      {
+        isActive: true,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+
+    await this.firebase.set(
+      db.collection('businesses').doc(businessIdMeta),
+      {
+        activeCatalogId: fallbackCatalogId,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+  }
+
+  private async resolveActiveCatalog(
+    businessIdMeta: string,
+  ): Promise<{ catalogId: string; catalogName: string } | null> {
+    const db = this.firebase.getFirestore();
+    const snap = await db
+      .collection('catalogs')
+      .where('businessId', '==', businessIdMeta)
+      .where('isActive', '==', true)
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      return null;
+    }
+
+    const doc = snap.docs[0];
+    const data = doc.data() as { catalogId?: string; name?: string };
+    return {
+      catalogId: data.catalogId ?? doc.id,
+      catalogName: data.name ?? 'Unnamed Catalog',
+    };
   }
 }

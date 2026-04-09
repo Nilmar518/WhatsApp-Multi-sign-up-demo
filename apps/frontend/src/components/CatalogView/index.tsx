@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { CatalogData } from '../../types/catalog';
 import type { IntegrationStatus } from '../../types/integration';
 import type { MetaCatalog, CatalogHealth } from '../../catalog-manager/api/catalogManagerApi';
 import {
-  listCatalogs,
   createCatalog,
   unlinkCatalog,
   checkHealth,
 } from '../../catalog-manager/api/catalogManagerApi';
+import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
+import { db } from '../../firebase/firebase';
 
 interface Props {
-  integrationId: string;
+  businessId: string;
   status: IntegrationStatus;
-  catalog: CatalogData | null;
+  activeCatalogId?: string;
+  onCatalogLinked?: () => void;
 }
 
 // ─── Health badge ──────────────────────────────────────────────────────────────
@@ -106,7 +107,12 @@ function HealthBadge({
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export default function CatalogView({ integrationId, status, catalog }: Props) {
+export default function CatalogView({
+  businessId,
+  status,
+  activeCatalogId,
+  onCatalogLinked,
+}: Props) {
   // ── Meta sync ─────────────────────────────────────────────────────────────
   const [isSyncing, setIsSyncing]   = useState(false);
   const [syncError, setSyncError]   = useState<string | null>(null);
@@ -118,6 +124,7 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
   const [availableCatalogs, setAvailableCatalogs] = useState<MetaCatalog[]>([]);
   const [catalogsLoading, setCatalogsLoading]     = useState(false);
   const [linkingId, setLinkingId]                 = useState<string | null>(null);
+  const [linkedCatalog, setLinkedCatalog]         = useState<MetaCatalog | null>(null);
 
   // ── Unlink ────────────────────────────────────────────────────────────────
   const [isUnlinking, setIsUnlinking]   = useState(false);
@@ -136,7 +143,7 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
     setSyncError(null);
     try {
       const res = await fetch(
-        `/api/catalog?businessId=${encodeURIComponent(integrationId)}`,
+        `/api/catalog?businessId=${encodeURIComponent(businessId)}`,
       );
       if (!res.ok) {
         const body = (await res.json()) as { message?: string };
@@ -147,33 +154,72 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
     } finally {
       setIsSyncing(false);
     }
-  }, [integrationId]);
+  }, [businessId]);
 
   const fetchAvailableCatalogs = useCallback(async () => {
     setCatalogsLoading(true);
     try {
-      const data = await listCatalogs(integrationId);
+      const snap = await getDocs(
+        query(
+          collection(db, 'catalogs'),
+          where('businessId', '==', businessId),
+          limit(50),
+        ),
+      );
+
+      const data = snap.docs.map((d) => {
+        const row = d.data() as { catalogId?: string; name?: string };
+        return {
+          id: row.catalogId ?? d.id,
+          name: row.name ?? 'Unnamed Catalog',
+        } as MetaCatalog;
+      });
+
       setAvailableCatalogs(data);
     } catch {
       setAvailableCatalogs([]);
     } finally {
       setCatalogsLoading(false);
     }
-  }, [integrationId]);
+  }, [businessId]);
+
+  const fetchLinkedCatalog = useCallback(async () => {
+    if (!activeCatalogId) {
+      setLinkedCatalog(null);
+      return;
+    }
+
+    const catalogRef = doc(db, 'catalogs', activeCatalogId);
+    const snap = await getDoc(catalogRef);
+    if (!snap.exists()) {
+      setLinkedCatalog({ id: activeCatalogId, name: 'Linked Catalog' });
+      return;
+    }
+
+    const row = snap.data() as { catalogId?: string; name?: string };
+    setLinkedCatalog({
+      id: row.catalogId ?? snap.id,
+      name: row.name ?? 'Linked Catalog',
+    });
+  }, [activeCatalogId]);
 
   // ── Effects ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    checkHealth(integrationId)
+    checkHealth(businessId)
       .then(setHealth)
       .catch(() => setHealth(null));
-  }, [integrationId]);
+  }, [businessId]);
 
   useEffect(() => {
-    if (!catalog?.catalogId) {
+    if (!activeCatalogId) {
       void fetchAvailableCatalogs();
     }
-  }, [catalog?.catalogId, fetchAvailableCatalogs]);
+  }, [activeCatalogId, fetchAvailableCatalogs]);
+
+  useEffect(() => {
+    void fetchLinkedCatalog();
+  }, [fetchLinkedCatalog]);
 
   // ── Catalog: link existing ────────────────────────────────────────────────
 
@@ -182,12 +228,8 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
     setCatalogError(null);
     try {
       const res = await fetch(
-        `/api/integrations/meta/${encodeURIComponent(integrationId)}/catalogs`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ catalogId }),
-        },
+        `/api/catalog-manager/catalogs/${encodeURIComponent(catalogId)}/link?businessId=${encodeURIComponent(businessId)}`,
+        { method: 'POST' },
       );
 
       if (!res.ok) {
@@ -196,6 +238,7 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
       }
 
       await syncFromMeta();
+      onCatalogLinked?.();
     } catch (err: unknown) {
       setCatalogError(err instanceof Error ? err.message : 'Failed to link catalog');
     } finally {
@@ -215,7 +258,8 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
     setIsUnlinking(true);
     setUnlinkError(null);
     try {
-      await unlinkCatalog(integrationId);
+      await unlinkCatalog(businessId);
+      onCatalogLinked?.();
       // Firestore is updated by the backend; onSnapshot propagates to App.tsx
     } catch (err: unknown) {
       setUnlinkError(err instanceof Error ? err.message : 'Failed to unlink catalog');
@@ -232,10 +276,11 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
     setCatalogCreating(true);
     setCatalogError(null);
     try {
-      await createCatalog(integrationId, newCatalogName.trim());
+      await createCatalog(businessId, newCatalogName.trim());
       setNewCatalogName('');
       setShowCatalogForm(false);
       await syncFromMeta();
+      onCatalogLinked?.();
     } catch (err: unknown) {
       setCatalogError(err instanceof Error ? err.message : 'Failed to create catalog');
     } finally {
@@ -245,10 +290,10 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
-  const hasCatalog = !!catalog?.catalogId;
+  const hasCatalog = !!activeCatalogId;
 
   const selectableCatalogs = availableCatalogs.filter(
-    (c) => c.id !== catalog?.catalogId,
+    (c) => c.id !== activeCatalogId,
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -296,10 +341,10 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
           <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-800 truncate">
-                {catalog!.catalogName ?? 'Linked Catalog'}
+                {linkedCatalog?.name ?? 'Linked Catalog'}
               </p>
               <p className="text-xs text-gray-400 font-mono truncate">
-                {catalog!.catalogId}
+                {linkedCatalog?.id ?? activeCatalogId}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -330,8 +375,8 @@ export default function CatalogView({ integrationId, status, catalog }: Props) {
       {!hasCatalog && !isSyncing && (
         <div className="space-y-3">
           <p className="text-xs text-gray-400">
-            {catalog
-              ? 'No catalog linked to this WABA.'
+            {linkedCatalog
+              ? 'No catalog linked to this integration.'
               : 'No catalog loaded yet. Click "Load Catalog" to sync from Meta.'}
           </p>
 

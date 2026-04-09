@@ -74,6 +74,17 @@ const STATUS_CONFIG: Record<IntegrationStatus, StatusConfig> = {
     textColor: 'text-yellow-600',
     dotClass: 'bg-yellow-400 animate-pulse',
   },
+  // ── Messenger setup state machine ─────────────────────────────────────────
+  PAGE_SELECTED: {
+    label: 'Page linked — subscribing webhooks...',
+    textColor: 'text-blue-600',
+    dotClass: 'bg-blue-400 animate-pulse',
+  },
+  PAGE_SUBSCRIBED: {
+    label: 'Messenger Connected',
+    textColor: 'text-blue-600',
+    dotClass: 'bg-[#1877F2]',
+  },
 };
 
 // ─── Hook step config ─────────────────────────────────────────────────────────
