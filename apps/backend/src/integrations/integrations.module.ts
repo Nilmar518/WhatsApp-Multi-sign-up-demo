@@ -5,6 +5,8 @@ import { MetaProvider } from './meta/meta.provider';
 import { MetaIntegrationModule } from './meta/meta-integration.module';
 import { MessengerProvider } from './messenger/messenger.provider';
 import { MessengerIntegrationModule } from './messenger/messenger-integration.module';
+import { InstagramProvider } from './instagram/instagram.provider';
+import { InstagramIntegrationModule } from './instagram/instagram-integration.module';
 
 /**
  * IntegrationsModule — aggregates all provider implementations under a single
@@ -27,11 +29,14 @@ import { MessengerIntegrationModule } from './messenger/messenger-integration.mo
     MetaIntegrationModule,
     // MessengerIntegrationModule provides MessengerIntegrationService (used by MessengerProvider).
     MessengerIntegrationModule,
+    // InstagramIntegrationModule provides InstagramIntegrationService (used by InstagramProvider).
+    InstagramIntegrationModule,
   ],
   controllers: [IntegrationsController],
   providers: [
     MetaProvider,
     MessengerProvider,
+    InstagramProvider,
     IntegrationsService,
   ],
   exports: [IntegrationsService],

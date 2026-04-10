@@ -7,6 +7,7 @@ import {
 } from './integration-provider.contract';
 import { MetaProvider } from './meta/meta.provider';
 import { MessengerProvider } from './messenger/messenger.provider';
+import { InstagramProvider } from './instagram/instagram.provider';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import { FirebaseService } from '../firebase/firebase.service';
 
@@ -38,12 +39,14 @@ export class IntegrationsService {
     // Register all providers here. Each must implement IntegrationProviderContract.
     private readonly meta: MetaProvider,
     private readonly messenger: MessengerProvider,
+    private readonly instagram: InstagramProvider,
     private readonly secrets: SecretManagerService,
     private readonly firebase: FirebaseService,
   ) {
     this.providers = new Map<IntegrationProvider, IntegrationProviderContract>([
       ['META', this.meta],
       ['META_MESSENGER', this.messenger],
+      ['META_INSTAGRAM', this.instagram],
     ]);
     this.logger.log(
       `[INTEGRATIONS] Registered providers: [${[...this.providers.keys()].join(', ')}]`,
@@ -203,6 +206,8 @@ export class IntegrationsService {
     const provider = snap.data()?.provider as string | undefined;
     if (provider === 'META_MESSENGER') {
       this.secrets.set(`META_PAGE_TOKEN__${integrationId}`, '');
+    } else if (provider === 'META_INSTAGRAM') {
+      this.secrets.set(`META_IG_TOKEN__${integrationId}`, '');
     } else {
       this.secrets.set(`META_TOKEN__${integrationId}`, '');
     }

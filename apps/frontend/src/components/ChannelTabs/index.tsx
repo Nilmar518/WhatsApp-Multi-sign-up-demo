@@ -1,4 +1,4 @@
-export type Channel = 'whatsapp' | 'messenger';
+export type Channel = 'whatsapp' | 'messenger' | 'instagram';
 
 interface Props {
   active: Channel;
@@ -6,7 +6,7 @@ interface Props {
 }
 
 interface TabDef {
-  channel: Channel | 'instagram';
+  channel: Channel;
   label: string;
   icon: string;
   activeClass: string;
@@ -31,9 +31,7 @@ const TABS: TabDef[] = [
     channel: 'instagram',
     label: 'Instagram',
     icon: '📸',
-    activeClass: '',
-    disabled: true,
-    tooltip: 'Coming Soon',
+    activeClass: 'border-pink-500 text-pink-700',
   },
 ];
 
@@ -56,8 +54,8 @@ export default function ChannelTabs({ active, onChange }: Props) {
           <button
             key={tab.channel}
             onClick={() => {
-              if (!isDisabled && tab.channel !== 'instagram') {
-                onChange(tab.channel as Channel);
+              if (!isDisabled) {
+                onChange(tab.channel);
               }
             }}
             disabled={isDisabled}

@@ -14,6 +14,8 @@ import DisconnectButton from './components/ResetButton';
 import { CartPanel } from './components/CartPanel';
 import ChannelTabs, { type Channel } from './components/ChannelTabs';
 import MessengerConnect from './components/MessengerConnect';
+import InstagramConnect from './components/InstagramConnect';
+import InstagramInbox from './components/InstagramInbox';
 
 // ── Phase 4: business IDs loaded dynamically from the backend ─────────────────
 // Fallback to the fixture IDs while fetch is in flight so the UI renders
@@ -73,16 +75,41 @@ export default function App() {
   const msgrMessages      = useMessages(msgrIntegrationId);
   const msgrConversations = useConversations(msgrMessages);
 
+  // ── Instagram integration (filtered to META_INSTAGRAM provider) ───────────────
+  const { integrationId: igIntegrationId, isLoading: isResolvingIg } =
+    useIntegrationId(businessId, 'META_INSTAGRAM', integrationsRefreshNonce);
+
+  const {
+    status: igStatus,
+    metaData: igMetaData,
+    isLoading: isLoadingIgStatus,
+  } = useIntegrationStatus(igIntegrationId, integrationsRefreshNonce);
+
+  const igMessages      = useMessages(igIntegrationId);
+  const igConversations = useConversations(igMessages);
+
   // ── Derived channel-aware values ──────────────────────────────────────────────
-  const integrationId  = activeChannel === 'whatsapp' ? waIntegrationId  : msgrIntegrationId;
-  const status         = activeChannel === 'whatsapp' ? waStatus          : msgrStatus;
-  const activeMetaData = activeChannel === 'whatsapp' ? waMetaData : msgrMetaData;
+  const integrationId  = activeChannel === 'whatsapp' ? waIntegrationId
+    : activeChannel === 'messenger'  ? msgrIntegrationId
+    : igIntegrationId;
+  const status         = activeChannel === 'whatsapp' ? waStatus
+    : activeChannel === 'messenger'  ? msgrStatus
+    : igStatus;
+  const activeMetaData = activeChannel === 'whatsapp' ? waMetaData
+    : activeChannel === 'messenger'  ? msgrMetaData
+    : igMetaData;
   const activeCatalogId = (activeMetaData?.catalogId as string | undefined) ?? undefined;
-  const conversations  = activeChannel === 'whatsapp' ? waConversations   : msgrConversations;
-  const messages       = activeChannel === 'whatsapp' ? waMessages        : msgrMessages;
+  const conversations  = activeChannel === 'whatsapp' ? waConversations
+    : activeChannel === 'messenger'  ? msgrConversations
+    : igConversations;
+  const messages       = activeChannel === 'whatsapp' ? waMessages
+    : activeChannel === 'messenger'  ? msgrMessages
+    : igMessages;
   const isLoading      = activeChannel === 'whatsapp'
     ? isResolvingWa   || isLoadingWaStatus
-    : isResolvingMsgr || isLoadingMsgrStatus;
+    : activeChannel === 'messenger'
+      ? isResolvingMsgr || isLoadingMsgrStatus
+      : isResolvingIg  || isLoadingIgStatus;
 
   // ── Phase 5: lift setupStep from ConnectionGateway → StatusDisplay ────────────
   const [setupStep, setSetupStep] = useState<SetupStep>('idle');
@@ -117,6 +144,10 @@ export default function App() {
   // exists (msgrIntegrationId !== null). The backend only writes the document
   // after PAGE_SUBSCRIBED, so its existence is a sufficient connected signal.
   const isMsgrConnected = msgrIntegrationId !== null;
+
+  // ── Instagram connection state ────────────────────────────────────────────────
+  // Same signal: backend writes the document only after WEBHOOKS_SUBSCRIBED.
+  const isIgConnected = igIntegrationId !== null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-start justify-center p-6">
@@ -293,6 +324,38 @@ export default function App() {
                     />
                   </div>
                 </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/*  INSTAGRAM CHANNEL                                               */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeChannel === 'instagram' && (
+          <>
+            {/* Loading state while Firestore resolves */}
+            {isResolvingIg && (
+              <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
+                <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+                Checking Instagram integration...
+              </div>
+            )}
+
+            {/* Not connected — show onboarding */}
+            {!isResolvingIg && !isIgConnected && (
+              <InstagramConnect businessId={businessId} />
+            )}
+
+            {/* Connected — Accordion inbox (Phase 4) */}
+            {!isResolvingIg && isIgConnected && (
+              <>
+                <StatusDisplay
+                  status={igStatus}
+                  isLoading={isLoadingIgStatus}
+                  setupStep="idle"
+                />
+                <InstagramInbox igMessages={igMessages} igIntegrationId={igIntegrationId!} />
               </>
             )}
           </>
