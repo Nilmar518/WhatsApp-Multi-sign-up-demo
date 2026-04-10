@@ -37,7 +37,9 @@ export type IntegrationStatus =
   | 'WEBHOOKS_SUBSCRIBED'
   // ── Messenger setup state machine ─────────────────────────────────────────
   | 'PAGE_SELECTED'
-  | 'PAGE_SUBSCRIBED';
+  | 'PAGE_SUBSCRIBED'
+  // ── Instagram setup state machine ─────────────────────────────────────────
+  | 'ACCOUNT_RESOLVED';
 
 export interface IntegrationDoc {
   businessId: string;

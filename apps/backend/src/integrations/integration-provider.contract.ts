@@ -15,7 +15,7 @@
  *     Meta is exclusive (shareable=false) — one phone number per business.
  */
 
-export type IntegrationProvider = 'META' | 'META_MESSENGER';
+export type IntegrationProvider = 'META' | 'META_MESSENGER' | 'META_INSTAGRAM';
 
 export interface ConnectResult {
   integrationId: string;

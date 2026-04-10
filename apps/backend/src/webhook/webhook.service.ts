@@ -112,6 +112,52 @@ interface MessengerEvent {
   };
 }
 
+// ─── Instagram webhook types ──────────────────────────────────────────────────
+
+interface InstagramAttachment {
+  /** 'story_mention' | 'image' | 'video' | 'audio' | 'file' | 'share' */
+  type: string;
+  payload?: { url?: string; sticker_id?: number };
+}
+
+interface InstagramMessageEvent {
+  sender?: { id?: string };
+  recipient?: { id?: string };
+  timestamp?: number;
+  is_echo?: boolean;
+  message?: {
+    mid?: string;
+    text?: string;
+    is_echo?: boolean;
+    attachments?: InstagramAttachment[];
+    /** Stringified JSON metadata — some clients encode story_mention here */
+    metadata?: string;
+  };
+}
+
+/**
+ * Payload of entry[].changes[].value when field === 'comments'.
+ * Represents a public comment on an Instagram Post or Reel.
+ */
+interface InstagramCommentValue {
+  /** The unique Comment ID — used as idempotency key for Private Replies */
+  id?: string;
+  text?: string;
+  from?: { id?: string; username?: string };
+  media?: { id?: string; media_product_type?: string };
+  /** Unix epoch seconds of comment creation */
+  created_time?: number;
+  /** Set when this is a reply to another comment */
+  parent_id?: string;
+}
+
+interface InstagramGraphMeResponse {
+  id?: string;
+  user_id?: string;
+}
+
+type InstagramInteractionType = 'DIRECT_MESSAGE' | 'STORY_MENTION' | 'COMMENT';
+
 // ─── Internal parsed shape ───────────────────────────────────────────────────
 
 interface ParsedInboundMessage {
@@ -150,6 +196,9 @@ interface BusinessCatalogContext {
 
 const DEFAULT_PROVISIONING_BUSINESS_ID = '787167007221172';
 const META_GRAPH_MESSAGES = META_API.base(META_API.PHONE_CATALOG);
+const INSTAGRAM_GRAPH_BASE = 'https://graph.instagram.com';
+const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com';
+const INSTAGRAM_API_VERSION = 'v25.0';
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 
@@ -959,8 +1008,289 @@ export class WebhookService {
       return;
     }
 
+    if (provider === 'META_INSTAGRAM') {
+      // Instagram truncates multi-element Generic Template carousels to the
+      // first element. Strategy: send each product as an independent single-
+      // element rich card, sequentially. (Research doc §2, carousel bug.)
+      await this.sendInstagramProductCards(
+        catalogCtx.catalogDocRef,
+        retailerIds,
+        msg.from,       // recipient IGSID
+        phoneNumberId,  // IG Account ID (used as the messages endpoint node)
+        accessToken,
+        docRef,
+        matchedRule.collectionTitle,
+        triggerWord,
+      );
+      return;
+    }
+
     this.logger.warn(
       `[RULE_ENGINE] Unsupported provider=${provider} for catalog reply; skipping`,
+    );
+  }
+
+  /**
+   * Sends catalog products to an Instagram user as sequential single-element
+   * Generic Template rich cards.
+   *
+   * Why single-element? Instagram DMs truncate multi-element Generic Template
+   * carousels to the first card and silently drop the rest. Sending one card
+   * per request bypasses this platform bug. (Research doc §2.)
+   *
+   * Flow:
+   *   1. Fetch matching product docs from Firestore (same join as Messenger).
+   *   2. Send a preamble text DM: "Aquí tienes los productos solicitados:".
+   *   3. For each product, POST a single-element Generic Template to
+   *      GET /v25.0/{pageId}/messages with the Page Access Token.
+   *   4. Persist each outbound card to Firestore for the chat timeline.
+   *
+   * Constraints enforced per the strategy doc:
+   *   - title:    ≤ 80 chars
+   *   - subtitle: ≤ 80 chars  (formatted price + availability)
+   *   - buttons:  max 3 per element (we use 1: "Ver producto")
+   *   - image:    JPEG/PNG via public URL, max 8 MB
+   */
+  /**
+   * Checks whether the 24-hour Instagram DM messaging window is still open
+   * for a given contact. The window opens on the most recent inbound
+   * interaction (DM or Story Mention) and expires after 24 hours of silence.
+   *
+   * Returns `true` if the window is open (message may be sent),
+   *         `false` if the window has expired (message must be suppressed).
+   */
+  private async checkInstagramWindowOpen(
+    integrationDocRef: FirebaseFirestore.DocumentReference,
+    igsid: string,
+  ): Promise<boolean> {
+    try {
+      const convRef  = integrationDocRef.collection('conversations').doc(igsid);
+      const convSnap = await convRef.get();
+
+      if (!convSnap.exists) return false;
+
+      const ts = convSnap.data()?.lastUserInteractionTimestamp as number | undefined;
+      if (!ts) return false;
+
+      const WINDOW_MS = 24 * 60 * 60 * 1000;
+      return Date.now() - ts < WINDOW_MS;
+    } catch (err: unknown) {
+      this.logger.warn(
+        `[IG_WINDOW] Could not read conversation timestamp for igsid=${igsid}: ` +
+          `${(err as Error).message} — defaulting to window closed`,
+      );
+      return false;
+    }
+  }
+
+  private async sendInstagramProductCards(
+    catalogDocRef: FirebaseFirestore.DocumentReference,
+    retailerIds: string[],
+    recipientIgsid: string,
+    igAccountId: string,
+    accessToken: string,
+    integrationDocRef: FirebaseFirestore.DocumentReference,
+    collectionTitle: string,
+    triggerWord: string,
+  ): Promise<void> {
+    // ── 24-hour window guard ──────────────────────────────────────────────────
+    const windowOpen = await this.checkInstagramWindowOpen(integrationDocRef, recipientIgsid);
+    if (!windowOpen) {
+      this.logger.warn(
+        `[IG_CATALOG] 24-hour window closed for igsid=${recipientIgsid} ` +
+          `(trigger="${triggerWord}") — auto-reply suppressed`,
+      );
+      return;
+    }
+
+    // POST /me/messages — /me resolves to the account whose token is supplied.
+    // This avoids embedding the igAccountId in the URL and is the canonical
+    // endpoint for the Instagram API with Instagram Login.
+    const INSTAGRAM_MESSAGES_URL = `https://graph.instagram.com/v25.0/me/messages`;
+
+    // ── Fetch product documents (same join logic as Messenger) ────────────────
+    type IgProduct = {
+      productId?: string;
+      retailerId?: string;
+      name?: string;
+      price?: string | number;
+      currency?: string;
+      availability?: string;
+      imageUrl?: string;
+      image_url?: string;
+      url?: string;
+    };
+
+    const targetIds = Array.from(new Set(retailerIds)).slice(0, 10);
+    const byRetailerId = new Map<string, IgProduct>();
+    const CHUNK = 30;
+
+    for (let i = 0; i < targetIds.length; i += CHUNK) {
+      const chunk = targetIds.slice(i, i + CHUNK);
+      const snap = await catalogDocRef
+        .collection('products')
+        .where('retailerId', 'in', chunk)
+        .get();
+
+      for (const d of snap.docs) {
+        const item = d.data() as IgProduct;
+        if (item.retailerId) byRetailerId.set(item.retailerId, item);
+      }
+    }
+
+    // Fallback: match by document ID for legacy rules
+    for (const rid of targetIds) {
+      if (byRetailerId.has(rid)) continue;
+      const doc = await catalogDocRef.collection('products').doc(rid).get();
+      if (doc.exists) {
+        const item = doc.data() as IgProduct;
+        byRetailerId.set(item.retailerId ?? rid, { ...item, retailerId: item.retailerId ?? rid });
+      }
+    }
+
+    const validElements = targetIds
+      .map((rid) => byRetailerId.get(rid))
+      .filter((p): p is IgProduct => Boolean(p?.name && (p?.imageUrl ?? p?.image_url)));
+
+    if (!validElements.length) {
+      this.logger.warn(
+        `[IG_CATALOG] No valid products resolved for triggerWord="${triggerWord}" — skipping`,
+      );
+      return;
+    }
+
+    // ── Step 1: Preamble text message ─────────────────────────────────────────
+    try {
+      await this.defLogger.request({
+        method: 'POST',
+        url: INSTAGRAM_MESSAGES_URL,
+        params: { access_token: accessToken },
+        data: {
+          recipient: { id: recipientIgsid },
+          message: { text: `Aquí tienes los productos de "${collectionTitle}":` },
+        },
+      });
+      this.logger.log(
+        `[IG_CATALOG] ✓ Preamble text sent to igsid=${recipientIgsid}`,
+      );
+    } catch (err: unknown) {
+      this.logger.warn(
+        `[IG_CATALOG] ✗ Preamble text failed: ${(err as Error).message} — continuing with cards`,
+      );
+    }
+
+    // ── Step 2: One rich card per product ─────────────────────────────────────
+    const truncate = (str: string, max: number) =>
+      str.length > max ? `${str.slice(0, max - 1)}…` : str;
+
+    const formatPrice = (price: string | number | undefined, currency?: string): string => {
+      if (price === undefined || price === null) return '';
+
+      let numeric: number;
+
+      if (typeof price === 'number') {
+        numeric = price;
+      } else {
+        const raw = String(price).trim();
+        // Keep only digits and separators so we can normalize mixed formats
+        // like "Bs.80.00", "BOB 120.00", "1.234,56" and "1,234.56".
+        const cleaned = raw.replace(/[^\d.,]/g, '');
+        if (!cleaned) return '';
+
+        const lastDot = cleaned.lastIndexOf('.');
+        const lastComma = cleaned.lastIndexOf(',');
+        const decimalPos = Math.max(lastDot, lastComma);
+
+        if (decimalPos === -1) {
+          numeric = parseFloat(cleaned.replace(/[^\d]/g, ''));
+        } else {
+          const integerPart = cleaned.slice(0, decimalPos).replace(/[^\d]/g, '');
+          const decimalPart = cleaned.slice(decimalPos + 1).replace(/[^\d]/g, '');
+          const normalized = `${integerPart || '0'}.${decimalPart || '0'}`;
+          numeric = parseFloat(normalized);
+        }
+      }
+
+      if (!Number.isFinite(numeric)) return '';
+
+      const formatted = numeric.toFixed(2);
+      return currency ? `${currency} ${formatted}` : formatted;
+    };
+
+    for (const product of validElements) {
+      const title    = truncate((product.name ?? '').trim(), 80);
+      const priceStr = formatPrice(product.price, product.currency);
+      const subtitle = truncate(
+        [priceStr, product.availability].filter(Boolean).join(' · '),
+        80,
+      );
+      const imageUrl = (product.imageUrl ?? product.image_url ?? '').trim();
+      const productUrl = (product.url ?? '').trim();
+      const cardUrl = productUrl || 'https://instagram.com';
+
+      const element: Record<string, unknown> = { title, image_url: imageUrl, subtitle };
+
+      // Instagram may degrade Generic Templates without buttons into plain text.
+      // Always include at least one URL button to force rich-card rendering.
+      element.default_action = {
+        type: 'web_url',
+        url: cardUrl,
+        webview_height_ratio: 'FULL',
+      };
+      element.buttons = [
+        { type: 'web_url', url: cardUrl, title: 'Ver Producto' },
+      ];
+
+      const cardPayload = {
+        recipient: { id: recipientIgsid },
+        message: {
+          attachment: {
+            type: 'template',
+            payload: {
+              template_type: 'generic',
+              elements: [element],
+            },
+          },
+        },
+      };
+
+      try {
+        const response = await this.defLogger.request<{ message_id?: string; recipient_id?: string }>({
+          method: 'POST',
+          url: INSTAGRAM_MESSAGES_URL,
+          params: { access_token: accessToken },
+          data: cardPayload,
+        });
+
+        const msgId = response?.message_id ?? `ig_card_${Date.now()}`;
+
+        // Persist outbound card to Firestore for the chat timeline
+        await integrationDocRef.collection('messages').doc(msgId).set({
+          id:            msgId,
+          direction:     'outbound',
+          from:          igAccountId,
+          to:            recipientIgsid,
+          text:          `[Auto-reply: ${title}]`,
+          timestamp:     new Date().toISOString(),
+          channel:       'META_INSTAGRAM',
+          interactionType: 'DIRECT_MESSAGE',
+        });
+
+        this.logger.log(
+          `[IG_CATALOG] ✓ Card sent — product="${title}" to=${recipientIgsid} msgId=${msgId}`,
+        );
+      } catch (cardErr: unknown) {
+        this.logger.error(
+          `[IG_CATALOG] ✗ Card failed for product="${title}": ${(cardErr as Error).message}`,
+        );
+      }
+    }
+
+    await this.firebase.update(integrationDocRef, { updatedAt: new Date().toISOString() });
+
+    this.logger.log(
+      `[IG_CATALOG] ✓ Sent ${validElements.length} card(s) to igsid=${recipientIgsid} ` +
+        `(trigger="${triggerWord}")`,
     );
   }
 
@@ -1617,6 +1947,493 @@ export class WebhookService {
     this.logger.log(
       `[INTERACTIVE][PAY] ✓ Receipt sent — wamid=${wamid} ` +
       `total=${fmt(grandTotal)} items=${cart.items.length} cartId=${cart.id} to=${contactWaId}`,
+    );
+  }
+
+  // ─── Instagram inbound pipeline (Phase 2) ────────────────────────────────────
+
+  /**
+   * Instagram pipeline entry point for `object=instagram` webhook payloads.
+   *
+   * Classifies each inbound event as:
+   *   DIRECT_MESSAGE  — standard text DM from entry[].messaging[]
+   *   STORY_MENTION   — DM that contains an attachment.type === 'story_mention',
+   *                     or a metadata stringified payload with type=story_mention
+   *   COMMENT         — public comment from entry[].changes[field=comments]
+   *
+   * Firestore writes:
+   *   integrations/{integrationId}/messages/{messageId}
+   *     direction, from (IGSID), text, timestamp, channel, interactionType,
+   *     commentId (COMMENT only), mediaId (COMMENT only)
+   *
+   *   integrations/{integrationId}/conversations/{igsid}
+   *     lastUserInteractionTimestamp (DM + STORY_MENTION only — enforces 24-h window)
+   *     channel, igsid
+   *
+   * Meta guarantees "at least once" delivery — all writes are idempotent via
+   * Firestore transactions keyed on messageId / commentId.
+   */
+  async processInstagramInbound(payload: unknown): Promise<void> {
+    this.logger.log('[INSTAGRAM_WEBHOOK] Inbound payload received');
+    this.logger.debug(`[INSTAGRAM_WEBHOOK_PAYLOAD] ${JSON.stringify(payload).slice(0, 500)}`);
+
+    const typed = payload as MetaWebhookPayload;
+
+    for (const entry of typed.entry ?? []) {
+      const routingIds = new Set<string>();
+
+      // entry.id may be a Page-linked ID for some event classes.
+      if (entry.id) {
+        routingIds.add(entry.id);
+      }
+
+      // For message webhooks, recipient.id is the most reliable routing ID.
+      for (const event of (entry.messaging ?? []) as InstagramMessageEvent[]) {
+        const recipientId = event.recipient?.id;
+        if (recipientId) {
+          routingIds.add(recipientId);
+        }
+      }
+
+      const candidateIds = [...routingIds];
+      if (candidateIds.length === 0) {
+        continue;
+      }
+
+      // Resolve the META_INSTAGRAM integration document.
+      // Tries candidate webhook IDs first, then falls back to token ownership
+      // resolution and self-heals igAccountId once a match is found.
+      const integrationDoc = await this.findInstagramIntegrationByEntryIds(candidateIds);
+      if (!integrationDoc) {
+        this.logger.warn(
+          `[INSTAGRAM_WEBHOOK] No META_INSTAGRAM integration found for candidates=${candidateIds.join(',')}`,
+        );
+        continue;
+      }
+
+      // Read integration doc data once — shared across Path A and the rule engine.
+      const igDocData = integrationDoc.data() as {
+        connectedBusinessIds?: string[];
+        metaData?: {
+          accessToken?: string;
+          igAccountId?: string;
+          igUserId?: string;
+          catalogId?: string;
+        };
+        catalog?: { catalogId?: string };
+      };
+      const igBusinessId = igDocData.connectedBusinessIds?.[0] ?? integrationDoc.id;
+      const igPageToken  = igDocData.metaData?.accessToken ?? '';
+      // With the Instagram API with Instagram Login, the IG account ID is the
+      // identifier used for all outbound messages — no Facebook Page ID required.
+      const igAccountId  =
+        igDocData.metaData?.igAccountId ??
+        candidateIds[0] ??
+        igDocData.metaData?.igUserId ??
+        integrationDoc.id;
+      const igCatalogId  = igDocData.metaData?.catalogId ?? igDocData.catalog?.catalogId;
+
+      // ── Path A: Direct Messages & Story Mentions ─────────────────────────
+      for (const event of (entry.messaging ?? []) as InstagramMessageEvent[]) {
+        const senderId = event.sender?.id ?? '';
+        const recipientId = event.recipient?.id ?? '';
+        const igsid = senderId === igAccountId ? recipientId : senderId;
+        if (!igsid) continue;
+
+        const mid = event.message?.mid;
+        const rawTimestamp = event.timestamp;
+        const timestamp =
+          typeof rawTimestamp === 'number'
+            ? new Date(rawTimestamp).toISOString()
+            : new Date().toISOString();
+
+        const messageId = mid ?? `ig_dm_${igAccountId}_${igsid}_${rawTimestamp ?? Date.now()}`;
+        const text = event.message?.text ?? '';
+        const attachments = event.message?.attachments ?? [];
+        const isEchoEvent =
+          Boolean(event.message?.is_echo) ||
+          Boolean(event.is_echo) ||
+          (Boolean(senderId) && senderId === recipientId) ||
+          (Boolean(senderId) && senderId === igAccountId);
+
+        // Detect Story Mention via attachment type, OR via stringified metadata
+        // (Meta's behaviour varies by Graph API version — guard both nodes).
+        const isStoryMention =
+          attachments.some((a) => a.type === 'story_mention') ||
+          (() => {
+            try {
+              const meta = event.message?.metadata;
+              if (!meta) return false;
+              const parsed = JSON.parse(meta) as { type?: string };
+              return parsed?.type === 'story_mention';
+            } catch {
+              return false;
+            }
+          })();
+
+        const interactionType: InstagramInteractionType = isStoryMention
+          ? 'STORY_MENTION'
+          : 'DIRECT_MESSAGE';
+
+        await this.storeInstagramMessage(
+          integrationDoc.ref,
+          messageId,
+          igsid,
+          text,
+          timestamp,
+          interactionType,
+          igAccountId,
+          isEchoEvent ? 'outbound' : 'inbound',
+        );
+
+        // Echo/outbound guard: keep chat history, but do not trigger automation.
+        if (isEchoEvent) {
+          this.logger.debug(
+            `[INSTAGRAM_WEBHOOK] Echo/outbound message ignored by rule engine — ` +
+              `messageId=${messageId} sender=${senderId} recipient=${recipientId}`,
+          );
+          continue;
+        }
+
+        // Every DM or story mention resets the 24-hour window.
+        await this.updateInstagramConversationTimestamp(integrationDoc.ref, igsid);
+
+        // Only text DMs (not story mentions) are evaluated by the keyword rule engine.
+        // Story mentions get a dedicated thank-you flow (Phase 4); comments go through
+        // the Private Reply path (Phase 5).
+        if (interactionType === 'DIRECT_MESSAGE' && text.trim()) {
+          try {
+            await this.evaluateAndRespond(
+              {
+                waMessageId: messageId,
+                from: igsid,
+                type: 'text',
+                text,
+                timestamp,
+                phoneNumberId: igAccountId,
+              },
+              {
+                businessId:    igBusinessId,
+                provider:      'META_INSTAGRAM',
+                docRef:        integrationDoc.ref,
+                integrationId: integrationDoc.id,
+                accessToken:   igPageToken,
+                phoneNumberId: igAccountId,
+                catalog: igCatalogId ? { catalogId: igCatalogId } : undefined,
+              },
+            );
+          } catch (ruleErr: unknown) {
+            this.logger.error(
+              `[INSTAGRAM_WEBHOOK] ✗ Rule engine error for igsid=${igsid}: ` +
+                `${(ruleErr as Error).message}`,
+            );
+          }
+        }
+      }
+
+      // ── Path B: Public Comments (Posts + Reels) ──────────────────────────
+      for (const change of entry.changes ?? []) {
+        if (change.field !== 'comments') continue;
+
+        const value = change.value as InstagramCommentValue | undefined;
+        if (!value?.id) continue;
+
+        const commentId   = value.id;
+        const commenterIgsid = value.from?.id ?? '';
+        const text        = value.text ?? '';
+        const mediaId     = value.media?.id ?? '';
+        const createdTime = value.created_time;
+        const timestamp   = createdTime
+          ? new Date(createdTime * 1000).toISOString()
+          : new Date().toISOString();
+
+        // Use commentId as the Firestore document key — guarantees idempotency.
+        // If the same comment webhook arrives twice, the transaction detects the
+        // existing doc and skips — preventing duplicate Private Reply dispatch in Phase 5.
+        await this.storeInstagramComment(
+          integrationDoc.ref,
+          commentId,
+          commenterIgsid,
+          text,
+          timestamp,
+          mediaId,
+          igAccountId,
+        );
+
+        // Comments do NOT update lastUserInteractionTimestamp.
+        // The 24-hour window only opens once the user responds to a Private Reply.
+      }
+    }
+  }
+
+  // ─── Instagram private helpers ────────────────────────────────────────────
+
+  /**
+   * Finds the META_INSTAGRAM integration document for webhook candidate IDs.
+   *
+   * Order:
+   *   1) metaData.igAccountId in candidate IDs
+   *   2) metaData.igUserId in candidate IDs (then self-heal igAccountId)
+   *   3) Token-owner probing (Graph /me with stored token), then self-heal
+   */
+  private async findInstagramIntegrationByEntryIds(entryIds: string[]) {
+    const normalizedIds = Array.from(
+      new Set(entryIds.map((id) => id.trim()).filter((id) => id.length > 0)),
+    ).slice(0, 10);
+
+    if (normalizedIds.length === 0) {
+      return null;
+    }
+
+    const db = this.firebase.getFirestore();
+
+    // ── Primary query ────────────────────────────────────────────────────────
+    const primarySnap = await db
+      .collection('integrations')
+      .where('provider', '==', 'META_INSTAGRAM')
+      .where('metaData.igAccountId', 'in', normalizedIds)
+      .limit(1)
+      .get();
+
+    if (!primarySnap.empty) {
+      return primarySnap.docs[0];
+    }
+
+    // ── Fallback query (igUserId) ─────────────────────────────────────────────
+    const fallbackSnap = await db
+      .collection('integrations')
+      .where('provider', '==', 'META_INSTAGRAM')
+      .where('metaData.igUserId', 'in', normalizedIds)
+      .limit(1)
+      .get();
+
+    if (!fallbackSnap.empty) {
+      const doc = fallbackSnap.docs[0];
+      const data = doc.data() as { metaData?: { igUserId?: string } };
+      const matchedId =
+        normalizedIds.find((id) => id === data.metaData?.igUserId) ?? normalizedIds[0];
+
+      this.logger.log(
+        `[INSTAGRAM_WEBHOOK] Self-healing igAccountId → ${matchedId} ` +
+          `for integration ${doc.id} (matched via igUserId)`,
+      );
+      try {
+        await doc.ref.update({
+          'metaData.igAccountId': matchedId,
+          'metaData.lastWebhookIdentityResolutionAt': new Date().toISOString(),
+        });
+      } catch (healErr: any) {
+        this.logger.warn(
+          `[INSTAGRAM_WEBHOOK] Self-heal write failed (non-fatal): ${healErr?.message as string}`,
+        );
+      }
+
+      return doc;
+    }
+
+    // ── Last-resort: probe each integration token to resolve account ownership ─
+    const probeSnap = await db
+      .collection('integrations')
+      .where('provider', '==', 'META_INSTAGRAM')
+      .limit(25)
+      .get();
+
+    for (const doc of probeSnap.docs) {
+      const data = doc.data() as { metaData?: { accessToken?: string } };
+      const token = data.metaData?.accessToken;
+      if (!token) continue;
+
+      const resolvedId = await this.resolveInstagramWebhookScopedId(token);
+      if (!resolvedId || !normalizedIds.includes(resolvedId)) {
+        continue;
+      }
+
+      this.logger.log(
+        `[INSTAGRAM_WEBHOOK] Token ownership matched entry id ${resolvedId} → integration ${doc.id}`,
+      );
+
+      try {
+        await doc.ref.update({
+          'metaData.igAccountId': resolvedId,
+          'metaData.lastWebhookIdentityResolutionAt': new Date().toISOString(),
+          'metaData.accountIdResolution': 'webhook_token_probe',
+        });
+      } catch (healErr: any) {
+        this.logger.warn(
+          `[INSTAGRAM_WEBHOOK] Token-probe self-heal write failed (non-fatal): ` +
+            `${healErr?.message as string}`,
+        );
+      }
+
+      return doc;
+    }
+
+    return null;
+  }
+
+  /**
+   * Resolves the webhook-scoped Instagram account ID from an access token.
+   *
+   * We probe graph.instagram.com first with fields=id,user_id and prefer user_id,
+   * which is frequently the global Professional Account ID used in webhook entry.id.
+   * Then we fall back to graph.facebook.com /me id, and finally instagram /me id.
+   */
+  private async resolveInstagramWebhookScopedId(accessToken: string): Promise<string | null> {
+    try {
+      const igMe = await this.defLogger.request<InstagramGraphMeResponse>({
+        method: 'GET',
+        url: `${INSTAGRAM_GRAPH_BASE}/${INSTAGRAM_API_VERSION}/me`,
+        params: {
+          fields: 'id,user_id',
+          access_token: accessToken,
+        },
+      });
+
+      if (igMe?.user_id) {
+        return igMe.user_id;
+      }
+
+      if (igMe?.id) {
+        return igMe.id;
+      }
+    } catch {
+      // Best-effort only; fall through to Facebook Graph.
+    }
+
+    try {
+      const fbMe = await this.defLogger.request<InstagramGraphMeResponse>({
+        method: 'GET',
+        url: `${FACEBOOK_GRAPH_BASE}/${INSTAGRAM_API_VERSION}/me`,
+        params: {
+          fields: 'id',
+          access_token: accessToken,
+        },
+      });
+
+      return fbMe?.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Idempotently stores an Instagram Direct Message or Story Mention.
+   * Document key = messageId (Meta's mid or a deterministic fallback).
+   */
+  private async storeInstagramMessage(
+    docRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,
+    messageId: string,
+    igsid: string,
+    text: string,
+    timestamp: string,
+    interactionType: InstagramInteractionType,
+    igAccountId: string,
+    direction: 'inbound' | 'outbound' = 'inbound',
+  ): Promise<void> {
+    const db = this.firebase.getFirestore();
+    const msgRef = docRef.collection('messages').doc(messageId);
+
+    let isDuplicate = false;
+    await db.runTransaction(async (tx) => {
+      const existing = await tx.get(msgRef);
+      if (existing.exists) { isDuplicate = true; return; }
+
+      tx.set(msgRef, {
+        id: messageId,
+        direction,
+        from: direction === 'outbound' ? igAccountId : igsid,
+        to: direction === 'outbound' ? igsid : igAccountId,
+        text,
+        timestamp,
+        channel: 'META_INSTAGRAM',
+        interactionType,
+        igAccountId,
+      });
+    });
+
+    if (isDuplicate) {
+      this.logger.warn(
+        `[INSTAGRAM_WEBHOOK] Duplicate ${direction} message ignored — id=${messageId} igsid=${igsid}`,
+      );
+      return;
+    }
+
+    await this.firebase.update(docRef, { updatedAt: new Date().toISOString() });
+    this.logger.log(
+      `[INSTAGRAM_WEBHOOK] ✓ Saved ${direction} ${interactionType} — id=${messageId} counterpart=${igsid}`,
+    );
+  }
+
+  /**
+   * Idempotently stores an Instagram Comment.
+   * Document key = commentId — enforces Single Reply Rule (Phase 5):
+   * if doc already exists, the comment was already processed.
+   */
+  private async storeInstagramComment(
+    docRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,
+    commentId: string,
+    commenterIgsid: string,
+    text: string,
+    timestamp: string,
+    mediaId: string,
+    igAccountId: string,
+  ): Promise<void> {
+    const db = this.firebase.getFirestore();
+    const msgRef = docRef.collection('messages').doc(`comment_${commentId}`);
+
+    let isDuplicate = false;
+    await db.runTransaction(async (tx) => {
+      const existing = await tx.get(msgRef);
+      if (existing.exists) { isDuplicate = true; return; }
+
+      tx.set(msgRef, {
+        id: `comment_${commentId}`,
+        direction: 'inbound',
+        from: commenterIgsid,
+        text,
+        timestamp,
+        channel: 'META_INSTAGRAM',
+        interactionType: 'COMMENT' as InstagramInteractionType,
+        commentId,
+        mediaId,
+        igAccountId,
+        // Private Reply status — updated to 'PRIVATE_REPLY_SENT' in Phase 5
+        privateReplyStatus: 'PENDING',
+      });
+    });
+
+    if (isDuplicate) {
+      this.logger.warn(
+        `[INSTAGRAM_WEBHOOK] Duplicate comment ignored — commentId=${commentId}`,
+      );
+      return;
+    }
+
+    await this.firebase.update(docRef, { updatedAt: new Date().toISOString() });
+    this.logger.log(
+      `[INSTAGRAM_WEBHOOK] ✓ Saved COMMENT — commentId=${commentId} from=${commenterIgsid} mediaId=${mediaId}`,
+    );
+  }
+
+  /**
+   * Updates (or creates) the per-user conversation record within this integration.
+   * Sets `lastUserInteractionTimestamp` to now — the Phase 5 24-hour window guard
+   * reads this value before dispatching any outbound Instagram message.
+   */
+  private async updateInstagramConversationTimestamp(
+    docRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,
+    igsid: string,
+  ): Promise<void> {
+    const conversationRef = docRef.collection('conversations').doc(igsid);
+    await this.firebase.set(
+      conversationRef,
+      {
+        igsid,
+        channel: 'META_INSTAGRAM',
+        lastUserInteractionTimestamp: Date.now(),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
     );
   }
 }

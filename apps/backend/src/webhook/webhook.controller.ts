@@ -76,11 +76,13 @@ export class WebhookController {
           ? this.webhookService.processMessengerInbound(body)
           : objectType === 'whatsapp_business_account'
             ? this.webhookService.processWhatsAppInbound(body)
-            : Promise.resolve(
-                this.logger.warn(
-                  `[WEBHOOK_SKIP] Unsupported webhook object="${objectType ?? 'undefined'}"`,
-                ),
-              );
+            : objectType === 'instagram'
+              ? this.webhookService.processInstagramInbound(body)
+              : Promise.resolve(
+                  this.logger.warn(
+                    `[WEBHOOK_SKIP] Unsupported webhook object="${objectType ?? 'undefined'}"`,
+                  ),
+                );
 
       processor.catch((err: unknown) => {
         this.logger.error(
