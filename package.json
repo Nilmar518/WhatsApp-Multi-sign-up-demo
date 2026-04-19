@@ -13,6 +13,20 @@
     "pnpm": ">=9.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@nestjs/core", "esbuild", "protobufjs"]
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "esbuild",
+      "protobufjs"
+    ]
+  },
+  "dependencies": {
+    "@nestjs/bull": "^11.0.4",
+    "@nestjs/event-emitter": "^3.0.1",
+    "@nestjs/schedule": "^6.1.1",
+    "bull": "^4.16.5",
+    "ioredis": "^5.10.1"
+  },
+  "devDependencies": {
+    "@types/bull": "^4.10.4"
   }
 }

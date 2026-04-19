@@ -1,0 +1,191 @@
+{
+	"info": {
+		"_postman_id": "channex-webhooks-booking-suite",
+		"name": "Channex Webhook Payloads - Booking.com",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. New Booking (Carlos)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-19T10:00:00.000000Z\",\n  \"event\": \"booking_new\",\n  \"user_id\": null,\n  \"payload\": {\n    \"currency\": \"USD\",\n    \"amount\": \"250.00\",\n    \"channel_id\": \"f0ef3f1f-d760-440d-be1c-b6a4dfd45e87\",\n    \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\",\n    \"booking_id\": \"a1b2c3d4-1111-4aaa-8bbb-ccccddddeeee\",\n    \"arrival_date\": \"2026-08-01\",\n    \"booking_revision_id\": \"r1a2b3c4-2222-4ddd-9eee-ffffaaaabbbb\",\n    \"live_feed_event_id\": \"e1f2a3b4-3333-4ccc-8ddd-eeeeffffaaaa\",\n    \"count_of_rooms\": 1,\n    \"booking_unique_id\": \"BDC-AB12CD34EF\",\n    \"count_of_nights\": 3,\n    \"customer_name\": \"Carlos Mendez\",\n    \"ota_code\": \"AB12CD34EF\"\n  },\n  \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula una reserva nueva confirmada en Booking.com."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Booking Modification (Carlos)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-19T11:30:00.000000Z\",\n  \"event\": \"booking_modification\",\n  \"user_id\": null,\n  \"payload\": {\n    \"currency\": \"USD\",\n    \"amount\": \"320.00\",\n    \"channel_id\": \"f0ef3f1f-d760-440d-be1c-b6a4dfd45e87\",\n    \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\",\n    \"booking_id\": \"a1b2c3d4-1111-4aaa-8bbb-ccccddddeeee\",\n    \"arrival_date\": \"2026-08-03\",\n    \"booking_revision_id\": \"r9a8b7c6-4444-5eee-afff-bbbbccccdddd\",\n    \"live_feed_event_id\": \"e9f8a7b6-5555-4bbb-8ccc-ddddeeeeeeee\",\n    \"count_of_rooms\": 1,\n    \"booking_unique_id\": \"BDC-AB12CD34EF\",\n    \"count_of_nights\": 4,\n    \"customer_name\": \"Carlos Mendez\",\n    \"ota_code\": \"AB12CD34EF\"\n  },\n  \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula una modificación de la reserva existente en Booking.com."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Inquiry (Maria)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-19T12:05:00.000000Z\",\n  \"event\": \"inquiry\",\n  \"user_id\": null,\n  \"payload\": {\n    \"status\": \"active\",\n    \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\",\n    \"message_thread_id\": \"t1a2b3c4-6666-4aaa-9bbb-ccccddddffff\",\n    \"live_feed_event_id\": \"e1f2b3c4-7777-4ddd-8eee-ffffbbbbcccc\",\n    \"booking_details\": {\n      \"currency\": \"USD\",\n      \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\",\n      \"listing_id\": \"112233445566778899\",\n      \"room_type_id\": \"6196888f-9eb8-4bd1-bcab-cb1f226d50de\",\n      \"nights\": 2,\n      \"checkout_date\": \"2026-09-12\",\n      \"checkin_date\": \"2026-09-10\",\n      \"payout_amount\": \"180.00\",\n      \"number_of_adults\": 2,\n      \"number_of_children\": 0,\n      \"number_of_infants\": 0,\n      \"number_of_pets\": 0,\n      \"number_of_guests\": 2,\n      \"listing_name\": \"Habitación Deluxe con vista al mar\",\n      \"guest_name\": \"Maria\",\n      \"non_response_at\": \"2026-04-20T12:05:00.000Z\"\n    }\n  },\n  \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula una consulta (inquiry) de un huésped potencial antes de reservar en Booking.com."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Message (Maria: '¿Tienen estacionamiento?')",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-19T12:06:15.000000Z\",\n  \"event\": \"message\",\n  \"user_id\": null,\n  \"payload\": {\n    \"id\": \"m1a2b3c4-8888-4eee-afff-bbbbccccaaaa\",\n    \"message\": \"¿Tienen estacionamiento disponible para el check-in?\",\n    \"meta\": {\n      \"name\": \"Maria\",\n      \"role\": \"GUEST\"\n    },\n    \"sender\": \"guest\",\n    \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\",\n    \"booking_id\": null,\n    \"message_thread_id\": \"t1a2b3c4-6666-4aaa-9bbb-ccccddddffff\",\n    \"live_feed_event_id\": \"e2f3a4b5-9999-4ccc-8ddd-eeeeffffbbbb\",\n    \"attachments\": [],\n    \"have_attachment\": false,\n    \"ota_message_id\": \"bdc_msg_99887766\"\n  },\n  \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula un mensaje de chat enviado por un huésped desde Booking.com."
+			},
+			"response": []
+		},
+		{
+			"name": "5. Booking Cancellation (Carlos)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-19T14:20:00.000000Z\",\n  \"event\": \"booking_cancellation\",\n  \"user_id\": null,\n  \"payload\": {\n    \"currency\": \"USD\",\n    \"amount\": \"0.00\",\n    \"channel_id\": \"f0ef3f1f-d760-440d-be1c-b6a4dfd45e87\",\n    \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\",\n    \"booking_id\": \"a1b2c3d4-1111-4aaa-8bbb-ccccddddeeee\",\n    \"arrival_date\": \"2026-08-03\",\n    \"booking_revision_id\": \"r5c6d7e8-aaaa-4fff-8bbb-ccccddddeeee\",\n    \"live_feed_event_id\": \"e5f6a7b8-bbbb-4eee-9fff-aaaabbbbcccc\",\n    \"count_of_rooms\": 1,\n    \"booking_unique_id\": \"BDC-AB12CD34EF\",\n    \"count_of_nights\": 4,\n    \"customer_name\": \"Carlos Mendez\",\n    \"ota_code\": \"AB12CD34EF\"\n  },\n  \"property_id\": \"6311ba36-e7e5-49f7-9405-c2f891ee06b9\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula la cancelación de una reserva en Booking.com."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "server",
+			"value": "https://TU-NGROK-O-SERVIDOR.ngrok-free.dev",
+			"type": "string"
+		},
+		{
+			"key": "WEBHOOK_SECRET",
+			"value": "migo_staging_wh_sec_9f8a7b6c5d4e3f2g1h",
+			"type": "string"
+		}
+	]
+}

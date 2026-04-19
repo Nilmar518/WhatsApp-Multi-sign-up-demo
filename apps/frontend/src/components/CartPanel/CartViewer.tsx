@@ -4,7 +4,7 @@
  * Zero Firebase imports. Receives all data and callbacks as props.
  * Tested independently of the Firestore layer.
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { Cart, CartItem } from '../../types/cart';
 
 // ─── Props ────────────────────────────────────────────────────────────────────

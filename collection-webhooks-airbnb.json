@@ -1,0 +1,191 @@
+{
+	"info": {
+		"_postman_id": "channex-webhooks-test-suite",
+		"name": "Channex Webhook Payloads (Real Traces)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. New Booking (Nilmar)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-15T22:45:58.082701Z\",\n  \"event\": \"booking_new\",\n  \"user_id\": null,\n  \"payload\": {\n    \"currency\": \"USD\",\n    \"amount\": \"18.75\",\n    \"channel_id\": \"62acab6c-069c-4ed4-aff3-e55370048d2d\",\n    \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\",\n    \"booking_id\": \"0b687c37-7586-48aa-87dd-41f30255056a\",\n    \"arrival_date\": \"2026-07-01\",\n    \"booking_revision_id\": \"7c49e5c3-965e-4050-9a1c-5902bbc29060\",\n    \"live_feed_event_id\": \"80f53503-8f00-4898-a02e-a6a507597919\",\n    \"count_of_rooms\": 1,\n    \"booking_unique_id\": \"ABB-HM4JNTBN2A\",\n    \"count_of_nights\": 1,\n    \"customer_name\": \"Nilmar Lutino\",\n    \"ota_code\": \"HM4JNTBN2A\"\n  },\n  \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula una reserva nueva confirmada en Airbnb."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Booking Modification (Nilmar)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-15T22:49:01.403066Z\",\n  \"event\": \"booking_modification\",\n  \"user_id\": null,\n  \"payload\": {\n    \"currency\": \"USD\",\n    \"amount\": \"18.75\",\n    \"channel_id\": \"62acab6c-069c-4ed4-aff3-e55370048d2d\",\n    \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\",\n    \"booking_id\": \"0b687c37-7586-48aa-87dd-41f30255056a\",\n    \"arrival_date\": \"2026-07-01\",\n    \"booking_revision_id\": \"fe936edd-7044-457a-9842-c8d818313b29\",\n    \"live_feed_event_id\": \"1e6f6847-0d5f-4a9d-81aa-ec487c466f9e\",\n    \"count_of_rooms\": 1,\n    \"booking_unique_id\": \"ABB-HM4JNTBN2A\",\n    \"count_of_nights\": 1,\n    \"customer_name\": \"Nilmar Lutino\",\n    \"ota_code\": \"HM4JNTBN2A\"\n  },\n  \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula una modificación de la reserva existente."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Inquiry (Ramiro)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-15T22:50:27.461303Z\",\n  \"event\": \"inquiry\",\n  \"user_id\": null,\n  \"payload\": {\n    \"status\": \"active\",\n    \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\",\n    \"message_thread_id\": \"33a4b814-6450-4de8-850c-9302ef057551\",\n    \"live_feed_event_id\": \"feb017bf-ea6f-42de-be17-c997805b40cd\",\n    \"booking_details\": {\n      \"currency\": \"USD\",\n      \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\",\n      \"listing_id\": \"993498647188875098\",\n      \"room_type_id\": \"6196888f-9eb8-4bd1-bcab-cb1f226d50de\",\n      \"nights\": 1,\n      \"checkout_date\": \"2026-08-06\",\n      \"checkin_date\": \"2026-08-05\",\n      \"payout_amount\": \"15.84\",\n      \"number_of_adults\": 1,\n      \"number_of_children\": 0,\n      \"number_of_infants\": 0,\n      \"number_of_pets\": 0,\n      \"number_of_guests\": 1,\n      \"listing_name\": \"Centrico Studio, A/C, Wifi, baño privado, TV,\",\n      \"guest_name\": \"Ramiro\",\n      \"non_response_at\": \"2026-04-16T22:50:11.469Z\"\n    }\n  },\n  \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula una consulta (inquiry) de un huésped potencial antes de reservar."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Message (Ramiro: 'Hola buenas')",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-15T22:50:27.529826Z\",\n  \"event\": \"message\",\n  \"user_id\": null,\n  \"payload\": {\n    \"id\": \"69e05d97-b7da-4352-9940-e00a1c46f8f2\",\n    \"message\": \"Hola buenas\",\n    \"meta\": {\n      \"name\": \"Ramiro\",\n      \"role\": \"GUEST\"\n    },\n    \"sender\": \"guest\",\n    \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\",\n    \"booking_id\": null,\n    \"message_thread_id\": \"33a4b814-6450-4de8-850c-9302ef057551\",\n    \"live_feed_event_id\": \"d0a0ebb3-8db4-4f18-806e-8c75ed14898b\",\n    \"attachments\": [],\n    \"have_attachment\": false,\n    \"ota_message_id\": \"30387259231\"\n  },\n  \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula un mensaje de chat enviado por un huésped."
+			},
+			"response": []
+		},
+		{
+			"name": "5. Booking Cancellation (Nilmar)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-channex-signature",
+						"value": "{{WEBHOOK_SECRET}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"timestamp\": \"2026-04-15T22:53:32.043219Z\",\n  \"event\": \"booking_cancellation\",\n  \"user_id\": null,\n  \"payload\": {\n    \"currency\": \"USD\",\n    \"amount\": \"0.00\",\n    \"channel_id\": \"62acab6c-069c-4ed4-aff3-e55370048d2d\",\n    \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\",\n    \"booking_id\": \"0b687c37-7586-48aa-87dd-41f30255056a\",\n    \"arrival_date\": \"2026-07-01\",\n    \"booking_revision_id\": \"f0053556-a503-43bf-8fad-3cfe18fa3efb\",\n    \"live_feed_event_id\": \"d7d5661a-8790-49d7-a30b-968b8ebd2aaa\",\n    \"count_of_rooms\": 1,\n    \"booking_unique_id\": \"ABB-HM4JNTBN2A\",\n    \"count_of_nights\": 1,\n    \"customer_name\": \"Nilmar Lutino\",\n    \"ota_code\": \"HM4JNTBN2A\"\n  },\n  \"property_id\": \"015995bc-57ac-426c-aceb-5f0f81619ee8\"\n}"
+				},
+				"url": {
+					"raw": "{{server}}/channex/webhooks",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"channex",
+						"webhooks"
+					]
+				},
+				"description": "Simula la cancelación de una reserva."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "server",
+			"value": "https://TU-NGROK-O-SERVIDOR.ngrok-free.dev",
+			"type": "string"
+		},
+		{
+			"key": "WEBHOOK_SECRET",
+			"value": "migo_staging_wh_sec_9f8a7b6c5d4e3f2g1h",
+			"type": "string"
+		}
+	]
+}

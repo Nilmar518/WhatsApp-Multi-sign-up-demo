@@ -7,9 +7,24 @@ import {
   Res,
   Logger,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
 import { ConfigService } from '@nestjs/config';
+import type { Queue } from 'bull';
 import { Response } from 'express';
 import { WebhookService } from './webhook.service';
+import type {
+  ChannexWebhookEvent,
+  ChannexWebhookFullPayload,
+} from '../channex/channex.types';
+
+const CHANNEX_BOOKING_EVENTS = new Set<ChannexWebhookEvent>([
+  'booking_new',
+  'booking_modification',
+  'booking_cancellation',
+  'booking_unmapped_room',
+  'reservation_request',
+  'alteration_request',
+]);
 
 @Controller('webhook')
 export class WebhookController {
@@ -18,6 +33,10 @@ export class WebhookController {
   constructor(
     private readonly config: ConfigService,
     private readonly webhookService: WebhookService,
+    @InjectQueue('booking-revisions')
+    private readonly channexBookingQueue: Queue<ChannexWebhookFullPayload>,
+    @InjectQueue('channex-messages')
+    private readonly channexMessageQueue: Queue<ChannexWebhookFullPayload>,
   ) {}
 
   // GET /webhook — Meta hub challenge verification (one-time setup)
@@ -70,6 +89,73 @@ export class WebhookController {
     // response is flushed before any awaitable work starts.
     setImmediate(() => {
       const objectType = (body as { object?: string })?.object;
+      const channexEvent = (body as { event?: ChannexWebhookEvent })?.event;
+
+      if (channexEvent) {
+        const channexPayload = body as ChannexWebhookFullPayload;
+        const propertyId = channexPayload?.property_id ?? 'unknown';
+
+        if (channexEvent === 'message' || channexEvent === 'inquiry') {
+          const payloadData = channexPayload?.payload as
+            | Record<string, unknown>
+            | undefined;
+          const rawMessageId =
+            payloadData?.id ??
+            payloadData?.ota_message_id ??
+            payloadData?.message_thread_id;
+          const messageId =
+            typeof rawMessageId === 'string' ? rawMessageId : undefined;
+
+          this.channexMessageQueue
+            .add(channexPayload, {
+              attempts: 3,
+              backoff: { type: 'fixed', delay: 5000 },
+              removeOnComplete: true,
+              removeOnFail: false,
+              jobId: messageId,
+            })
+            .then(() => {
+              this.logger.log(
+                `[WEBHOOK_CHANNEX] Routed ${channexEvent} event propertyId=${propertyId} messageId=${messageId ?? 'auto'}`,
+              );
+            })
+            .catch((err: unknown) => {
+              this.logger.error(
+                `[WEBHOOK_CHANNEX] Failed to enqueue ${channexEvent} event propertyId=${propertyId}: ${(err as Error).message ?? err}`,
+              );
+            });
+
+          return;
+        }
+
+        if (CHANNEX_BOOKING_EVENTS.has(channexEvent)) {
+          this.channexBookingQueue
+            .add(channexPayload, {
+              attempts: 3,
+              backoff: { type: 'fixed', delay: 5000 },
+              removeOnComplete: true,
+              removeOnFail: false,
+              jobId: channexPayload?.revision_id,
+            })
+            .then(() => {
+              this.logger.log(
+                `[WEBHOOK_CHANNEX] Routed booking event event=${channexEvent} propertyId=${propertyId} revisionId=${channexPayload?.revision_id ?? 'auto'}`,
+              );
+            })
+            .catch((err: unknown) => {
+              this.logger.error(
+                `[WEBHOOK_CHANNEX] Failed to enqueue booking event event=${channexEvent} propertyId=${propertyId}: ${(err as Error).message ?? err}`,
+              );
+            });
+
+          return;
+        }
+
+        this.logger.warn(
+          `[WEBHOOK_CHANNEX] Unsupported channex event="${channexEvent}"`,
+        );
+        return;
+      }
 
       const processor =
         objectType === 'page'

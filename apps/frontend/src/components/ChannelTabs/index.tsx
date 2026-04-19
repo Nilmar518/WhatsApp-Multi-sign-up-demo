@@ -1,4 +1,4 @@
-export type Channel = 'whatsapp' | 'messenger' | 'instagram';
+export type Channel = 'whatsapp' | 'messenger' | 'instagram' | 'airbnb' | 'booking';
 
 interface Props {
   active: Channel;
@@ -32,6 +32,18 @@ const TABS: TabDef[] = [
     label: 'Instagram',
     icon: '📸',
     activeClass: 'border-pink-500 text-pink-700',
+  },
+  {
+    channel: 'airbnb',
+    label: 'Airbnb',
+    icon: '🏠',
+    activeClass: 'border-rose-500 text-rose-700',
+  },
+  {
+    channel: 'booking',
+    label: 'Booking.com',
+    icon: '🏨',
+    activeClass: 'border-blue-600 text-blue-600',
   },
 ];
 
