@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.channex.io)",
+      "Bash(npx tsc *)",
+      "WebFetch(domain:documenter.getpostman.com)",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
+    ]
+  }
+}

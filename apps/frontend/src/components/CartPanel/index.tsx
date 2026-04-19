@@ -8,7 +8,6 @@
  * Usage:
  *   <CartPanel integrationId={integrationId} contactWaId={activeContact?.waId ?? null} />
  */
-import React from 'react';
 import { useActiveCart } from '../../hooks/useActiveCart';
 import { CartViewer } from './CartViewer';
 

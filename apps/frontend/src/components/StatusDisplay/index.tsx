@@ -34,6 +34,11 @@ const STATUS_CONFIG: Record<IntegrationStatus, StatusConfig> = {
     textColor: 'text-green-600',
     dotClass: 'bg-green-500',
   },
+  ACCOUNT_RESOLVED: {
+    label: 'Account Resolved',
+    textColor: 'text-green-600',
+    dotClass: 'bg-green-500',
+  },
   ERROR: {
     label: 'Connection Error',
     textColor: 'text-red-600',

@@ -1,0 +1,65 @@
+{
+	"info": {
+		"_postman_id": "unlock-rooms-channex",
+		"name": "Channex Unlock Rooms",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Reset All Future Days to Available",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "user-api-key",
+						"value": "{{USER_API_KEY}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"channel_rate_plan_id\": \"{{CHANNEL_RATE_PLAN_ID}}\",\n    \"data\": {\n        \"max_days_notice\": -1,\n        \"default_min_nights\": 1,\n        \"default_max_nights\": 1125\n    }\n}"
+				},
+				"url": {
+					"raw": "{{server}}/api/v1/channels/{{channel_id}}/execute/update_availability_rule",
+					"host": [
+						"{{server}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"channels",
+						"{{channel_id}}",
+						"execute",
+						"update_availability_rule"
+					]
+				},
+				"description": "Establecer max_days_notice en -1 resetea todos los días futuros a disponibles según la documentación."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "server",
+			"value": "https://app.channex.io"
+		},
+		{
+			"key": "channel_id",
+			"value": "TU_CHANNEL_ID_AQUÍ"
+		},
+		{
+			"key": "CHANNEL_RATE_PLAN_ID",
+			"value": "TU_RATE_PLAN_ID_AQUÍ"
+		},
+		{
+			"key": "USER_API_KEY",
+			"value": "TU_API_KEY_AQUÍ"
+		}
+	]
+}

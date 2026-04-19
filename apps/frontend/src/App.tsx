@@ -16,6 +16,8 @@ import ChannelTabs, { type Channel } from './components/ChannelTabs';
 import MessengerConnect from './components/MessengerConnect';
 import InstagramConnect from './components/InstagramConnect';
 import InstagramInbox from './components/InstagramInbox';
+import AirbnbIntegration from './integrations/airbnb/AirbnbIntegration';
+import BookingIntegrationView from './integrations/booking/BookingIntegrationView';
 
 // ── Phase 4: business IDs loaded dynamically from the backend ─────────────────
 // Fallback to the fixture IDs while fetch is in flight so the UI renders
@@ -91,25 +93,28 @@ export default function App() {
   // ── Derived channel-aware values ──────────────────────────────────────────────
   const integrationId  = activeChannel === 'whatsapp' ? waIntegrationId
     : activeChannel === 'messenger'  ? msgrIntegrationId
-    : igIntegrationId;
+    : activeChannel === 'instagram'  ? igIntegrationId
+    : undefined;
   const status         = activeChannel === 'whatsapp' ? waStatus
     : activeChannel === 'messenger'  ? msgrStatus
-    : igStatus;
+    : activeChannel === 'instagram'  ? igStatus
+    : undefined;
   const activeMetaData = activeChannel === 'whatsapp' ? waMetaData
     : activeChannel === 'messenger'  ? msgrMetaData
-    : igMetaData;
+    : activeChannel === 'instagram'  ? igMetaData
+    : undefined;
   const activeCatalogId = (activeMetaData?.catalogId as string | undefined) ?? undefined;
   const conversations  = activeChannel === 'whatsapp' ? waConversations
     : activeChannel === 'messenger'  ? msgrConversations
-    : igConversations;
-  const messages       = activeChannel === 'whatsapp' ? waMessages
-    : activeChannel === 'messenger'  ? msgrMessages
-    : igMessages;
+    : activeChannel === 'instagram'  ? igConversations
+    : [];
   const isLoading      = activeChannel === 'whatsapp'
     ? isResolvingWa   || isLoadingWaStatus
     : activeChannel === 'messenger'
       ? isResolvingMsgr || isLoadingMsgrStatus
-      : isResolvingIg  || isLoadingIgStatus;
+      : activeChannel === 'instagram'
+        ? isResolvingIg  || isLoadingIgStatus
+        : false;
 
   // ── Phase 5: lift setupStep from ConnectionGateway → StatusDisplay ────────────
   const [setupStep, setSetupStep] = useState<SetupStep>('idle');
@@ -182,7 +187,7 @@ export default function App() {
             {integrationId ? (
             <CatalogView
                 businessId={businessId}
-                status={status}
+                status={status || 'IDLE'}
                 activeCatalogId={activeCatalogId}
                 onCatalogLinked={() =>
                   setIntegrationsRefreshNonce((prev) => prev + 1)
@@ -359,6 +364,18 @@ export default function App() {
               </>
             )}
           </>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/*  AIRBNB CHANNEL                                                  */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeChannel === 'airbnb' && <AirbnbIntegration />}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/*  BOOKING.COM CHANNEL                                              */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeChannel === 'booking' && (
+          <BookingIntegrationView businessId={businessId} />
         )}
 
       </div>
