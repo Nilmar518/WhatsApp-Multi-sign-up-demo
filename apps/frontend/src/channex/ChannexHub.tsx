@@ -18,6 +18,9 @@ export default function ChannexHub({ businessId }: Props) {
   const [showWizard, setShowWizard] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<ChannexProperty | null>(null);
 
+  const [forcedChannels, setForcedChannels] = useState<Set<SubTab>>(new Set());
+  const [showConnectDropdown, setShowConnectDropdown] = useState(false);
+
   const { properties, loading, error } = useChannexProperties(businessId);
 
   const hasAirbnb = properties.some((p) => p.connected_channels.includes('airbnb') || p.connection_status === 'active');
@@ -25,8 +28,8 @@ export default function ChannexHub({ businessId }: Props) {
 
   const subTabs: { id: SubTab; label: string }[] = [
     { id: 'properties', label: 'Properties' },
-    ...(hasAirbnb ? [{ id: 'airbnb' as SubTab, label: 'Airbnb' }] : []),
-    ...(hasBooking ? [{ id: 'booking' as SubTab, label: 'Booking.com' }] : []),
+    ...(hasAirbnb || forcedChannels.has('airbnb') ? [{ id: 'airbnb' as SubTab, label: 'Airbnb' }] : []),
+    ...(hasBooking || forcedChannels.has('booking') ? [{ id: 'booking' as SubTab, label: 'Booking.com' }] : []),
   ];
 
   return (
@@ -56,6 +59,47 @@ export default function ChannexHub({ businessId }: Props) {
             {tab.label}
           </button>
         ))}
+
+        {/* "+" Connect integration button */}
+        <div className="relative ml-auto flex items-center py-1.5">
+          <button
+            type="button"
+            onClick={() => setShowConnectDropdown((v) => !v)}
+            className="flex items-center gap-1 rounded-lg border border-dashed border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+          >
+            + Connect
+          </button>
+
+          {showConnectDropdown && (
+            <>
+              {/* Transparent backdrop — closes dropdown on outside click */}
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowConnectDropdown(false)}
+              />
+              <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                {([
+                  { id: 'airbnb' as SubTab, label: 'Airbnb', icon: '🏠' },
+                  { id: 'booking' as SubTab, label: 'Booking.com', icon: '🏨' },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setForcedChannels((prev) => new Set([...prev, opt.id]));
+                      setActiveSubTab(opt.id);
+                      setShowConnectDropdown(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <span>{opt.icon}</span>
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Content */}
