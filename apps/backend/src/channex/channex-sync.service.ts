@@ -6,6 +6,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { FieldValue } from 'firebase-admin/firestore';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import { ChannexService } from './channex.service';
@@ -687,6 +688,7 @@ export class ChannexSyncService {
       channex_channel_id: channelId,
       oauth_refresh_required: false,
       room_types: roomTypes,
+      connected_channels: FieldValue.arrayUnion('airbnb'),
       // Clear staged data — the pipeline is complete
       staged_channel_id: null,
       staged_listings: null,
@@ -765,6 +767,7 @@ export class ChannexSyncService {
       channex_channel_id: channelId,
       oauth_refresh_required: false,
       room_types: roomTypes,
+      connected_channels: FieldValue.arrayUnion('airbnb'),
       last_sync_timestamp: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
