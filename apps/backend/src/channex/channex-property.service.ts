@@ -22,7 +22,7 @@ import {
 export interface ProvisionPropertyResult {
   /** The UUID assigned by Channex — pivot for all subsequent ARI/webhook operations. */
   channexPropertyId: string;
-  /** The Firestore document ID: `{tenantId}__{channexPropertyId}`. */
+  /** The root integration doc ID (= tenantId). */
   firestoreDocId: string;
 }
 
@@ -74,10 +74,6 @@ export class ChannexPropertyService {
    * After this succeeds, the frontend advances to Step 2: the ChannexIFrame OAuth
    * flow where the tenant connects their Airbnb account.
    *
-   * Firestore document ID format: `{tenantId}__{channexPropertyId}`
-   * Deterministic IDs allow direct lookups without a collection query in contexts
-   * where both tenantId and channexPropertyId are known (e.g. delete endpoint).
-   *
    * Channex settings hardcoded for Airbnb compatibility:
    *   - min_stay_type: 'arrival' — Airbnb evaluates min-stay on the arrival day.
    *   - allow_availability_autoupdate_on_confirmation: true — decrements inventory
@@ -117,7 +113,7 @@ export class ChannexPropertyService {
       `[PROVISION] ✓ Channex property created — channexPropertyId=${channexPropertyId}`,
     );
 
-    // ── Step 2: Persist to Firestore ─────────────────────────────────────────
+    // ── Step 3: Persist to Firestore ─────────────────────────────────────────
 
     const db = this.firebase.getFirestore();
 
@@ -166,13 +162,10 @@ export class ChannexPropertyService {
   /**
    * Returns the current connection status for a given Channex property.
    *
-   * Queries the `channex_integrations` collection by `channex_property_id`
-   * (indexed field) rather than by document ID, since the caller (controller)
-   * only has the Channex UUID — not the full `{tenantId}__{channexPropertyId}`
-   * document key.
-   *
-   * This is also the query used by the BullMQ webhook worker in Phase 4 to
-   * resolve tenant_id from an inbound webhook's property_id field in O(log n).
+   * Looks up the property subcollection doc via resolveIntegration +
+   * findDocByChannexPropertyId. This is also the lookup used by the BullMQ
+   * webhook worker in Phase 4 to resolve tenant_id from an inbound webhook's
+   * property_id field in O(log n).
    */
   async getConnectionStatus(
     channexPropertyId: string,
