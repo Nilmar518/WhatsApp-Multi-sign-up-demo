@@ -58,6 +58,37 @@ export interface ChannexPropertyResponse {
   };
 }
 
+// ─── Channex API — Group ─────────────────────────────────────────────────────
+
+/** Attributes sent to POST /api/v1/groups (wrapped under `group` key). */
+export interface ChannexGroupPayload {
+  title: string;
+}
+
+/** The `data` envelope returned by a successful POST /api/v1/groups (HTTP 201). */
+export interface ChannexGroupResponse {
+  data: {
+    id: string;
+    type: 'group';
+    attributes: {
+      title: string;
+      status: string;
+    };
+  };
+}
+
+/** The `data` array returned by GET /api/v1/groups. */
+export interface ChannexGroupListResponse {
+  data: Array<{
+    id: string;
+    type: 'group';
+    attributes: {
+      title: string;
+      status: string;
+    };
+  }>;
+}
+
 // ─── Channex API — Property Update ──────────────────────────────────────────
 
 /**
@@ -432,17 +463,17 @@ export interface BookingRevisionDto {
 /**
  * A single entry in the `values` array sent to POST /api/v1/availability.
  *
- * For vacation rentals (Airbnb model), `availability` must be treated as a
- * binary operator: 1 = open for booking, 0 = blocked/closed.
- * Use `date_from`/`date_to` range format to update broad date windows in a
- * single API call, reducing payload weight and API call count.
+ * For vacation rentals (Airbnb model), availability is typically 0 or 1 (binary).
+ * For multi-unit properties (Booking.com, certification tests), use the actual
+ * unit count (e.g. 7). Use `date_from`/`date_to` range format to update broad
+ * date windows in a single API call, reducing payload weight and API call count.
  */
 export interface AvailabilityEntryDto {
   property_id: string;
   room_type_id: string;
   date_from: string;       // ISO 8601 (YYYY-MM-DD)
   date_to: string;
-  availability: 0 | 1;
+  availability: number;    // non-negative integer; 0 = no units, 1+ = available
 }
 
 /**
@@ -473,13 +504,29 @@ export interface RestrictionEntryDto {
 }
 
 /**
- * Generic success envelope for ARI push endpoints.
+ * Success envelope for ARI push endpoints.
  * Both POST /api/v1/availability and POST /api/v1/restrictions return this shape.
+ * `data[0].id` is the Channex task ID — used for certification form answers.
  */
 export interface ChannexARIResponse {
+  data: Array<{ id: string; type: string }>;
   meta: {
-    status: 'success' | string;
+    message: string;
+    warnings?: string[];
   };
+}
+
+// ─── ARI Full Sync ────────────────────────────────────────────────────────────
+
+export interface FullSyncOptions {
+  defaultAvailability: number;  // units to set on all room types
+  defaultRate: string;          // base rate for all rate plans, e.g. "100.00"
+  days?: number;                // days forward from today; default 500
+}
+
+export interface FullSyncResult {
+  availabilityTaskId: string;
+  restrictionsTaskId: string;
 }
 
 // ─── Channex API — Webhook Payload ──────────────────────────────────────────

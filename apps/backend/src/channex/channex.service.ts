@@ -38,6 +38,9 @@ import {
   ChannexSendMessageResponse,
   ChannexInstallApplicationPayload,
   ChannexInstallApplicationResponse,
+  ChannexGroupPayload,
+  ChannexGroupResponse,
+  ChannexGroupListResponse,
 } from './channex.types';
 
 // ─── Channex-specific error ──────────────────────────────────────────────────
@@ -187,6 +190,42 @@ export class ChannexService {
         url: `${this.baseUrl}/properties`,
         headers: this.buildAuthHeaders(),
         data: { property: payload },
+      });
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
+   * Returns all Groups visible to the API key.
+   * GET /api/v1/groups
+   */
+  async listGroups(): Promise<ChannexGroupListResponse> {
+    this.logger.log('[CHANNEX] Listing groups');
+    try {
+      return await this.defLogger.request<ChannexGroupListResponse>({
+        method: 'GET',
+        url: `${this.baseUrl}/groups`,
+        headers: this.buildAuthHeaders(),
+      });
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
+   * Creates a new Group in Channex.
+   * POST /api/v1/groups
+   * Used by ChannexGroupService to create one Group per businessId.
+   */
+  async createGroup(title: string): Promise<ChannexGroupResponse> {
+    this.logger.log(`[CHANNEX] Creating group: "${title}"`);
+    try {
+      return await this.defLogger.request<ChannexGroupResponse>({
+        method: 'POST',
+        url: `${this.baseUrl}/groups`,
+        headers: this.buildAuthHeaders(),
+        data: { group: { title } satisfies ChannexGroupPayload },
       });
     } catch (err) {
       this.normaliseError(err);
@@ -908,22 +947,25 @@ export class ChannexService {
    * Throws ChannexRateLimitError on HTTP 429 — the ARI worker catches this to
    * route the job to the Dead Letter Queue with a 60-second back-off delay.
    */
-  async pushAvailability(values: AvailabilityEntryDto[]): Promise<void> {
+  async pushAvailability(values: AvailabilityEntryDto[]): Promise<string> {
     this.logger.log(
       `[CHANNEX] Pushing availability — ${values.length} entry(s)`,
     );
 
     try {
-      await this.defLogger.request<ChannexARIResponse>({
+      const response = await this.defLogger.request<ChannexARIResponse>({
         method: 'POST',
         url: `${this.baseUrl}/availability`,
         headers: this.buildAuthHeaders(),
         data: { values },
       });
 
-      this.logger.log(`[CHANNEX] ✓ Availability push successful`);
+      const taskId = response?.data?.[0]?.id ?? '';
+      this.logger.log(`[CHANNEX] ✓ Availability push successful — taskId=${taskId}`);
+      return taskId;
     } catch (err) {
       this.normaliseError(err);
+      return '';
     }
   }
 
@@ -970,22 +1012,25 @@ export class ChannexService {
    *
    * Throws ChannexRateLimitError on HTTP 429 (same back-off policy as availability).
    */
-  async pushRestrictions(values: RestrictionEntryDto[]): Promise<void> {
+  async pushRestrictions(values: RestrictionEntryDto[]): Promise<string> {
     this.logger.log(
       `[CHANNEX] Pushing restrictions — ${values.length} entry(s)`,
     );
 
     try {
-      await this.defLogger.request<ChannexARIResponse>({
+      const response = await this.defLogger.request<ChannexARIResponse>({
         method: 'POST',
         url: `${this.baseUrl}/restrictions`,
         headers: this.buildAuthHeaders(),
         data: { values },
       });
 
-      this.logger.log(`[CHANNEX] ✓ Restrictions push successful`);
+      const taskId = response?.data?.[0]?.id ?? '';
+      this.logger.log(`[CHANNEX] ✓ Restrictions push successful — taskId=${taskId}`);
+      return taskId;
     } catch (err) {
       this.normaliseError(err);
+      return '';
     }
   }
 
