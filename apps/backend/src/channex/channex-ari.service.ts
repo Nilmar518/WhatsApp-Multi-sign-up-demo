@@ -7,12 +7,17 @@ import {
 import { FieldValue } from 'firebase-admin/firestore';
 import { ChannexService } from './channex.service';
 import { ChannexPropertyService } from './channex-property.service';
+import { ChannexARIRateLimiter } from './channex-ari-rate-limiter.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { CreateRoomTypeDto } from './dto/create-room-type.dto';
+import { CreateRatePlanDto } from './dto/create-rate-plan.dto';
 import type {
   AvailabilityEntryDto,
   RestrictionEntryDto,
   ChannexRoomTypeResponse,
+  ChannexRatePlanResponse,
+  FullSyncOptions,
+  FullSyncResult,
 } from './channex.types';
 
 // ─── Firestore constants ──────────────────────────────────────────────────────
@@ -33,19 +38,21 @@ export interface StoredRoomType {
 /**
  * ChannexARIService — Room Type management and real-time ARI push to Channex.
  *
- * Architecture note (simplified from the batched/Redis version):
- *   Migo UIT is a primarily informational PMS. We receive webhooks and respond
- *   to messages — we do NOT push bulk calendar blocks or offline reservations.
- *   The previous ARIFlushCron + Redis buffer pattern was over-engineered for
- *   this use case and has been removed.
+ * Architecture note:
+ *   ARI pushes (availability / restrictions) go directly to Channex over HTTP
+ *   synchronously from the controller request. Each push accepts an array of
+ *   updates and dispatches them in a single Channex API call, satisfying
+ *   certification batch requirements (Tests #2–#8).
  *
- *   ARI pushes (availability / restrictions) now go directly to Channex over
- *   HTTP synchronously from the controller request. The controller returns a
- *   200 OK only after Channex confirms receipt, giving the frontend an accurate
- *   loading state rather than a misleading "buffered" response.
+ *   Rate limiting is enforced by ChannexARIRateLimiter (10 calls/min per
+ *   property per endpoint type) — a slot is acquired before each HTTP call,
+ *   not per item in the values[] array.
  *
  *   Bull/Redis is intentionally retained for the webhook ingestion pipeline
  *   (booking-revisions queue) — that resilience requirement is unaffected.
+ *
+ *   Agnostic to OTA: operates on property_id, room_type_id, rate_plan_id.
+ *   Works for Airbnb, Booking.com, or any future channel without modification.
  */
 @Injectable()
 export class ChannexARIService {
@@ -55,6 +62,7 @@ export class ChannexARIService {
     private readonly channex: ChannexService,
     private readonly propertyService: ChannexPropertyService,
     private readonly firebase: FirebaseService,
+    private readonly rateLimiter: ChannexARIRateLimiter,
   ) {}
 
   // ─── Room Type CRUD ───────────────────────────────────────────────────────
@@ -91,7 +99,6 @@ export class ChannexARIService {
 
     this.logger.log(`[ARI] ✓ Room type created — roomTypeId=${roomTypeId}`);
 
-    // Persist to Firestore integration document
     const integration = await this.propertyService.resolveIntegration(propertyId);
 
     if (!integration) {
@@ -103,7 +110,11 @@ export class ChannexARIService {
     }
 
     const db = this.firebase.getFirestore();
-    const docRef = db.collection(INTEGRATIONS_COLLECTION).doc(integration.firestoreDocId);
+    const docRef = db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(integration.firestoreDocId)
+      .collection('properties')
+      .doc(propertyId);
 
     const storedRoomType: StoredRoomType = {
       room_type_id: roomTypeId,
@@ -119,6 +130,71 @@ export class ChannexARIService {
 
     this.logger.log(
       `[ARI] ✓ room_types[] updated in Firestore — firestoreDocId=${integration.firestoreDocId}`,
+    );
+
+    return response;
+  }
+
+  async createRatePlan(
+    propertyId: string,
+    roomTypeId: string,
+    dto: CreateRatePlanDto,
+  ): Promise<ChannexRatePlanResponse> {
+    this.logger.log(
+      `[ARI] Creating rate plan "${dto.title}" — propertyId=${propertyId} roomTypeId=${roomTypeId}`,
+    );
+
+    const response = await this.channex.createRatePlan({
+      property_id: propertyId,
+      room_type_id: roomTypeId,
+      title: dto.title,
+      currency: dto.currency ?? 'USD',
+      options: [{
+        occupancy: dto.occupancy ?? 2,
+        is_primary: true,
+        rate: dto.rate ?? 0,
+      }],
+    });
+
+    const ratePlanId = response.data.id;
+    this.logger.log(`[ARI] ✓ Rate plan created — ratePlanId=${ratePlanId}`);
+
+    const integration = await this.propertyService.resolveIntegration(propertyId);
+
+    if (!integration) {
+      this.logger.error(
+        `[ARI] Rate plan ${ratePlanId} created in Channex but no Firestore ` +
+          `document found for propertyId=${propertyId}. Manual reconciliation required.`,
+      );
+      return response;
+    }
+
+    const db = this.firebase.getFirestore();
+    const docRef = db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(integration.firestoreDocId)
+      .collection('properties')
+      .doc(propertyId);
+
+    // Read existing room_types to get title and default_occupancy for this roomTypeId
+    const doc = await docRef.get();
+    const existingRoomTypes: StoredRoomType[] = (doc.data()?.room_types as StoredRoomType[]) ?? [];
+    const existingRoomType = existingRoomTypes.find((rt) => rt.room_type_id === roomTypeId);
+
+    const newEntry: StoredRoomType = {
+      room_type_id: roomTypeId,
+      title: existingRoomType?.title ?? dto.title,
+      default_occupancy: existingRoomType?.default_occupancy ?? (dto.occupancy ?? 2),
+      rate_plan_id: ratePlanId,
+    };
+
+    await this.firebase.update(docRef, {
+      room_types: FieldValue.arrayUnion(newEntry),
+      updated_at: new Date().toISOString(),
+    });
+
+    this.logger.log(
+      `[ARI] ✓ room_types[] updated in Firestore with rate_plan_id=${ratePlanId}`,
     );
 
     return response;
@@ -142,6 +218,8 @@ export class ChannexARIService {
     const doc = await db
       .collection(INTEGRATIONS_COLLECTION)
       .doc(integration.firestoreDocId)
+      .collection('properties')
+      .doc(propertyId)
       .get();
 
     if (!doc.exists) return [];
@@ -152,49 +230,161 @@ export class ChannexARIService {
   // ─── Real-time ARI push ───────────────────────────────────────────────────
 
   /**
-   * Pushes an availability update directly to Channex (synchronous, no buffer).
+   * Pushes one or more availability updates to Channex in a single HTTP call.
    *
    * POST /api/v1/availability
    *
-   * The controller awaits this call before returning 200 to the frontend — the
-   * UI loading state is held open for the ~1-2 s Channex round-trip, giving the
-   * admin accurate feedback about whether the change was accepted.
+   * Accepts an array so callers can batch multiple room type / date range updates
+   * into one request, satisfying Channex certification batch requirements.
+   * For single-update operations, pass a one-element array.
+   *
+   * Rate limited: 10 calls/min per property via ChannexARIRateLimiter.
+   * Returns the Channex task ID — needed for certification form answers.
    *
    * Throws ChannexRateLimitError (429) or ChannexAuthError (401/403) if Channex
-   * rejects the request — the controller converts these to the appropriate HTTP
-   * status for the frontend error boundary.
+   * rejects the request.
    */
-  async pushAvailability(update: AvailabilityEntryDto): Promise<void> {
-    this.logger.log(
-      `[ARI] Pushing availability — propertyId=${update.property_id} ` +
-        `room=${update.room_type_id} ${update.date_from}→${update.date_to} value=${update.availability}`,
-    );
+  async pushAvailability(updates: AvailabilityEntryDto[]): Promise<string> {
+    if (!updates.length) return '';
 
-    await this.channex.pushAvailability([update]);
+    const propertyId = updates[0].property_id;
 
     this.logger.log(
-      `[ARI] ✓ Availability pushed — propertyId=${update.property_id}`,
+      `[ARI] Pushing availability — propertyId=${propertyId} ${updates.length} entry(s)`,
     );
+
+    await this.rateLimiter.acquire(propertyId, 'availability');
+    const taskId = await this.channex.pushAvailability(updates);
+
+    this.logger.log(`[ARI] ✓ Availability pushed — taskId=${taskId}`);
+    return taskId;
   }
 
   /**
-   * Pushes a rate/restriction update directly to Channex (synchronous, no buffer).
+   * Pushes one or more restriction/rate updates to Channex in a single HTTP call.
    *
    * POST /api/v1/restrictions
    *
-   * Same synchronous contract as `pushAvailability`. The `rate_plan_id` field
-   * must be provided — restrictions operate on Rate Plans, not Room Types.
+   * The `rate_plan_id` field must be present in each entry — restrictions
+   * operate on Rate Plans, not Room Types.
+   *
+   * Rate limited: 10 calls/min per property via ChannexARIRateLimiter.
+   * Returns the Channex task ID — needed for certification form answers.
    */
-  async pushRestrictions(update: RestrictionEntryDto): Promise<void> {
-    this.logger.log(
-      `[ARI] Pushing restrictions — propertyId=${update.property_id} ` +
-        `plan=${update.rate_plan_id} ${update.date_from}→${update.date_to}`,
-    );
+  async pushRestrictions(updates: RestrictionEntryDto[]): Promise<string> {
+    if (!updates.length) return '';
 
-    await this.channex.pushRestrictions([update]);
+    const propertyId = updates[0].property_id;
 
     this.logger.log(
-      `[ARI] ✓ Restrictions pushed — propertyId=${update.property_id}`,
+      `[ARI] Pushing restrictions — propertyId=${propertyId} ${updates.length} entry(s)`,
     );
+
+    await this.rateLimiter.acquire(propertyId, 'restrictions');
+    const taskId = await this.channex.pushRestrictions(updates);
+
+    this.logger.log(`[ARI] ✓ Restrictions pushed — taskId=${taskId}`);
+    return taskId;
+  }
+
+  // ─── Full Sync ────────────────────────────────────────────────────────────
+
+  /**
+   * Sends N days of ARI for all room types and rate plans of a property.
+   *
+   * Channex certification Test #1 requires exactly 2 HTTP calls:
+   *   1 × POST /availability  — all room types, 500 days
+   *   1 × POST /restrictions  — all rate plans, 500 days
+   *
+   * Reads room_types[] from the Firestore integration document (already mirrored
+   * from Channex during the channel connection flow). Does NOT modify any Channex
+   * configuration — only pushes ARI values for existing entities.
+   *
+   * Agnostic to OTA — works for Airbnb, Booking.com, or any future channel.
+   *
+   * @param propertyId  Channex property UUID
+   * @param options     defaultAvailability, defaultRate, days (default 500)
+   */
+  async fullSync(propertyId: string, options: FullSyncOptions): Promise<FullSyncResult> {
+    const days = options.days ?? 500;
+
+    this.logger.log(
+      `[ARI] Starting fullSync — propertyId=${propertyId} days=${days}`,
+    );
+
+    // ── Read entity IDs from Firestore ──────────────────────────────────────
+    const integration = await this.propertyService.resolveIntegration(propertyId);
+
+    if (!integration) {
+      throw new HttpException(
+        `fullSync failed — no integration found for propertyId=${propertyId}`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const db = this.firebase.getFirestore();
+    const doc = await db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(integration.firestoreDocId)
+      .collection('properties')
+      .doc(propertyId)
+      .get();
+
+    const roomTypes: StoredRoomType[] = (doc.data()?.room_types as StoredRoomType[]) ?? [];
+
+    if (!roomTypes.length) {
+      throw new HttpException(
+        `fullSync failed — no room_types in Firestore for propertyId=${propertyId}`,
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    // ── Build date range ────────────────────────────────────────────────────
+    const today = new Date();
+    const dateFrom = today.toISOString().split('T')[0];
+
+    const end = new Date(today);
+    end.setDate(end.getDate() + days);
+    const dateTo = end.toISOString().split('T')[0];
+
+    // ── Call 1: Availability — one entry per room type ──────────────────────
+    const availabilityUpdates: AvailabilityEntryDto[] = roomTypes.map((rt) => ({
+      property_id: propertyId,
+      room_type_id: rt.room_type_id,
+      date_from: dateFrom,
+      date_to: dateTo,
+      availability: options.defaultAvailability,
+    }));
+
+    const availabilityTaskId = await this.pushAvailability(availabilityUpdates);
+
+    // ── Call 2: Restrictions — one entry per rate plan ──────────────────────
+    const ratePlanIds = roomTypes
+      .map((rt) => rt.rate_plan_id)
+      .filter((id): id is string => Boolean(id));
+
+    if (!ratePlanIds.length) {
+      throw new HttpException(
+        `fullSync failed — no rate_plan_ids found in room_types for propertyId=${propertyId}`,
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    const restrictionUpdates: RestrictionEntryDto[] = ratePlanIds.map((ratePlanId) => ({
+      property_id: propertyId,
+      rate_plan_id: ratePlanId,
+      date_from: dateFrom,
+      date_to: dateTo,
+      rate: options.defaultRate,
+    }));
+
+    const restrictionsTaskId = await this.pushRestrictions(restrictionUpdates);
+
+    this.logger.log(
+      `[ARI] ✓ fullSync complete — propertyId=${propertyId} ` +
+        `availabilityTaskId=${availabilityTaskId} restrictionsTaskId=${restrictionsTaskId}`,
+    );
+
+    return { availabilityTaskId, restrictionsTaskId };
   }
 }
