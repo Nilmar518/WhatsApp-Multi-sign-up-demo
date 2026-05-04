@@ -655,7 +655,11 @@ export class ChannexSyncService {
     staged: StagedMappingRow[],
   ): Promise<void> {
     const db = this.firebase.getFirestore();
-    const snapshot = await db.collection(COLLECTION).where('channex_property_id', '==', propertyId).limit(1).get();
+    const snapshot = await db
+      .collectionGroup('properties')
+      .where('channex_property_id', '==', propertyId)
+      .limit(1)
+      .get();
 
     if (snapshot.empty) return; // Non-fatal — staged data is also returned in memory
 
@@ -677,7 +681,11 @@ export class ChannexSyncService {
     roomTypes: SyncedRoomType[],
   ): Promise<void> {
     const db = this.firebase.getFirestore();
-    const snapshot = await db.collection(COLLECTION).where('channex_property_id', '==', propertyId).limit(1).get();
+    const snapshot = await db
+      .collectionGroup('properties')
+      .where('channex_property_id', '==', propertyId)
+      .limit(1)
+      .get();
 
     if (snapshot.empty) {
       throw new NotFoundException(`No integration document found for Channex property ID: ${propertyId}`);
@@ -697,6 +705,15 @@ export class ChannexSyncService {
       last_sync_timestamp: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
+
+    // Mirror channel_id on the root integration doc for webhook routing
+    const tenantId = snapshot.docs[0].data().tenant_id as string;
+    if (tenantId) {
+      await this.firebase.update(
+        db.collection(COLLECTION).doc(tenantId),
+        { channex_channel_id: channelId, updated_at: new Date().toISOString() },
+      );
+    }
 
     this.logger.log(`[COMMIT] ✓ Firestore finalized — propertyId=${propertyId} status=active`);
   }
@@ -749,7 +766,7 @@ export class ChannexSyncService {
     const db = this.firebase.getFirestore();
 
     const snapshot = await db
-      .collection(COLLECTION)
+      .collectionGroup('properties')
       .where('channex_property_id', '==', propertyId)
       .limit(1)
       .get();
@@ -771,6 +788,14 @@ export class ChannexSyncService {
       last_sync_timestamp: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
+
+    const tenantId = snapshot.docs[0].data().tenant_id as string;
+    if (tenantId) {
+      await this.firebase.update(
+        db.collection(COLLECTION).doc(tenantId),
+        { channex_channel_id: channelId, updated_at: new Date().toISOString() },
+      );
+    }
 
     this.logger.log(
       `[SYNC] ✓ Firestore updated — propertyId=${propertyId} status=active roomTypes=${roomTypes.length}`,
@@ -1165,7 +1190,7 @@ export class ChannexSyncService {
   }> {
     const db = this.firebase.getFirestore();
     const snapshot = await db
-      .collection(COLLECTION)
+      .collectionGroup('properties')
       .where('channex_property_id', '==', propertyId)
       .limit(1)
       .get();
@@ -1221,22 +1246,22 @@ export class ChannexSyncService {
     failed: IsolatedListingFailure[],
   ): Promise<void> {
     const db = this.firebase.getFirestore();
-    const snapshot = await db
-      .collection(COLLECTION)
+    const parentSnap = await db
+      .collectionGroup('properties')
       .where('channex_property_id', '==', parentPropertyId)
       .limit(1)
       .get();
 
-    if (snapshot.empty) {
+    if (parentSnap.empty) {
       this.logger.warn(
-        `[SYNC:1:1] Parent doc not found for Firestore update — parentPropertyId=${parentPropertyId}`,
+        `[SYNC:1:1] Parent property doc not found — parentPropertyId=${parentPropertyId}`,
       );
       return;
     }
 
-    const integrationDocId = snapshot.docs[0].id;
-    const parentData = snapshot.docs[0].data();
-    const tenantId = parentData.tenant_id as string;
+    const tenantId = parentSnap.docs[0].data().tenant_id as string;
+    // Root integration doc ID is tenantId in the new structure.
+    const integrationDocId = tenantId;
     const now = new Date().toISOString();
 
     // ── Write one properties subcollection doc per succeeded listing ─────
@@ -1250,6 +1275,7 @@ export class ChannexSyncService {
       await this.firebase.set(propertyRef, {
         // Identity fields for Channex API calls
         channex_property_id: s.channexPropertyId,
+        tenant_id: tenantId,
         channex_channel_id: channelId,
         channex_room_type_id: s.roomTypeId,
         channex_rate_plan_id: s.ratePlanId,
@@ -1297,7 +1323,7 @@ export class ChannexSyncService {
       }));
     }
 
-    await this.firebase.update(snapshot.docs[0].ref, update);
+    await this.firebase.update(parentSnap.docs[0].ref, update);
 
     this.logger.log(
       `[SYNC:1:1] ✓ Firestore updated — integrationDocId=${integrationDocId} status=${newStatus} succeeded=${succeeded.length} failed=${failed.length}`,
