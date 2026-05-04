@@ -1,0 +1,74 @@
+import { useEffect, useState } from 'react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../../firebase/firebase';
+import type { StoredRoomType } from '../api/channexHubApi';
+
+export type ConnectionStatus = 'pending' | 'active' | 'token_expired' | 'error';
+
+export interface ChannexProperty {
+  firestoreDocId: string;
+  channex_property_id: string;
+  title: string;
+  currency: string;
+  timezone: string;
+  connection_status: ConnectionStatus;
+  connected_channels: string[];
+  room_types: StoredRoomType[];
+}
+
+interface Result {
+  properties: ChannexProperty[];
+  loading: boolean;
+  error: string | null;
+}
+
+export function useChannexProperties(tenantId: string): Result {
+  const [properties, setProperties] = useState<ChannexProperty[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!tenantId) {
+      setProperties([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const q = query(
+      collection(db, 'channex_integrations'),
+      where('tenant_id', '==', tenantId),
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const next: ChannexProperty[] = snapshot.docs.map((doc) => {
+          const d = doc.data();
+          return {
+            firestoreDocId: doc.id,
+            channex_property_id: (d.channex_property_id as string) ?? '',
+            title: (d.title as string) ?? 'Untitled Property',
+            currency: (d.currency as string) ?? 'USD',
+            timezone: (d.timezone as string) ?? 'America/New_York',
+            connection_status: (d.connection_status as ConnectionStatus) ?? 'pending',
+            connected_channels: (d.connected_channels as string[]) ?? [],
+            room_types: (d.room_types as StoredRoomType[]) ?? [],
+          };
+        });
+        setProperties(next);
+        setLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setLoading(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [tenantId]);
+
+  return { properties, loading, error };
+}

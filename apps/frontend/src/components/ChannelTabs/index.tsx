@@ -1,4 +1,4 @@
-export type Channel = 'whatsapp' | 'messenger' | 'instagram' | 'airbnb' | 'booking';
+export type Channel = 'whatsapp' | 'messenger' | 'instagram' | 'channex';
 
 interface Props {
   active: Channel;
@@ -34,27 +34,13 @@ const TABS: TabDef[] = [
     activeClass: 'border-pink-500 text-pink-700',
   },
   {
-    channel: 'airbnb',
-    label: 'Airbnb',
-    icon: '🏠',
-    activeClass: 'border-rose-500 text-rose-700',
-  },
-  {
-    channel: 'booking',
-    label: 'Booking.com',
+    channel: 'channex',
+    label: 'Channex',
     icon: '🏨',
-    activeClass: 'border-blue-600 text-blue-600',
+    activeClass: 'border-indigo-500 text-indigo-700',
   },
 ];
 
-/**
- * ChannelTabs
- *
- * Horizontal tab strip for switching between WhatsApp, Messenger, and
- * Instagram channels. Instagram is rendered as a disabled "Coming Soon" tab.
- *
- * Sits below the page header and above the channel-specific dashboard content.
- */
 export default function ChannelTabs({ active, onChange }: Props) {
   return (
     <div className="flex items-end gap-0 border-b border-gray-200">
@@ -66,9 +52,7 @@ export default function ChannelTabs({ active, onChange }: Props) {
           <button
             key={tab.channel}
             onClick={() => {
-              if (!isDisabled) {
-                onChange(tab.channel);
-              }
+              if (!isDisabled) onChange(tab.channel);
             }}
             disabled={isDisabled}
             title={tab.tooltip}
