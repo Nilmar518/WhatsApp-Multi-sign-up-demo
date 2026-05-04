@@ -112,50 +112,53 @@ export class ChannexPropertyService {
     });
 
     const channexPropertyId = channexResponse.data.id;
-    const firestoreDocId = `${dto.tenantId}__${channexPropertyId}`;
 
     this.logger.log(
       `[PROVISION] ✓ Channex property created — channexPropertyId=${channexPropertyId}`,
     );
 
-    // ── Step 2: Persist dual-ID mapping to Firestore ─────────────────────────
-    const db = this.firebase.getFirestore();
-    const docRef = db.collection(COLLECTION).doc(firestoreDocId);
+    // ── Step 2: Persist to Firestore ─────────────────────────────────────────
 
-    await this.firebase.set(docRef, {
-      // Identity
+    const db = this.firebase.getFirestore();
+
+    // Root integration doc — one per tenant, keyed by tenantId
+    const rootRef = db.collection(COLLECTION).doc(dto.tenantId);
+    await this.firebase.set(rootRef, {
+      tenant_id: dto.tenantId,
+      channex_group_id: groupId,
+      channex_property_id: channexPropertyId,  // mirror for pipeline quick-read
+      channex_channel_id: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { merge: true });
+
+    // Property subcol doc — one per Channex property
+    const propertyRef = rootRef.collection('properties').doc(channexPropertyId);
+    await this.firebase.set(propertyRef, {
+      channex_property_id: channexPropertyId,
       tenant_id: dto.tenantId,
       migo_property_id: dto.migoPropertyId,
-      channex_property_id: channexPropertyId,
-      channex_channel_id: null,          // Populated after Airbnb OAuth (Phase 3)
-      channex_webhook_id: null,          // Set by registerPropertyWebhook after commitMapping
       channex_group_id: groupId,
-
-      // Connection state — starts as 'pending' until Airbnb OAuth completes
+      channex_channel_id: null,
+      channex_webhook_id: null,
       connection_status: ChannexConnectionStatus.Pending,
       oauth_refresh_required: false,
       last_sync_timestamp: null,
-
-      // Property config (cached locally to avoid repeated Channex GET calls)
       title: dto.title,
       currency: dto.currency,
       timezone: dto.timezone,
       property_type: dto.propertyType ?? 'apartment',
-
-      // Room types — populated by Phase 5 (ChannexARIService.createRoomType)
       room_types: [],
       connected_channels: [],
-
-      // Timestamps
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
 
     this.logger.log(
-      `[PROVISION] ✓ Firestore document written — docId=${firestoreDocId}`,
+      `[PROVISION] ✓ Firestore written — tenantId=${dto.tenantId} propertyId=${channexPropertyId}`,
     );
 
-    return { channexPropertyId, firestoreDocId };
+    return { channexPropertyId, firestoreDocId: dto.tenantId };
   }
 
   // ─── Status reads ─────────────────────────────────────────────────────────
@@ -235,7 +238,11 @@ export class ChannexPropertyService {
     }
 
     const db = this.firebase.getFirestore();
-    const docRef = db.collection(COLLECTION).doc(integration.firestoreDocId);
+    const docRef = db
+      .collection(COLLECTION)
+      .doc(integration.firestoreDocId)   // = tenantId
+      .collection('properties')
+      .doc(channexPropertyId);           // first param of this method
     const tenantId = integration.tenantId;
 
     const patch: Record<string, unknown> = {
@@ -288,57 +295,27 @@ export class ChannexPropertyService {
   ): Promise<{ tenantId: string; firestoreDocId: string } | null> {
     const db = this.firebase.getFirestore();
 
-    // ── Primary lookup: parent integration doc (Hotel model / initial provision) ─
-    const parentSnapshot = await db
-      .collection(COLLECTION)
+    // Query properties subcollection across all integration docs.
+    // Each property doc stores tenant_id for direct resolution.
+    const snap = await db
+      .collectionGroup('properties')
       .where('channex_property_id', '==', channexPropertyId)
       .limit(1)
       .get();
 
-    if (!parentSnapshot.empty) {
-      const doc = parentSnapshot.docs[0];
-      return {
-        tenantId: doc.data().tenant_id as string,
-        firestoreDocId: doc.id,
-      };
+    if (snap.empty) return null;
+
+    const propertyDoc = snap.docs[0];
+    const tenantId = propertyDoc.data().tenant_id as string;
+
+    if (!tenantId) {
+      throw new NotFoundException(
+        `Property ${channexPropertyId} found but tenant_id is missing.`,
+      );
     }
 
-    // ── Fallback: properties subcollection (1:1 Vacation Rental model) ──────────
-    // Avoid collectionGroup indexing requirements by scanning parent integration
-    // docs and querying each nested `properties` subcollection.
-    const integrationsSnapshot = await db.collection(COLLECTION).get();
-
-    for (const integrationDoc of integrationsSnapshot.docs) {
-      const propertySnapshot = await integrationDoc.ref
-        .collection('properties')
-        .where('channex_property_id', '==', channexPropertyId)
-        .limit(1)
-        .get();
-
-      if (propertySnapshot.empty) {
-        continue;
-      }
-
-      const integrationData = integrationDoc.data() as Record<string, unknown>;
-      const propertyData = propertySnapshot.docs[0].data() as Record<string, unknown>;
-      const tenantId =
-        (integrationData.tenant_id as string | undefined) ??
-        (propertyData.tenantId as string | undefined) ??
-        '';
-
-      if (!tenantId) {
-        throw new NotFoundException(
-          `Integration resolved for Channex property ID ${channexPropertyId}, but tenant_id is missing.`,
-        );
-      }
-
-      return {
-        tenantId,
-        firestoreDocId: integrationDoc.id,
-      };
-    }
-
-    return null;
+    // firestoreDocId = tenantId = root integration doc ID.
+    return { tenantId, firestoreDocId: tenantId };
   }
 
   // ─── Soft delete ──────────────────────────────────────────────────────────
@@ -388,10 +365,16 @@ export class ChannexPropertyService {
     }
 
     const db = this.firebase.getFirestore();
-    const doc = await db.collection(COLLECTION).doc(integration.firestoreDocId).get();
+    const doc = await db
+      .collection(COLLECTION)
+      .doc(integration.firestoreDocId)
+      .collection('properties')
+      .doc(channexPropertyId)
+      .get();
+
     if (!doc.exists) {
       throw new NotFoundException(
-        `No integration found for Channex property ID: ${channexPropertyId}`,
+        `No property doc found for Channex property ID: ${channexPropertyId}`,
       );
     }
 
