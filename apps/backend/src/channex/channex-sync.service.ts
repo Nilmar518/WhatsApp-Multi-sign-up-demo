@@ -947,7 +947,7 @@ export class ChannexSyncService {
   ): Promise<CalendarSeed[]> {
     const db = this.firebase.getFirestore();
     const snapshot = await db
-      .collection(COLLECTION)
+      .collectionGroup('properties')
       .where('channex_property_id', '==', propertyId)
       .limit(1)
       .get();
@@ -1036,7 +1036,7 @@ export class ChannexSyncService {
       // Mirror enriched values to Firestore
       const db = this.firebase.getFirestore();
       const snapshot = await db
-        .collection(COLLECTION)
+        .collectionGroup('properties')
         .where('channex_property_id', '==', channexPropertyId)
         .limit(1)
         .get();
@@ -1125,7 +1125,7 @@ export class ChannexSyncService {
       if (result.webhookId) {
         const db = this.firebase.getFirestore();
         const snapshot = await db
-          .collection(COLLECTION)
+          .collectionGroup('properties')
           .where('channex_property_id', '==', channexPropertyId)
           .limit(1)
           .get();
