@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import type { StoredRoomType } from '../api/channexHubApi';
 
@@ -37,13 +37,11 @@ export function useChannexProperties(tenantId: string): Result {
     setLoading(true);
     setError(null);
 
-    const q = query(
-      collection(db, 'channex_integrations'),
-      where('tenant_id', '==', tenantId),
-    );
+    // Subscribe to the properties subcollection under the tenant's integration doc.
+    const propertiesCol = collection(db, 'channex_integrations', tenantId, 'properties');
 
     const unsubscribe = onSnapshot(
-      q,
+      propertiesCol,
       (snapshot) => {
         const next: ChannexProperty[] = snapshot.docs.map((doc) => {
           const d = doc.data();
