@@ -135,6 +135,7 @@ export class ChannexPropertyService {
 
       // Room types — populated by Phase 5 (ChannexARIService.createRoomType)
       room_types: [],
+      connected_channels: [],
 
       // Timestamps
       created_at: new Date().toISOString(),
