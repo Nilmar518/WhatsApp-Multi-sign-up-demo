@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import { FieldValue } from 'firebase-admin/firestore';
 import { FirebaseService } from '../firebase/firebase.service';
 import { ChannexService } from '../channex/channex.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
@@ -241,14 +242,28 @@ export class BookingPipelineService {
       }
     }
 
-    await this.firebase.update(docRef, {
+    // Write room_types to the property subcol doc
+    const propertyRef = db
+      .collection(CHANNEX_INTEGRATIONS)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(channexPropertyId);
+
+    await this.firebase.update(propertyRef, {
       connection_status: 'active',
       channel_name: 'BookingCom',
       channex_channel_id: channexChannelId,
       channex_property_id: channexPropertyId,
       channex_webhook_id: webhookId ?? null,
       room_types: Array.from(roomTypesIndex.values()),
+      connected_channels: FieldValue.arrayUnion('booking'),
       pipeline_completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    // Mirror connection_status + channel_id on root doc
+    await this.firebase.update(docRef, {
+      channex_channel_id: channexChannelId,
       updated_at: new Date().toISOString(),
     });
 
