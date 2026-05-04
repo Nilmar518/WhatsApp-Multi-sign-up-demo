@@ -33,13 +33,19 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Step 1
-  const [title, setTitle] = useState(`Test Property - Migo UIT`);
-  const [currency, setCurrency] = useState('USD');
-  const [timezone, setTimezone] = useState('America/New_York');
+  // ─── CERTIFICATION TEST DEFAULTS ───────────────────────────────────────────
+  // These defaults pre-fill the wizard for Channex PMS certification testing.
+  // To reset for production: replace title with '' and rooms with [].
+  // ─── END CERTIFICATION TEST DEFAULTS ───────────────────────────────────────
 
-  // Step 2
+  // Step 1 — replace with '' for production
+  const [title, setTitle] = useState('Test Property - Migo UIT' /* '' */);
+  const [currency, setCurrency] = useState('USD'); // same in production
+  const [timezone, setTimezone] = useState('America/New_York'); // same in production
+
+  // Step 2 — replace with [] for production
   const [rooms, setRooms] = useState<RoomDraft[]>([
+    /* CERT: pre-filled for certification — replace with [] for production */
     { title: 'Twin Room', defaultOccupancy: 2 },
     { title: 'Double Room', defaultOccupancy: 2 },
   ]);
