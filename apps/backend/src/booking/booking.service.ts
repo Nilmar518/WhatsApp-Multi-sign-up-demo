@@ -109,28 +109,36 @@ export class BookingService {
         `[BOOKING_TOKEN] ✓ Property created — channexPropertyId=${channexPropertyId}`,
       );
 
-      if (bookingDoc.exists) {
-        await this.firebase.update(bookingDocRef, {
-          channex_property_id: channexPropertyId,
-          updated_at: new Date().toISOString(),
-        });
-      } else {
-        await this.firebase.set(bookingDocRef, {
-          tenant_id: tenantId,
-          channex_property_id: channexPropertyId,
-          channex_channel_id: null,
-          connection_status: 'pending',
-          rooms: [],
-          rates: [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
     } else {
       this.logger.log(
         `[BOOKING_TOKEN] ✓ Reusing property — channexPropertyId=${channexPropertyId}`,
       );
     }
+
+    // Root integration doc — idempotent merge
+    const rootRef = db.collection(CHANNEX_INTEGRATIONS).doc(tenantId);
+    await this.firebase.set(rootRef, {
+      tenant_id: tenantId,
+      channex_group_id: channexGroupId,
+      channex_property_id: channexPropertyId,   // mirror for pipeline quick-read
+      channex_channel_id: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { merge: true });
+
+    // Property subcol doc — idempotent merge
+    const propertyRef = rootRef.collection('properties').doc(channexPropertyId);
+    await this.firebase.set(propertyRef, {
+      channex_property_id: channexPropertyId,
+      tenant_id: tenantId,
+      channex_group_id: channexGroupId,
+      channex_channel_id: null,
+      connection_status: 'pending',
+      room_types: [],
+      connected_channels: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { merge: true });
 
     this.logger.log(
       `[BOOKING_TOKEN] Requesting session token for propertyId=${channexPropertyId}`,
@@ -200,14 +208,23 @@ export class BookingService {
     //    OTA slots to fetch). Skip the mappings call; the commit pipeline (POST /booking/commit)
     //    will create room types, rate plans, and mappings in the correct order.
     if (channelCode === 'BookingCom') {
+      const propertyRef = db
+        .collection(CHANNEX_INTEGRATIONS)
+        .doc(tenantId)
+        .collection('properties')
+        .doc(channexPropertyId);
+
+      await this.firebase.update(propertyRef, {
+        channex_channel_id: channexChannelId,
+        channex_property_id: channexPropertyId,
+        connection_status: 'channel_ready',
+        updated_at: new Date().toISOString(),
+      });
+
+      // Mirror channel_id on root doc for webhook routing
       await this.firebase.update(
         db.collection(CHANNEX_INTEGRATIONS).doc(tenantId),
-        {
-          channex_channel_id: channexChannelId,
-          channex_property_id: channexPropertyId,
-          connection_status: 'channel_ready',
-          updated_at: new Date().toISOString(),
-        },
+        { channex_channel_id: channexChannelId, updated_at: new Date().toISOString() },
       );
       this.logger.log(
         `[BOOKING_SYNC] ✓ BDC channel persisted — ready for pipeline auto-commit`,
@@ -249,17 +266,25 @@ export class BookingService {
 
     const rooms: BookingRoom[] = Array.from(roomsMap.values());
 
-    // 4. Persist to channex_integrations/{tenantId}
+    // 4. Persist to channex_integrations/{tenantId}/properties/{channexPropertyId}
+    const propertyRef = db
+      .collection(CHANNEX_INTEGRATIONS)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(channexPropertyId);
+
+    await this.firebase.update(propertyRef, {
+      channex_channel_id: channexChannelId,
+      channex_property_id: channexPropertyId,
+      connection_status: 'active',
+      ota_rooms: rooms,
+      ota_rates: rates,
+      updated_at: new Date().toISOString(),
+    });
+
     await this.firebase.update(
       db.collection(CHANNEX_INTEGRATIONS).doc(tenantId),
-      {
-        channex_channel_id: channexChannelId,
-        channex_property_id: channexPropertyId,
-        connection_status: 'active',
-        ota_rooms: rooms,
-        ota_rates: rates,
-        updated_at: new Date().toISOString(),
-      },
+      { channex_channel_id: channexChannelId, updated_at: new Date().toISOString() },
     );
     this.logger.log(
       `[BOOKING_SYNC] ✓ Saved rooms and rates to Firestore for tenant=${tenantId}`,
@@ -277,13 +302,22 @@ export class BookingService {
    */
   async saveMapping(dto: MapBookingDto): Promise<{ saved: number }> {
     const db = this.firebase.getFirestore();
-    await this.firebase.update(
-      db.collection(CHANNEX_INTEGRATIONS).doc(dto.tenantId),
-      {
+    const rootDoc = await db.collection(CHANNEX_INTEGRATIONS).doc(dto.tenantId).get();
+    const channexPropertyId: string = rootDoc.data()?.channex_property_id ?? '';
+
+    if (channexPropertyId) {
+      const propertyRef = db
+        .collection(CHANNEX_INTEGRATIONS)
+        .doc(dto.tenantId)
+        .collection('properties')
+        .doc(channexPropertyId);
+
+      await this.firebase.update(propertyRef, {
         mappings: dto.mappings,
         updated_at: new Date().toISOString(),
-      },
-    );
+      });
+    }
+
     this.logger.log(
       `[BOOKING_MAP] ✓ Saved ${dto.mappings.length} mapping(s) for tenant=${dto.tenantId}`,
     );
