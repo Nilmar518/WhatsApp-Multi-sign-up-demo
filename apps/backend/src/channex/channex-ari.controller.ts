@@ -10,10 +10,16 @@ import {
 } from '@nestjs/common';
 import { ChannexARIService, StoredRoomType } from './channex-ari.service';
 import { CreateRoomTypeDto } from './dto/create-room-type.dto';
+import { CreateRatePlanDto } from './dto/create-rate-plan.dto';
+import {
+  AriAvailabilityBatchDto,
+  AriRestrictionsBatchDto,
+  AriFullSyncDto,
+} from './dto/ari-batch.dto';
 import type {
-  AvailabilityEntryDto,
   ChannexRoomTypeResponse,
-  RestrictionEntryDto,
+  ChannexRatePlanResponse,
+  FullSyncResult,
 } from './channex.types';
 
 /**
@@ -24,14 +30,14 @@ import type {
  * Endpoints:
  *   POST /channex/properties/:propertyId/room-types     → Create room type
  *   GET  /channex/properties/:propertyId/room-types     → List room types (Firestore cache)
- *   POST /channex/properties/:propertyId/availability   → Push availability to Channex (sync)
- *   POST /channex/properties/:propertyId/restrictions   → Push restrictions to Channex (sync)
+ *   POST /channex/properties/:propertyId/availability   → Push availability (batch)
+ *   POST /channex/properties/:propertyId/restrictions   → Push restrictions (batch)
+ *   POST /channex/properties/:propertyId/full-sync      → Full 500-day ARI sync (2 calls)
  *
- * ARI push model (simplified):
- *   Availability and restriction pushes are now fully synchronous — the handler
- *   awaits the Channex HTTP response before returning 200 OK. This gives the
- *   frontend an accurate loading state (1-2 s spinner) rather than an
- *   optimistic "buffered" ack that masked failures.
+ * Batch model:
+ *   Availability and restriction endpoints accept an array of updates dispatched
+ *   in a single Channex API call. For single updates, send a one-element array.
+ *   This satisfies Channex certification requirements for batched ARI pushes.
  */
 @Controller('channex/properties/:propertyId')
 export class ChannexARIController {
@@ -44,7 +50,7 @@ export class ChannexARIController {
    *
    * Creates a Room Type in Channex and appends it to the Firestore `room_types`
    * array. At least one Room Type is required before availability can be pushed.
-   * Newly created Room Types default to availability=0 (hidden from Airbnb).
+   * Newly created Room Types default to availability=0 (hidden from OTAs).
    *
    * Returns: ChannexRoomTypeResponse (includes `room_type_id` UUID)
    * Status:  201 Created
@@ -81,14 +87,38 @@ export class ChannexARIController {
   }
 
   /**
+   * POST /channex/properties/:propertyId/room-types/:roomTypeId/rate-plans
+   *
+   * Creates a Rate Plan in Channex and appends a new entry to the Firestore
+   * `room_types` array with the rate_plan_id populated.
+   * Supports multiple rate plans per room type (e.g., BAR + B&B).
+   *
+   * Returns: ChannexRatePlanResponse (includes `rate_plan_id` UUID)
+   * Status:  201 Created
+   */
+  @Post('room-types/:roomTypeId/rate-plans')
+  @HttpCode(HttpStatus.CREATED)
+  async createRatePlan(
+    @Param('propertyId') propertyId: string,
+    @Param('roomTypeId') roomTypeId: string,
+    @Body() dto: CreateRatePlanDto,
+  ): Promise<ChannexRatePlanResponse> {
+    this.logger.log(
+      `[CTRL] POST /room-types/${roomTypeId}/rate-plans — propertyId=${propertyId} title="${dto.title}"`,
+    );
+
+    return this.ariService.createRatePlan(propertyId, roomTypeId, dto);
+  }
+
+  /**
    * POST /channex/properties/:propertyId/availability
    *
-   * Pushes an availability update directly to Channex and returns 200 only after
-   * Channex confirms receipt. The frontend must show a loading state for the
-   * ~1-2 s duration of this call.
+   * Pushes one or more availability updates to Channex in a single HTTP call.
+   * For single updates: send `updates` with one element.
+   * For batch (certification Tests #9, #10): send multiple updates together.
    *
-   * Body:    AvailabilityEntryDto
-   * Returns: { status: 'ok' }
+   * Body:    { updates: AvailabilityEntryDto[] }
+   * Returns: { status: 'ok', taskId: string }
    * Status:  200 OK
    *
    * Errors:
@@ -99,48 +129,72 @@ export class ChannexARIController {
   @HttpCode(HttpStatus.OK)
   async pushAvailability(
     @Param('propertyId') propertyId: string,
-    @Body() dto: AvailabilityEntryDto,
-  ): Promise<{ status: 'ok' }> {
+    @Body() dto: AriAvailabilityBatchDto,
+  ): Promise<{ status: 'ok'; taskId: string }> {
     this.logger.log(
-      `[CTRL] POST /availability — propertyId=${propertyId} ` +
-        `room=${dto.room_type_id} ${dto.date_from}→${dto.date_to} value=${dto.availability}`,
+      `[CTRL] POST /availability — propertyId=${propertyId} count=${dto.updates?.length ?? 0}`,
     );
 
-    // Hydrate property_id from the URL param so the body field is optional.
-    const update: AvailabilityEntryDto = { ...dto, property_id: propertyId };
-
-    await this.ariService.pushAvailability(update);
-    return { status: 'ok' };
+    const updates = (dto.updates ?? []).map((u) => ({ ...u, property_id: propertyId }));
+    const taskId = await this.ariService.pushAvailability(updates);
+    return { status: 'ok', taskId };
   }
 
   /**
    * POST /channex/properties/:propertyId/restrictions
    *
-   * Pushes a rate/restriction update directly to Channex and returns 200 only
-   * after Channex confirms receipt.
+   * Pushes one or more restriction/rate updates to Channex in a single HTTP call.
+   * `rate_plan_id` must be present in each entry — restrictions operate on
+   * Rate Plans, not Room Types.
    *
-   * Restrictions operate on `rate_plan_id` (not `room_type_id`) — ensure the
-   * correct Rate Plan UUID is provided. Rate values must be decimal strings
-   * (e.g. "150.00") as required by the Channex restrictions endpoint.
-   *
-   * Body:    RestrictionEntryDto
-   * Returns: { status: 'ok' }
+   * Body:    { updates: RestrictionEntryDto[] }
+   * Returns: { status: 'ok', taskId: string }
    * Status:  200 OK
    */
   @Post('restrictions')
   @HttpCode(HttpStatus.OK)
   async pushRestrictions(
     @Param('propertyId') propertyId: string,
-    @Body() dto: RestrictionEntryDto,
-  ): Promise<{ status: 'ok' }> {
+    @Body() dto: AriRestrictionsBatchDto,
+  ): Promise<{ status: 'ok'; taskId: string }> {
     this.logger.log(
-      `[CTRL] POST /restrictions — propertyId=${propertyId} ` +
-        `plan=${dto.rate_plan_id} ${dto.date_from}→${dto.date_to}`,
+      `[CTRL] POST /restrictions — propertyId=${propertyId} count=${dto.updates?.length ?? 0}`,
     );
 
-    const update: RestrictionEntryDto = { ...dto, property_id: propertyId };
+    const updates = (dto.updates ?? []).map((u) => ({ ...u, property_id: propertyId }));
+    const taskId = await this.ariService.pushRestrictions(updates);
+    return { status: 'ok', taskId };
+  }
 
-    await this.ariService.pushRestrictions(update);
-    return { status: 'ok' };
+  /**
+   * POST /channex/properties/:propertyId/full-sync
+   *
+   * Sends N days (default 500) of ARI for all room types and rate plans of the
+   * property in exactly 2 Channex API calls — satisfying certification Test #1.
+   *
+   * Reads room_types[] from the Firestore integration document (already mirrored
+   * from Channex during channel connection). Does NOT modify existing Channex
+   * configuration — only pushes ARI values for existing entities.
+   *
+   * Body:    { defaultAvailability: number, defaultRate: string, days?: number }
+   * Returns: { availabilityTaskId: string, restrictionsTaskId: string }
+   * Status:  200 OK
+   */
+  @Post('full-sync')
+  @HttpCode(HttpStatus.OK)
+  async fullSync(
+    @Param('propertyId') propertyId: string,
+    @Body() dto: AriFullSyncDto,
+  ): Promise<FullSyncResult> {
+    this.logger.log(
+      `[CTRL] POST /full-sync — propertyId=${propertyId} ` +
+        `availability=${dto.defaultAvailability} rate=${dto.defaultRate} days=${dto.days ?? 500}`,
+    );
+
+    return this.ariService.fullSync(propertyId, {
+      defaultAvailability: dto.defaultAvailability,
+      defaultRate: dto.defaultRate,
+      days: dto.days,
+    });
   }
 }
