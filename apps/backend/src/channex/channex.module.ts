@@ -4,7 +4,9 @@ import { ChannexService } from './channex.service';
 import { ChannexPropertyService } from './channex-property.service';
 import { ChannexOAuthService } from './channex-oauth.service';
 import { ChannexARIService } from './channex-ari.service';
+import { ChannexARIRateLimiter } from './channex-ari-rate-limiter.service';
 import { ChannexMessagingBridgeService } from './channex-messaging-bridge.service';
+import { ChannexGroupService } from './channex-group.service';
 import { ChannexSyncService } from './channex-sync.service';
 import { ChannexPropertyController } from './channex-property.controller';
 import { ChannexWebhookController } from './channex-webhook.controller';
@@ -53,10 +55,12 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
   providers: [
     // ── Core services ────────────────────────────────────────────────────────
     ChannexService,
+    ChannexGroupService,
     ChannexPropertyService,
     ChannexOAuthService,
     // ── ARI pipeline (real-time direct push, no cron/buffer) ─────────────────
     ChannexARIService,
+    ChannexARIRateLimiter,
     ChannexMessagingBridgeService,
     // ── Auto-Mapping & Stage/Review pipeline ─────────────────────────────────
     ChannexSyncService,
@@ -77,6 +81,7 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
   ],
   exports: [
     ChannexService,
+    ChannexGroupService,
     ChannexPropertyService,
     ChannexOAuthService,
     ChannexARIService,

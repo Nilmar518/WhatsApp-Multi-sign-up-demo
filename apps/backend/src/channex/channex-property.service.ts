@@ -8,6 +8,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FirebaseService } from '../firebase/firebase.service';
 import { ChannexService } from './channex.service';
+import { ChannexGroupService } from './channex-group.service';
 import { CreateChannexPropertyDto } from './dto/create-channex-property.dto';
 import {
   ChannexConnectionStatus,
@@ -60,6 +61,7 @@ export class ChannexPropertyService {
     private readonly channex: ChannexService,
     private readonly firebase: FirebaseService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly groupService: ChannexGroupService,
   ) {}
 
   // ─── Provisioning ─────────────────────────────────────────────────────────
@@ -89,13 +91,20 @@ export class ChannexPropertyService {
       `[PROVISION] Starting — tenantId=${dto.tenantId} title="${dto.title}"`,
     );
 
-    // ── Step 1: Create the property in Channex ───────────────────────────────
+    // ── Step 1: Resolve (or create) the Channex Group for this tenant ─────────
+    const groupId = await this.groupService.ensureGroup(dto.tenantId);
+
+    this.logger.log(
+      `[PROVISION] Group resolved — tenantId=${dto.tenantId} groupId=${groupId}`,
+    );
+
+    // ── Step 2: Create the property in Channex ───────────────────────────────
     const channexResponse = await this.channex.createProperty({
       title: dto.title,
       currency: dto.currency,
       timezone: dto.timezone,
       property_type: dto.propertyType ?? 'apartment',
-      ...(dto.groupId ? { group_id: dto.groupId } : {}),
+      group_id: groupId,
       settings: {
         min_stay_type: 'arrival',
         allow_availability_autoupdate_on_confirmation: true,
@@ -120,7 +129,7 @@ export class ChannexPropertyService {
       channex_property_id: channexPropertyId,
       channex_channel_id: null,          // Populated after Airbnb OAuth (Phase 3)
       channex_webhook_id: null,          // Set by registerPropertyWebhook after commitMapping
-      channex_group_id: dto.groupId ?? null,
+      channex_group_id: groupId,
 
       // Connection state — starts as 'pending' until Airbnb OAuth completes
       connection_status: ChannexConnectionStatus.Pending,
