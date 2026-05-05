@@ -11,6 +11,7 @@ import {
 } from './api/bookingApi';
 import BookingReservations from './components/BookingReservations';
 import BookingInbox from './components/BookingInbox';
+import { useChannexProperties } from '../../channex/hooks/useChannexProperties';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,9 @@ export default function BookingIntegrationView({ businessId }: Props) {
 
   const tenantId = useMemo(() => businessId, [businessId]);
   const isLocked = viewState === 'opening' || viewState === 'syncing' || isDisconnecting;
+
+  const { properties: existingProperties } = useChannexProperties(tenantId);
+  const baseProperty = existingProperties[0] ?? null;
 
   // Rooms forwarded to BookingReservations: prefer the standardized room_types
   // array; fall back to legacy ota_rooms for integrations created before the
@@ -189,6 +193,21 @@ export default function BookingIntegrationView({ businessId }: Props) {
           <h3 className="mt-2 text-xl font-semibold text-slate-900">
             Connect your Booking.com account
           </h3>
+
+          {baseProperty && (
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm">
+              <p className="font-semibold text-emerald-800">
+                Existing property detected
+              </p>
+              <p className="mt-0.5 text-emerald-700">
+                We'll connect Booking.com to:{' '}
+                <span className="font-medium">{baseProperty.title}</span>
+              </p>
+              <p className="mt-0.5 font-mono text-xs text-emerald-600 break-all">
+                {baseProperty.channex_property_id}
+              </p>
+            </div>
+          )}
 
           <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
             <li>
