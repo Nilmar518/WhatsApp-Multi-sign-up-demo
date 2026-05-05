@@ -7,6 +7,8 @@ import UnmappedRoomModal, { type UnmappedRoomEventData } from './components/Unma
 import MappingReviewModal from './components/MappingReviewModal';
 import MultiCalendarView from './components/MultiCalendarView';
 import { syncStage, type StageSyncResult } from './api/channexApi';
+import { useChannexProperties } from '../channex/hooks/useChannexProperties';
+import ExistingPropertyCard from './components/ExistingPropertyCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -113,6 +115,10 @@ export default function AirbnbPage() {
   // ── Wizard state ────────────────────────────────────────────────────────────
   const [step, setStep] = useState<WizardStep>('PROVISION');
   const [channexPropertyId, setChannexPropertyId] = useState<string | null>(null);
+
+  // ── Existing properties check ────────────────────────────────────────────────
+  const { properties: existingProperties, loading: propertiesLoading } =
+    useChannexProperties(tenantId);
 
   // ── Stage & Review state ────────────────────────────────────────────────────
   const [stagedResult, setStagedResult] = useState<StageSyncResult | null>(null);
@@ -331,7 +337,19 @@ export default function AirbnbPage() {
 
         {/* STEP 1: PROVISION */}
         {step === 'PROVISION' && (
-          <PropertyProvisioningForm onProvisioned={handleProvisioned} />
+          propertiesLoading ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-8 text-sm text-slate-500">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-rose-500" />
+              Loading property information…
+            </div>
+          ) : existingProperties.length > 0 ? (
+            <ExistingPropertyCard
+              property={existingProperties[0]}
+              onContinue={handleProvisioned}
+            />
+          ) : (
+            <PropertyProvisioningForm onProvisioned={handleProvisioned} />
+          )
         )}
 
         {/* STEP 2: CONNECT — Channex IFrame for Airbnb OAuth + Sync trigger */}
