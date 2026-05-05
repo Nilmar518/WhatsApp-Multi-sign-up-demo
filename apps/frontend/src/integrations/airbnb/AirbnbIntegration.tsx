@@ -34,10 +34,6 @@ export interface ActiveProperty {
   capacity: number | null;
 }
 
-function resolveTenantId(): string {
-  return new URLSearchParams(window.location.search).get('tenantId') ?? 'demo-business-001';
-}
-
 function resolveIntegrationStateFromConnectionStatus(
   status: ConnectionStatus | undefined,
 ): IntegrationState {
@@ -64,7 +60,7 @@ function PlaceholderPanel({ title, description }: { title: string; description: 
   );
 }
 
-export default function AirbnbIntegration() {
+export default function AirbnbIntegration({ businessId }: { businessId: string }) {
   const [integrationState, setIntegrationState] = useState<IntegrationState>('loading');
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [propertyId, setPropertyId] = useState<string | null>(null);
@@ -75,7 +71,7 @@ export default function AirbnbIntegration() {
   const [firestoreDocId, setFirestoreDocId] = useState<string | null>(null);
   const [hydrateNonce, setHydrateNonce] = useState(0);
 
-  const tenantId = useMemo(resolveTenantId, []);
+  const tenantId = businessId;
 
   // ── Subscribe to parent integration document ────────────────────────────────
   useEffect(() => {
@@ -219,7 +215,7 @@ export default function AirbnbIntegration() {
       case 'unprovisioned':
         return (
           <div className="h-full overflow-auto px-6 py-6">
-            <PropertyProvisioningForm onProvisioned={handleProvisioned} />
+            <PropertyProvisioningForm tenantId={tenantId} onProvisioned={handleProvisioned} />
           </div>
         );
       case 'connecting':

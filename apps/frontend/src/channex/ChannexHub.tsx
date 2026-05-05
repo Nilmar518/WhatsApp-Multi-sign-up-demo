@@ -150,7 +150,7 @@ export default function ChannexHub({ businessId }: Props) {
 
         {activeSubTab === 'airbnb' && (
           <div className="h-full">
-            <AirbnbIntegration />
+            <AirbnbIntegration businessId={businessId} />
           </div>
         )}
 
