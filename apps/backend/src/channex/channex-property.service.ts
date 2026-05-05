@@ -290,11 +290,10 @@ export class ChannexPropertyService {
 
     // Query properties subcollection across all integration docs.
     // Each property doc stores tenant_id for direct resolution.
-    const snap = await db
-      .collectionGroup('properties')
-      .where('channex_property_id', '==', channexPropertyId)
-      .limit(1)
-      .get();
+    const snap = await this.firebase.queryGet(
+      db.collectionGroup('properties').where('channex_property_id', '==', channexPropertyId).limit(1),
+      `resolveIntegration[collectionGroup:properties channex_property_id=${channexPropertyId}]`,
+    );
 
     if (snap.empty) return null;
 
