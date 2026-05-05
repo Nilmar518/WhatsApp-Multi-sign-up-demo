@@ -6,7 +6,8 @@
     "dev": "pnpm --parallel -r run dev",
     "build": "pnpm -r run build",
     "lint:backend": "pnpm --filter @migo-uit/backend run lint",
-    "lint:frontend": "pnpm --filter @migo-uit/frontend run lint"
+    "lint:frontend": "pnpm --filter @migo-uit/frontend run lint",
+    "deploy:indexes": "npx firebase-tools deploy --only firestore:indexes --project smart-service-85369"
   },
   "engines": {
     "node": ">=22.0.0",

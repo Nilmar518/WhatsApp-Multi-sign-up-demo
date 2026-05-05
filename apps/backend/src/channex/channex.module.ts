@@ -8,6 +8,7 @@ import { ChannexARIRateLimiter } from './channex-ari-rate-limiter.service';
 import { ChannexMessagingBridgeService } from './channex-messaging-bridge.service';
 import { ChannexGroupService } from './channex-group.service';
 import { ChannexSyncService } from './channex-sync.service';
+import { ChannexIndexCheckerService } from './channex-index-checker.service';
 import { ChannexPropertyController } from './channex-property.controller';
 import { ChannexWebhookController } from './channex-webhook.controller';
 import { ChannexARIController } from './channex-ari.controller';
@@ -64,6 +65,8 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
     ChannexMessagingBridgeService,
     // ── Auto-Mapping & Stage/Review pipeline ─────────────────────────────────
     ChannexSyncService,
+    // ── Startup index health check ────────────────────────────────────────────
+    ChannexIndexCheckerService,
     // ── Guards ───────────────────────────────────────────────────────────────
     // Registered as a provider so NestJS DI can inject SecretManagerService
     // when @UseGuards(ChannexHmacGuard) resolves the guard from the container.
