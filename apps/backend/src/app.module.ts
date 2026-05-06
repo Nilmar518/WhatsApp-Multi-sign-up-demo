@@ -18,6 +18,8 @@ import { AutoReplyModule } from './auto-reply/auto-reply.module';
 import { CartModule } from './cart/cart.module';
 import { ChannexModule } from './channex/channex.module';
 import { BookingModule } from './booking/booking.module';
+import { AuthGuardModule } from './auth-guard/auth-guard.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -61,6 +63,10 @@ import { BookingModule } from './booking/booking.module';
     ChannexModule,
     // Channex.io × Booking.com — XML channel connection
     BookingModule,
+    // Auth guard — global JWT verification via Firebase Admin
+    AuthGuardModule,
+    // Users CRUD — Firestore users collection
+    UsersModule,
   ],
 })
 export class AppModule {}
