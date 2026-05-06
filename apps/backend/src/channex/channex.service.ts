@@ -15,6 +15,8 @@ import {
   AirbnbListingDetailsResponse,
   AvailabilityEntryDto,
   ChannexARIResponse,
+  ChannexAvailabilityReadResponse,
+  ChannexRestrictionsReadResponse,
   ChannexChannelItem,
   ChannexChannelListResponse,
   ChannexCreateMappingPayload,
@@ -1031,6 +1033,58 @@ export class ChannexService {
     } catch (err) {
       this.normaliseError(err);
       return '';
+    }
+  }
+
+  /**
+   * Reads current availability from Channex for a date range.
+   * GET /api/v1/availability?property_id=&date_from=&date_to=
+   */
+  async fetchAvailability(
+    propertyId: string,
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<ChannexAvailabilityReadResponse['data']> {
+    this.logger.log(
+      `[CHANNEX] Reading availability — propertyId=${propertyId} ${dateFrom}→${dateTo}`,
+    );
+    try {
+      const response = await this.defLogger.request<ChannexAvailabilityReadResponse>({
+        method: 'GET',
+        url: `${this.baseUrl}/availability`,
+        headers: this.buildAuthHeaders(),
+        params: { property_id: propertyId, date_from: dateFrom, date_to: dateTo },
+      });
+      return response?.data ?? [];
+    } catch (err) {
+      this.normaliseError(err);
+      return [];
+    }
+  }
+
+  /**
+   * Reads current restrictions from Channex for a date range.
+   * GET /api/v1/restrictions?property_id=&date_from=&date_to=
+   */
+  async fetchRestrictions(
+    propertyId: string,
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<ChannexRestrictionsReadResponse['data']> {
+    this.logger.log(
+      `[CHANNEX] Reading restrictions — propertyId=${propertyId} ${dateFrom}→${dateTo}`,
+    );
+    try {
+      const response = await this.defLogger.request<ChannexRestrictionsReadResponse>({
+        method: 'GET',
+        url: `${this.baseUrl}/restrictions`,
+        headers: this.buildAuthHeaders(),
+        params: { property_id: propertyId, date_from: dateFrom, date_to: dateTo },
+      });
+      return response?.data ?? [];
+    } catch (err) {
+      this.normaliseError(err);
+      return [];
     }
   }
 

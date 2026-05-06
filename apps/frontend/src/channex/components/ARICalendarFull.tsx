@@ -4,13 +4,18 @@ import {
   pushAvailabilityBatch,
   pushRestrictionsBatch,
   triggerFullSync,
+  getARISnapshot,
+  refreshARISnapshot,
   type StoredRoomType,
   type FullSyncResult,
+  type ARIMonthSnapshot,
+  type DaySnapshot,
 } from '../api/channexHubApi';
 
 interface Props {
   propertyId: string;
   currency: string;
+  tenantId?: string;
 }
 
 interface BatchEntry {
@@ -50,7 +55,7 @@ function endOfMonthUtc(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
 }
 
-export default function ARICalendarFull({ propertyId, currency }: Props) {
+export default function ARICalendarFull({ propertyId, currency, tenantId }: Props) {
   const [visibleMonth, setVisibleMonth] = useState<Date>(() => startOfMonthUtc(new Date()));
   const [roomTypes, setRoomTypes] = useState<StoredRoomType[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
@@ -77,6 +82,12 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastTaskIds, setLastTaskIds] = useState<string[]>([]);
 
+  // ARI snapshot state (Firestore cache for calendar display)
+  const [snapshot, setSnapshot] = useState<ARIMonthSnapshot>({});
+  const [loadingSnapshot, setLoadingSnapshot] = useState(false);
+  const [refreshingSnapshot, setRefreshingSnapshot] = useState(false);
+  const [popupDate, setPopupDate] = useState<string | null>(null);
+
   // Full sync state
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncAvailability, setSyncAvailability] = useState(1);
@@ -100,6 +111,34 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
       .catch(() => {})
       .finally(() => setLoadingRooms(false));
   }, [propertyId]);
+
+  const monthKey = useMemo(
+    () => visibleMonth.toISOString().slice(0, 7), // YYYY-MM
+    [visibleMonth],
+  );
+
+  useEffect(() => {
+    if (!tenantId) return;
+    setLoadingSnapshot(true);
+    getARISnapshot(propertyId, tenantId, monthKey)
+      .then(setSnapshot)
+      .catch(() => setSnapshot({}))
+      .finally(() => setLoadingSnapshot(false));
+  }, [propertyId, tenantId, monthKey]);
+
+  async function handleRefreshSnapshot() {
+    if (!tenantId) return;
+    setRefreshingSnapshot(true);
+    try {
+      await refreshARISnapshot(propertyId, tenantId, monthKey);
+      const fresh = await getARISnapshot(propertyId, tenantId, monthKey);
+      setSnapshot(fresh);
+    } catch {
+      // silently ignore — user can retry
+    } finally {
+      setRefreshingSnapshot(false);
+    }
+  }
 
   const monthStart = useMemo(() => startOfMonthUtc(visibleMonth), [visibleMonth]);
   const monthEnd = useMemo(() => endOfMonthUtc(visibleMonth), [visibleMonth]);
@@ -138,6 +177,7 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
       if (!selectionStart || selectionEnd) {
         setSelectionStart(ds);
         setSelectionEnd(null);
+        setPopupDate(ds);
         setSaveError(null);
         setLastTaskIds([]);
         if (batchQueue.length === 0) setShowPanel(false);
@@ -147,6 +187,7 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
       const start = ds < selectionStart ? ds : selectionStart;
       setSelectionStart(start);
       setSelectionEnd(end);
+      setPopupDate(null);
       setShowPanel(true);
       setSaveError(null);
     },
@@ -277,15 +318,27 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-base font-semibold text-slate-900">ARI Calendar</h3>
-          <p className="text-xs text-slate-500">Click a date to start a range, click another to end and open the update panel.</p>
+          <p className="text-xs text-slate-500">Click a date to preview, click a second date to open the update panel.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => { setShowSyncModal(true); setSyncResult(null); setSyncError(null); }}
-          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
-        >
-          Full Sync ({syncDays} days)
-        </button>
+        <div className="flex items-center gap-2">
+          {tenantId && (
+            <button
+              type="button"
+              onClick={() => void handleRefreshSnapshot()}
+              disabled={refreshingSnapshot || loadingSnapshot}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {refreshingSnapshot ? 'Refreshing…' : '↻ Refresh Calendar'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => { setShowSyncModal(true); setSyncResult(null); setSyncError(null); }}
+            className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+          >
+            Full Sync ({syncDays} days)
+          </button>
+        </div>
       </div>
 
       {/* Task ID display after save */}
@@ -297,6 +350,66 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
           ))}
         </div>
       )}
+
+      {/* Day detail popup — shown after first click on a date */}
+      {popupDate && (() => {
+        const day: DaySnapshot = snapshot[popupDate] ?? {};
+        const avail = day.availability;
+        const restr = day.restrictions;
+        const isBlocked = restr?.stopSell || (restr?.closedToArrival && restr?.closedToDeparture);
+        return (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-slate-700">{popupDate}</p>
+              <button type="button" onClick={() => setPopupDate(null)} className="text-xs text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            {!avail && !restr ? (
+              <p className="text-xs text-slate-400 italic">No snapshot data — use ↻ Refresh Calendar to load from Channex.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                {avail && (
+                  <>
+                    <span className="text-slate-500">Availability</span>
+                    <span className={`font-semibold ${avail.availability === 0 ? 'text-orange-600' : 'text-emerald-700'}`}>
+                      {avail.availability} units{avail.booked != null ? ` (${avail.booked} booked)` : ''}
+                    </span>
+                  </>
+                )}
+                {restr?.rate && (
+                  <>
+                    <span className="text-slate-500">Rate</span>
+                    <span className="font-semibold text-slate-900">{currency} {restr.rate}</span>
+                  </>
+                )}
+                {restr?.minStayArrival != null && (
+                  <>
+                    <span className="text-slate-500">Min Stay</span>
+                    <span className="text-slate-700">{restr.minStayArrival}n</span>
+                  </>
+                )}
+                {restr?.maxStay != null && (
+                  <>
+                    <span className="text-slate-500">Max Stay</span>
+                    <span className="text-slate-700">{restr.maxStay}n</span>
+                  </>
+                )}
+                {restr && (
+                  <>
+                    <span className="text-slate-500">Status</span>
+                    <span className={`font-medium ${isBlocked ? 'text-red-600' : 'text-emerald-700'}`}>
+                      {isBlocked ? 'Blocked' : 'Open'}
+                      {restr.stopSell ? ' · Stop Sell' : ''}
+                      {restr.closedToArrival ? ' · CTA' : ''}
+                      {restr.closedToDeparture ? ' · CTD' : ''}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+            <p className="mt-2 text-xs text-slate-400">Click another date to define a range and open the update panel.</p>
+          </div>
+        );
+      })()}
 
       {loadingRooms ? (
         <p className="text-sm text-slate-500">Loading room types…</p>
@@ -325,18 +438,44 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
                     const ds = isoDate(date);
                     const inMonth = date.getUTCMonth() === visibleMonth.getUTCMonth();
                     const sel = isSelected(ds);
+                    const daySnap: DaySnapshot = snapshot[ds] ?? {};
+                    const avail = daySnap.availability;
+                    const restr = daySnap.restrictions;
+                    const isBlocked = restr?.stopSell || (restr?.closedToArrival && restr?.closedToDeparture);
+                    const isClosed = !isBlocked && avail != null && avail.availability === 0;
+                    const isPopup = ds === popupDate;
+                    let cellBg = '';
+                    if (!sel && inMonth) {
+                      if (isBlocked) cellBg = 'bg-red-50';
+                      else if (isClosed) cellBg = 'bg-orange-50';
+                      else if (avail && avail.availability > 0) cellBg = 'bg-emerald-50/60';
+                    }
                     return (
                       <div
                         key={ds}
                         onClick={() => handleCellClick(ds)}
                         className={[
-                          'flex flex-col items-start p-2 border border-slate-200 cursor-pointer min-h-[52px] transition-colors',
-                          sel ? 'bg-indigo-100 ring-2 ring-inset ring-indigo-500 z-10' : 'hover:bg-slate-50',
-                          !inMonth ? 'bg-slate-50/70 text-slate-300' : '',
+                          'flex flex-col items-start p-1.5 border border-slate-200 cursor-pointer min-h-[56px] transition-colors',
+                          sel ? 'bg-indigo-100 ring-2 ring-inset ring-indigo-500 z-10' : `hover:bg-slate-50 ${cellBg}`,
+                          !inMonth ? 'bg-slate-50/70' : '',
+                          isPopup && !sel ? 'ring-2 ring-inset ring-violet-400 z-10' : '',
                         ].join(' ')}
                         onMouseDown={(e) => e.preventDefault()}
                       >
-                        <span className="text-sm font-medium text-slate-700">{date.getUTCDate()}</span>
+                        <span className={`text-sm font-medium ${inMonth ? 'text-slate-700' : 'text-slate-300'}`}>{date.getUTCDate()}</span>
+                        {inMonth && restr?.rate && (
+                          <span className="mt-auto text-[10px] font-semibold text-slate-600 leading-tight">
+                            {currency}&nbsp;{restr.rate}
+                          </span>
+                        )}
+                        {inMonth && avail != null && (
+                          <span className={`text-[10px] leading-tight ${avail.availability === 0 ? 'text-orange-500' : 'text-emerald-600'}`}>
+                            {avail.availability}u
+                          </span>
+                        )}
+                        {inMonth && isBlocked && (
+                          <span className="text-[10px] text-red-500 leading-tight">✕</span>
+                        )}
                       </div>
                     );
                   })}

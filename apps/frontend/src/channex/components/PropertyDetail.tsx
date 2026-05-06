@@ -7,9 +7,10 @@ type InnerTab = 'rooms' | 'ari';
 
 interface Props {
   property: ChannexProperty;
+  tenantId: string;
 }
 
-export default function PropertyDetail({ property }: Props) {
+export default function PropertyDetail({ property, tenantId }: Props) {
   const [innerTab, setInnerTab] = useState<InnerTab>('rooms');
 
   return (
@@ -71,6 +72,7 @@ export default function PropertyDetail({ property }: Props) {
         <ARICalendarFull
           propertyId={property.channex_property_id}
           currency={property.currency}
+          tenantId={tenantId}
         />
       )}
     </div>

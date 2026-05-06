@@ -5,6 +5,7 @@ import { ChannexPropertyService } from './channex-property.service';
 import { ChannexOAuthService } from './channex-oauth.service';
 import { ChannexARIService } from './channex-ari.service';
 import { ChannexARIRateLimiter } from './channex-ari-rate-limiter.service';
+import { ChannexARISnapshotService } from './channex-ari-snapshot.service';
 import { ChannexMessagingBridgeService } from './channex-messaging-bridge.service';
 import { ChannexGroupService } from './channex-group.service';
 import { ChannexSyncService } from './channex-sync.service';
@@ -62,6 +63,7 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
     // ── ARI pipeline (real-time direct push, no cron/buffer) ─────────────────
     ChannexARIService,
     ChannexARIRateLimiter,
+    ChannexARISnapshotService,
     ChannexMessagingBridgeService,
     // ── Auto-Mapping & Stage/Review pipeline ─────────────────────────────────
     ChannexSyncService,

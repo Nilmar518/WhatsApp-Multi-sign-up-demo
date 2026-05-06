@@ -126,7 +126,7 @@ export default function ChannexHub({ businessId }: Props) {
                 >
                   ← Back to properties
                 </button>
-                <PropertyDetail property={selectedProperty} />
+                <PropertyDetail property={selectedProperty} tenantId={businessId} />
               </div>
             ) : (
               <div className="px-6 py-6">

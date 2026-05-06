@@ -2,11 +2,25 @@ const BASE = '/api/channex';
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
+export interface StoredRatePlan {
+  rate_plan_id: string;
+  title: string;
+  currency: string;
+  rate: number;
+  occupancy: number;
+  is_primary?: boolean;
+}
+
 export interface StoredRoomType {
   room_type_id: string;
   title: string;
   default_occupancy: number;
-  rate_plan_id: string | null;
+  occ_adults: number;
+  occ_children: number;
+  occ_infants: number;
+  count_of_rooms: number;
+  source?: string;
+  rate_plans: StoredRatePlan[];
 }
 
 export interface ARIAvailabilityUpdate {
@@ -153,4 +167,53 @@ export async function triggerFullSync(
     method: 'POST',
     body: JSON.stringify(options),
   });
+}
+
+// ─── ARI — Snapshot (Firestore cache) ────────────────────────────────────────
+
+export interface DayAvailability {
+  availability: number;
+  booked: number | null;
+  roomTypeId: string;
+}
+
+export interface DayRestrictions {
+  rate: string | null;
+  minStayArrival: number | null;
+  maxStay: number | null;
+  stopSell: boolean;
+  closedToArrival: boolean;
+  closedToDeparture: boolean;
+  ratePlanId: string;
+}
+
+export interface DaySnapshot {
+  availability?: DayAvailability;
+  restrictions?: DayRestrictions;
+}
+
+/** Keys are ISO dates (YYYY-MM-DD). */
+export type ARIMonthSnapshot = Record<string, DaySnapshot>;
+
+export async function getARISnapshot(
+  propertyId: string,
+  tenantId: string,
+  month: string, // YYYY-MM
+): Promise<ARIMonthSnapshot> {
+  const params = new URLSearchParams({ tenantId, month });
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/ari-snapshot?${params}`,
+  );
+}
+
+export async function refreshARISnapshot(
+  propertyId: string,
+  tenantId: string,
+  month: string, // YYYY-MM
+): Promise<{ status: 'ok' }> {
+  const params = new URLSearchParams({ tenantId, month });
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/ari-refresh?${params}`,
+    { method: 'POST' },
+  );
 }

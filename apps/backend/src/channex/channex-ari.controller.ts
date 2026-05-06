@@ -7,8 +7,10 @@ import {
   Logger,
   Param,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ChannexARIService, StoredRoomType } from './channex-ari.service';
+import { ChannexARISnapshotService, MonthSnapshotDoc } from './channex-ari-snapshot.service';
 import { CreateRoomTypeDto } from './dto/create-room-type.dto';
 import { CreateRatePlanDto } from './dto/create-rate-plan.dto';
 import {
@@ -43,7 +45,10 @@ import type {
 export class ChannexARIController {
   private readonly logger = new Logger(ChannexARIController.name);
 
-  constructor(private readonly ariService: ChannexARIService) {}
+  constructor(
+    private readonly ariService: ChannexARIService,
+    private readonly snapshotService: ChannexARISnapshotService,
+  ) {}
 
   /**
    * POST /channex/properties/:propertyId/room-types
@@ -180,6 +185,44 @@ export class ChannexARIController {
    * Returns: { availabilityTaskId: string, restrictionsTaskId: string }
    * Status:  200 OK
    */
+  /**
+   * GET /channex/properties/:propertyId/ari-snapshot?tenantId=&month=YYYY-MM
+   *
+   * Returns a cached Firestore ARI snapshot for the given month.
+   * No Channex API call — reads from `channex_integrations/{tenantId}/properties/{propertyId}/ari_snapshots/{month}`.
+   */
+  @Get('ari-snapshot')
+  async getARISnapshot(
+    @Param('propertyId') propertyId: string,
+    @Query('tenantId') tenantId: string,
+    @Query('month') month: string,
+  ): Promise<MonthSnapshotDoc> {
+    this.logger.log(
+      `[CTRL] GET /ari-snapshot — propertyId=${propertyId} tenantId=${tenantId} month=${month}`,
+    );
+    return this.snapshotService.getMonthSnapshot(tenantId, propertyId, month);
+  }
+
+  /**
+   * POST /channex/properties/:propertyId/ari-refresh?tenantId=&month=YYYY-MM
+   *
+   * Pulls current ARI from Channex and writes it to Firestore.
+   * Rate-limited (counts against Channex 10 req/min per property).
+   */
+  @Post('ari-refresh')
+  @HttpCode(HttpStatus.OK)
+  async refreshARISnapshot(
+    @Param('propertyId') propertyId: string,
+    @Query('tenantId') tenantId: string,
+    @Query('month') month: string,
+  ): Promise<{ status: 'ok' }> {
+    this.logger.log(
+      `[CTRL] POST /ari-refresh — propertyId=${propertyId} tenantId=${tenantId} month=${month}`,
+    );
+    await this.ariService.refreshARISnapshot(tenantId, propertyId, month);
+    return { status: 'ok' };
+  }
+
   @Post('full-sync')
   @HttpCode(HttpStatus.OK)
   async fullSync(

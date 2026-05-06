@@ -4,10 +4,10 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { FieldValue } from 'firebase-admin/firestore';
 import { ChannexService } from './channex.service';
 import { ChannexPropertyService } from './channex-property.service';
 import { ChannexARIRateLimiter } from './channex-ari-rate-limiter.service';
+import { ChannexARISnapshotService } from './channex-ari-snapshot.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { CreateRoomTypeDto } from './dto/create-room-type.dto';
 import { CreateRatePlanDto } from './dto/create-rate-plan.dto';
@@ -24,13 +24,45 @@ import type {
 
 const INTEGRATIONS_COLLECTION = 'channex_integrations';
 
-// ─── Room type stored shape ───────────────────────────────────────────────────
+// ─── Stored shapes ────────────────────────────────────────────────────────────
+
+export interface StoredRatePlan {
+  rate_plan_id: string;
+  title: string;
+  currency: string;
+  rate: number;
+  occupancy: number;
+  is_primary: boolean;
+  min_stay?: number;
+  ota_rate_id?: string;
+  channel_rate_plan_id?: string;
+}
 
 export interface StoredRoomType {
   room_type_id: string;
   title: string;
   default_occupancy: number;
-  rate_plan_id: string | null;
+  occ_adults: number;
+  occ_children: number;
+  occ_infants: number;
+  count_of_rooms: number;
+  source: 'manual' | 'airbnb' | 'booking';
+  ota_listing_id?: string;
+  ota_room_id?: string;
+  rate_plans: StoredRatePlan[];
+}
+
+// ─── Merge helper (used by OTA sync services to preserve manual rooms) ────────
+
+export function mergeRoomTypes(
+  existing: StoredRoomType[],
+  incoming: StoredRoomType[],
+  source: 'manual' | 'airbnb' | 'booking',
+): StoredRoomType[] {
+  return [
+    ...existing.filter((rt) => rt.source !== source),
+    ...incoming,
+  ];
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -63,19 +95,17 @@ export class ChannexARIService {
     private readonly propertyService: ChannexPropertyService,
     private readonly firebase: FirebaseService,
     private readonly rateLimiter: ChannexARIRateLimiter,
+    private readonly snapshotService: ChannexARISnapshotService,
   ) {}
 
   // ─── Room Type CRUD ───────────────────────────────────────────────────────
 
   /**
    * Creates a Room Type in Channex and appends it to the `room_types` array
-   * in the Firestore integration document.
+   * in the Firestore integration document using a transaction (atomic read-modify-write).
    *
    * Newly created Room Types have `availability = 0` by default — the property
    * remains hidden on Airbnb until `pushAvailability` sets a positive value.
-   *
-   * Uses `FieldValue.arrayUnion()` so concurrent admin sessions don't clobber
-   * each other's writes to the same document.
    */
   async createRoomType(
     propertyId: string,
@@ -120,12 +150,24 @@ export class ChannexARIService {
       room_type_id: roomTypeId,
       title: dto.title,
       default_occupancy: dto.defaultOccupancy,
-      rate_plan_id: null,
+      occ_adults: dto.occAdults,
+      occ_children: dto.occChildren ?? 0,
+      occ_infants: dto.occInfants ?? 0,
+      count_of_rooms: 1,
+      source: 'manual',
+      rate_plans: [],
     };
 
-    await this.firebase.update(docRef, {
-      room_types: FieldValue.arrayUnion(storedRoomType),
-      updated_at: new Date().toISOString(),
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      const existing: StoredRoomType[] = (snap.data()?.room_types ?? []) as StoredRoomType[];
+      const alreadyExists = existing.some((rt) => rt.room_type_id === roomTypeId);
+      if (!alreadyExists) {
+        tx.update(docRef, {
+          room_types: [...existing, storedRoomType],
+          updated_at: new Date().toISOString(),
+        });
+      }
     });
 
     this.logger.log(
@@ -176,21 +218,30 @@ export class ChannexARIService {
       .collection('properties')
       .doc(propertyId);
 
-    // Read existing room_types to get title and default_occupancy for this roomTypeId
-    const doc = await docRef.get();
-    const existingRoomTypes: StoredRoomType[] = (doc.data()?.room_types as StoredRoomType[]) ?? [];
-    const existingRoomType = existingRoomTypes.find((rt) => rt.room_type_id === roomTypeId);
-
-    const newEntry: StoredRoomType = {
-      room_type_id: roomTypeId,
-      title: existingRoomType?.title ?? dto.title,
-      default_occupancy: existingRoomType?.default_occupancy ?? (dto.occupancy ?? 2),
+    const newRatePlan: StoredRatePlan = {
       rate_plan_id: ratePlanId,
+      title: dto.title,
+      currency: dto.currency ?? 'USD',
+      rate: dto.rate ?? 0,
+      occupancy: dto.occupancy ?? 2,
+      is_primary: true,
     };
 
-    await this.firebase.update(docRef, {
-      room_types: FieldValue.arrayUnion(newEntry),
-      updated_at: new Date().toISOString(),
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      const existing: StoredRoomType[] = (snap.data()?.room_types ?? []) as StoredRoomType[];
+
+      const updated = existing.map((rt) => {
+        if (rt.room_type_id !== roomTypeId) return rt;
+        const alreadyHas = rt.rate_plans.some((rp) => rp.rate_plan_id === ratePlanId);
+        if (alreadyHas) return rt;
+        return { ...rt, rate_plans: [...rt.rate_plans, newRatePlan] };
+      });
+
+      tx.update(docRef, {
+        room_types: updated,
+        updated_at: new Date().toISOString(),
+      });
     });
 
     this.logger.log(
@@ -257,7 +308,27 @@ export class ChannexARIService {
     const taskId = await this.channex.pushAvailability(updates);
 
     this.logger.log(`[ARI] ✓ Availability pushed — taskId=${taskId}`);
+
+    // Fire-and-forget: persist to Firestore snapshot so the calendar can render without extra API calls
+    void this.resolveAndSaveAvailabilitySnapshot(propertyId, updates);
+
     return taskId;
+  }
+
+  private resolveAndSaveAvailabilitySnapshot(
+    propertyId: string,
+    updates: AvailabilityEntryDto[],
+  ): Promise<void> {
+    return this.propertyService.resolveIntegration(propertyId).then((integration) => {
+      if (!integration) return;
+      return this.snapshotService.saveFromAvailabilityEntries(
+        integration.firestoreDocId,
+        propertyId,
+        updates,
+      );
+    }).catch((err) =>
+      this.logger.error('[ARI] Availability snapshot save failed', err),
+    );
   }
 
   /**
@@ -284,7 +355,67 @@ export class ChannexARIService {
     const taskId = await this.channex.pushRestrictions(updates);
 
     this.logger.log(`[ARI] ✓ Restrictions pushed — taskId=${taskId}`);
+
+    // Fire-and-forget: persist to Firestore snapshot
+    void this.resolveAndSaveRestrictionsSnapshot(propertyId, updates);
+
     return taskId;
+  }
+
+  private resolveAndSaveRestrictionsSnapshot(
+    propertyId: string,
+    updates: RestrictionEntryDto[],
+  ): Promise<void> {
+    return this.propertyService.resolveIntegration(propertyId).then((integration) => {
+      if (!integration) return;
+      return this.snapshotService.saveFromRestrictionEntries(
+        integration.firestoreDocId,
+        propertyId,
+        updates,
+      );
+    }).catch((err) =>
+      this.logger.error('[ARI] Restrictions snapshot save failed', err),
+    );
+  }
+
+  // ─── Firestore ARI Snapshot ───────────────────────────────────────────────
+
+  /**
+   * Pulls availability + restrictions from Channex for the given month and
+   * writes them to the Firestore ARI snapshot. Called from the ari-refresh endpoint.
+   */
+  async refreshARISnapshot(
+    tenantId: string,
+    propertyId: string,
+    month: string, // YYYY-MM
+  ): Promise<void> {
+    const dateFrom = `${month}-01`;
+    const lastDay = new Date(
+      Number(month.slice(0, 4)),
+      Number(month.slice(5, 7)),
+      0,
+    );
+    const dateTo = lastDay.toISOString().split('T')[0];
+
+    this.logger.log(
+      `[ARI] refreshARISnapshot — propertyId=${propertyId} month=${month} (${dateFrom}→${dateTo})`,
+    );
+
+    await this.rateLimiter.acquire(propertyId, 'availability');
+    const availabilityEntries = await this.channex.fetchAvailability(propertyId, dateFrom, dateTo);
+
+    await this.rateLimiter.acquire(propertyId, 'restrictions');
+    const restrictionEntries = await this.channex.fetchRestrictions(propertyId, dateFrom, dateTo);
+
+    await Promise.all([
+      this.snapshotService.saveAvailabilitySnapshot(tenantId, propertyId, availabilityEntries),
+      this.snapshotService.saveRestrictionsSnapshot(tenantId, propertyId, restrictionEntries),
+    ]);
+
+    this.logger.log(
+      `[ARI] ✓ refreshARISnapshot complete — propertyId=${propertyId} month=${month} ` +
+        `availability=${availabilityEntries.length} restrictions=${restrictionEntries.length}`,
+    );
   }
 
   // ─── Full Sync ────────────────────────────────────────────────────────────
@@ -360,7 +491,7 @@ export class ChannexARIService {
 
     // ── Call 2: Restrictions — one entry per rate plan ──────────────────────
     const ratePlanIds = roomTypes
-      .map((rt) => rt.rate_plan_id)
+      .flatMap((rt) => rt.rate_plans.map((rp) => rp.rate_plan_id))
       .filter((id): id is string => Boolean(id));
 
     if (!ratePlanIds.length) {

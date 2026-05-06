@@ -461,6 +461,48 @@ export interface BookingRevisionDto {
 // ─── Channex API — ARI (Availability, Rates & Inventory) ────────────────────
 
 /**
+ * Response shape for GET /api/v1/availability.
+ * Returns one object per (property_id, room_type_id, date) combination.
+ */
+export interface ChannexAvailabilityReadResponse {
+  data: Array<{
+    id: string;
+    type: string;
+    attributes: {
+      property_id: string;
+      room_type_id: string;
+      date: string;           // YYYY-MM-DD
+      availability: number;
+      booked: number | null;
+    };
+  }>;
+  meta: { total: number };
+}
+
+/**
+ * Response shape for GET /api/v1/restrictions.
+ * Returns one object per (property_id, rate_plan_id, date) combination.
+ */
+export interface ChannexRestrictionsReadResponse {
+  data: Array<{
+    id: string;
+    type: string;
+    attributes: {
+      property_id: string;
+      rate_plan_id: string;
+      date: string;           // YYYY-MM-DD
+      rate: string | null;
+      min_stay_arrival: number | null;
+      max_stay: number | null;
+      stop_sell: boolean;
+      closed_to_arrival: boolean;
+      closed_to_departure: boolean;
+    };
+  }>;
+  meta: { total: number };
+}
+
+/**
  * A single entry in the `values` array sent to POST /api/v1/availability.
  *
  * For vacation rentals (Airbnb model), availability is typically 0 or 1 (binary).
