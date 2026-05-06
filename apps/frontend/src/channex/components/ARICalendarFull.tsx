@@ -9,7 +9,7 @@ import {
   type StoredRoomType,
   type FullSyncResult,
   type ARIMonthSnapshot,
-  type DaySnapshot,
+  type DayRatePlanSnapshot,
 } from '../api/channexHubApi';
 
 interface Props {
@@ -351,62 +351,88 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
         </div>
       )}
 
-      {/* Day detail popup — shown after first click on a date */}
+      {/* Day detail popup — one card per room type with its rate plans */}
       {popupDate && (() => {
-        const day: DaySnapshot = snapshot[popupDate] ?? {};
-        const avail = day.availability;
-        const restr = day.restrictions;
-        const isBlocked = restr?.stopSell || (restr?.closedToArrival && restr?.closedToDeparture);
+        const day = snapshot[popupDate];
+        const hasData = day && (
+          Object.keys(day.roomTypes ?? {}).length > 0 ||
+          Object.keys(day.ratePlans ?? {}).length > 0
+        );
+
+        // Build cards: each loaded room type with its availability + rate plans
+        const cards = roomTypes.map((rt) => ({
+          rt,
+          availability: day?.roomTypes?.[rt.room_type_id]?.availability ?? null,
+          plans: rt.rate_plans.map((rp) => ({
+            rp,
+            snap: day?.ratePlans?.[rp.rate_plan_id] ?? null,
+          })),
+        }));
+
         return (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-slate-700">{popupDate}</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-slate-800">{popupDate}</p>
               <button type="button" onClick={() => setPopupDate(null)} className="text-xs text-slate-400 hover:text-slate-600">✕</button>
             </div>
-            {!avail && !restr ? (
-              <p className="text-xs text-slate-400 italic">No snapshot data — use ↻ Refresh Calendar to load from Channex.</p>
+
+            {!hasData ? (
+              <p className="text-xs text-slate-400 italic">
+                No hay datos — usa ↻ Refresh Calendar para cargar desde Channex.
+              </p>
             ) : (
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                {avail && (
-                  <>
-                    <span className="text-slate-500">Availability</span>
-                    <span className={`font-semibold ${avail.availability === 0 ? 'text-orange-600' : 'text-emerald-700'}`}>
-                      {avail.availability} units
-                    </span>
-                  </>
-                )}
-                {restr?.rate && (
-                  <>
-                    <span className="text-slate-500">Rate</span>
-                    <span className="font-semibold text-slate-900">{currency} {restr.rate}</span>
-                  </>
-                )}
-                {restr?.minStayArrival != null && (
-                  <>
-                    <span className="text-slate-500">Min Stay</span>
-                    <span className="text-slate-700">{restr.minStayArrival}n</span>
-                  </>
-                )}
-                {restr?.maxStay != null && (
-                  <>
-                    <span className="text-slate-500">Max Stay</span>
-                    <span className="text-slate-700">{restr.maxStay}n</span>
-                  </>
-                )}
-                {restr && (
-                  <>
-                    <span className="text-slate-500">Status</span>
-                    <span className={`font-medium ${isBlocked ? 'text-red-600' : 'text-emerald-700'}`}>
-                      {isBlocked ? 'Blocked' : 'Open'}
-                      {restr.stopSell ? ' · Stop Sell' : ''}
-                      {restr.closedToArrival ? ' · CTA' : ''}
-                      {restr.closedToDeparture ? ' · CTD' : ''}
-                    </span>
-                  </>
-                )}
+              <div className="space-y-2">
+                {cards.map(({ rt, availability, plans }) => (
+                  <div key={rt.room_type_id} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                    {/* Room type header */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-xs font-semibold text-slate-800">{rt.title}</p>
+                      {availability !== null && (
+                        <span className={`text-xs font-bold ${availability === 0 ? 'text-orange-600' : 'text-emerald-700'}`}>
+                          {availability} u
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Rate plans */}
+                    {plans.map(({ rp, snap }) => (
+                      <div key={rp.rate_plan_id} className="flex items-center justify-between py-0.5 text-xs border-t border-slate-100 mt-1 pt-1">
+                        <span className="text-slate-500 truncate max-w-[40%]">{rp.title}</span>
+                        <div className="flex items-center gap-1 flex-wrap justify-end">
+                          {snap ? (
+                            <>
+                              {snap.rate && (
+                                <span className="font-semibold text-slate-700">{currency} {snap.rate}</span>
+                              )}
+                              {snap.minStayArrival != null && (
+                                <span className="text-slate-400">{snap.minStayArrival}n+</span>
+                              )}
+                              {snap.maxStay != null && (
+                                <span className="text-slate-400">max {snap.maxStay}n</span>
+                              )}
+                              {snap.stopSell && (
+                                <span className="rounded bg-red-100 px-1 py-0.5 text-[10px] font-bold text-red-700">SS</span>
+                              )}
+                              {snap.closedToArrival && (
+                                <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-bold text-amber-700">CTA</span>
+                              )}
+                              {snap.closedToDeparture && (
+                                <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-bold text-amber-700">CTD</span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-slate-300 italic text-[10px]">sin datos</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             )}
-            <p className="mt-2 text-xs text-slate-400">Click another date to define a range and open the update panel.</p>
+            <p className="mt-2 text-xs text-slate-400">
+              Haz click en otra fecha para definir un rango.
+            </p>
           </div>
         );
       })()}
@@ -438,18 +464,32 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                     const ds = isoDate(date);
                     const inMonth = date.getUTCMonth() === visibleMonth.getUTCMonth();
                     const sel = isSelected(ds);
-                    const daySnap: DaySnapshot = snapshot[ds] ?? {};
-                    const avail = daySnap.availability;
-                    const restr = daySnap.restrictions;
-                    const isBlocked = restr?.stopSell || (restr?.closedToArrival && restr?.closedToDeparture);
-                    const isClosed = !isBlocked && avail != null && avail.availability === 0;
                     const isPopup = ds === popupDate;
+
+                    // Aggregate across ALL room types and rate plans for this date
+                    const daySnap = snapshot[ds];
+                    const rpValues: DayRatePlanSnapshot[] = Object.values(daySnap?.ratePlans ?? {});
+                    const rtValues = Object.values(daySnap?.roomTypes ?? {});
+                    const anyStopSell = rpValues.some((rp) => rp.stopSell);
+                    const totalAvail = rtValues.length > 0
+                      ? rtValues.reduce((s, rt) => s + rt.availability, 0)
+                      : null;
+                    const minRate = rpValues.reduce((min: number | null, rp) => {
+                      if (!rp.rate) return min;
+                      const r = parseFloat(rp.rate);
+                      return min === null || r < min ? r : min;
+                    }, null);
+
+                    const isBlocked = anyStopSell;
+                    const isClosed = !isBlocked && totalAvail !== null && totalAvail === 0;
+
                     let cellBg = '';
                     if (!sel && inMonth) {
                       if (isBlocked) cellBg = 'bg-red-50';
                       else if (isClosed) cellBg = 'bg-orange-50';
-                      else if (avail && avail.availability > 0) cellBg = 'bg-emerald-50/60';
+                      else if (totalAvail !== null && totalAvail > 0) cellBg = 'bg-emerald-50/60';
                     }
+
                     return (
                       <div
                         key={ds}
@@ -462,19 +502,21 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                         ].join(' ')}
                         onMouseDown={(e) => e.preventDefault()}
                       >
-                        <span className={`text-sm font-medium ${inMonth ? 'text-slate-700' : 'text-slate-300'}`}>{date.getUTCDate()}</span>
-                        {inMonth && restr?.rate && (
-                          <span className="mt-auto text-[10px] font-semibold text-slate-600 leading-tight">
-                            {currency}&nbsp;{restr.rate}
+                        <span className={`text-sm font-medium ${inMonth ? 'text-slate-700' : 'text-slate-300'}`}>
+                          {date.getUTCDate()}
+                        </span>
+                        {inMonth && minRate !== null && (
+                          <span className="text-[10px] font-semibold text-slate-600 leading-tight">
+                            {currency}&nbsp;{minRate.toFixed(2)}
                           </span>
                         )}
-                        {inMonth && avail != null && (
-                          <span className={`text-[10px] leading-tight ${avail.availability === 0 ? 'text-orange-500' : 'text-emerald-600'}`}>
-                            {avail.availability}u
+                        {inMonth && totalAvail !== null && (
+                          <span className={`text-[10px] leading-tight ${totalAvail === 0 ? 'text-orange-500' : 'text-emerald-600'}`}>
+                            {totalAvail}u
                           </span>
                         )}
                         {inMonth && isBlocked && (
-                          <span className="text-[10px] text-red-500 leading-tight">✕</span>
+                          <span className="text-[9px] font-bold text-red-500 leading-tight">SS</span>
                         )}
                       </div>
                     );

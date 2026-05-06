@@ -171,24 +171,29 @@ export async function triggerFullSync(
 
 // ─── ARI — Snapshot (Firestore cache) ────────────────────────────────────────
 
-export interface DayAvailability {
+/** Availability for one room type on a given day. */
+export interface DayRoomTypeSnapshot {
   availability: number;
-  roomTypeId: string;
 }
 
-export interface DayRestrictions {
+/** Rate and restrictions for one rate plan on a given day. */
+export interface DayRatePlanSnapshot {
   rate: string | null;
-  minStayArrival: number | null;
-  maxStay: number | null;
   stopSell: boolean;
   closedToArrival: boolean;
   closedToDeparture: boolean;
-  ratePlanId: string;
+  minStayArrival: number | null;
+  maxStay: number | null;
 }
 
+/**
+ * One calendar day.
+ * roomTypes — keyed by Channex room_type_id
+ * ratePlans — keyed by Channex rate_plan_id
+ */
 export interface DaySnapshot {
-  availability?: DayAvailability;
-  restrictions?: DayRestrictions;
+  roomTypes?: Record<string, DayRoomTypeSnapshot>;
+  ratePlans?: Record<string, DayRatePlanSnapshot>;
 }
 
 /** Keys are ISO dates (YYYY-MM-DD). */
