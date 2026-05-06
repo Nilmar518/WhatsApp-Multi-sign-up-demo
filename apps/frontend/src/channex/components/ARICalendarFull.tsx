@@ -17,9 +17,12 @@ interface BatchEntry {
   id: number;
   roomTypeId: string;
   ratePlanId: string;
+  dateFrom: string;
+  dateTo: string;
   availability?: number;
   rate?: string;
   minStay?: number;
+  maxStay?: number;
   stopSell?: boolean;
   closedToArrival?: boolean;
   closedToDeparture?: boolean;
@@ -62,6 +65,7 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
   const [availability, setAvailability] = useState<number | ''>('');
   const [rate, setRate] = useState('');
   const [minStay, setMinStay] = useState<number | ''>('');
+  const [maxStay, setMaxStay] = useState<number | ''>('');
   const [stopSell, setStopSell] = useState(false);
   const [closedToArrival, setClosedToArrival] = useState(false);
   const [closedToDeparture, setClosedToDeparture] = useState(false);
@@ -87,10 +91,10 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
     listRoomTypes(propertyId)
       .then((data) => {
         setRoomTypes(data);
-        const firstWithRate = data.find((rt) => rt.rate_plan_id);
-        if (firstWithRate) {
-          setSelectedRoomTypeId(firstWithRate.room_type_id);
-          setSelectedRatePlanId(firstWithRate.rate_plan_id ?? '');
+        const firstRoom = data.find((rt) => rt.rate_plans.length > 0);
+        if (firstRoom) {
+          setSelectedRoomTypeId(firstRoom.room_type_id);
+          setSelectedRatePlanId(firstRoom.rate_plans[0].rate_plan_id);
         }
       })
       .catch(() => {})
@@ -134,10 +138,9 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
       if (!selectionStart || selectionEnd) {
         setSelectionStart(ds);
         setSelectionEnd(null);
-        setShowPanel(false);
         setSaveError(null);
         setLastTaskIds([]);
-        setBatchQueue([]);
+        if (batchQueue.length === 0) setShowPanel(false);
         return;
       }
       const end = ds >= selectionStart ? ds : selectionStart;
@@ -147,11 +150,11 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
       setShowPanel(true);
       setSaveError(null);
     },
-    [selectionEnd, selectionStart],
+    [batchQueue.length, selectionEnd, selectionStart],
   );
 
   const ratePlansForRoom = useMemo(
-    () => roomTypes.filter((rt) => rt.room_type_id === selectedRoomTypeId && rt.rate_plan_id),
+    () => roomTypes.find((rt) => rt.room_type_id === selectedRoomTypeId)?.rate_plans ?? [],
     [roomTypes, selectedRoomTypeId],
   );
 
@@ -164,17 +167,26 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
     });
   }, [roomTypes]);
 
+  const allRatePlans = useMemo(
+    () => roomTypes.flatMap((rt) => rt.rate_plans),
+    [roomTypes],
+  );
+
   function handleAddToBatch() {
-    if (!selectedRoomTypeId) return;
+    if (!selectedRoomTypeId || !selectedRange) return;
+    const [dateFrom, dateTo] = selectedRange;
     setBatchQueue((prev) => [
       ...prev,
       {
         id: batchCounter++,
         roomTypeId: selectedRoomTypeId,
         ratePlanId: selectedRatePlanId,
+        dateFrom,
+        dateTo,
         ...(availability !== '' ? { availability: Number(availability) } : {}),
         ...(rate !== '' ? { rate: String(rate) } : {}),
         ...(minStay !== '' ? { minStay: Number(minStay) } : {}),
+        ...(maxStay !== '' ? { maxStay: Number(maxStay) } : {}),
         ...(stopSell ? { stopSell } : {}),
         ...(closedToArrival ? { closedToArrival } : {}),
         ...(closedToDeparture ? { closedToDeparture } : {}),
@@ -183,14 +195,14 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
     setAvailability('');
     setRate('');
     setMinStay('');
+    setMaxStay('');
     setStopSell(false);
     setClosedToArrival(false);
     setClosedToDeparture(false);
   }
 
   async function handleSaveBatch() {
-    if (!selectedRange || batchQueue.length === 0) return;
-    const [dateFrom, dateTo] = selectedRange;
+    if (batchQueue.length === 0) return;
     setSaving(true);
     setSaveError(null);
     const taskIds: string[] = [];
@@ -198,7 +210,7 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
     try {
       const availUpdates = batchQueue
         .filter((e) => e.availability !== undefined)
-        .map((e) => ({ room_type_id: e.roomTypeId, date_from: dateFrom, date_to: dateTo, availability: e.availability! }));
+        .map((e) => ({ room_type_id: e.roomTypeId, date_from: e.dateFrom, date_to: e.dateTo, availability: e.availability! }));
 
       if (availUpdates.length > 0) {
         const res = await pushAvailabilityBatch(propertyId, availUpdates);
@@ -206,13 +218,14 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
       }
 
       const restrictUpdates = batchQueue
-        .filter((e) => e.ratePlanId && (e.rate !== undefined || e.minStay !== undefined || e.stopSell || e.closedToArrival || e.closedToDeparture))
+        .filter((e) => e.ratePlanId && (e.rate !== undefined || e.minStay !== undefined || e.maxStay !== undefined || e.stopSell || e.closedToArrival || e.closedToDeparture))
         .map((e) => ({
           rate_plan_id: e.ratePlanId,
-          date_from: dateFrom,
-          date_to: dateTo,
+          date_from: e.dateFrom,
+          date_to: e.dateTo,
           ...(e.rate !== undefined ? { rate: e.rate } : {}),
           ...(e.minStay !== undefined ? { min_stay_arrival: e.minStay } : {}),
+          ...(e.maxStay !== undefined ? { max_stay: e.maxStay } : {}),
           ...(e.stopSell ? { stop_sell: true } : {}),
           ...(e.closedToArrival ? { closed_to_arrival: true } : {}),
           ...(e.closedToDeparture ? { closed_to_departure: true } : {}),
@@ -271,7 +284,7 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
           onClick={() => { setShowSyncModal(true); setSyncResult(null); setSyncError(null); }}
           className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
         >
-          Full Sync (500 days)
+          Full Sync ({syncDays} days)
         </button>
       </div>
 
@@ -357,8 +370,8 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
                   value={selectedRoomTypeId}
                   onChange={(e) => {
                     setSelectedRoomTypeId(e.target.value);
-                    const firstRate = roomTypes.find((rt) => rt.room_type_id === e.target.value && rt.rate_plan_id);
-                    setSelectedRatePlanId(firstRate?.rate_plan_id ?? '');
+                    const room = roomTypes.find((rt) => rt.room_type_id === e.target.value);
+                    setSelectedRatePlanId(room?.rate_plans[0]?.rate_plan_id ?? '');
                   }}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
@@ -378,8 +391,8 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">— select —</option>
-                  {ratePlansForRoom.map((rt) => (
-                    <option key={rt.rate_plan_id!} value={rt.rate_plan_id!}>{rt.title}</option>
+                  {ratePlansForRoom.map((rp) => (
+                    <option key={rp.rate_plan_id} value={rp.rate_plan_id}>{rp.title}</option>
                   ))}
                 </select>
               </div>
@@ -434,6 +447,21 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
                 />
               </div>
 
+              {/* Max Stay */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">
+                  Max Stay (nights) — leave blank to skip
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={maxStay}
+                  onChange={(e) => setMaxStay(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="e.g. 14"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
               {/* Restriction checkboxes */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Restrictions</p>
@@ -461,7 +489,12 @@ export default function ARICalendarFull({ propertyId, currency }: Props) {
                 <p className="text-xs font-semibold text-slate-600 mb-2">Batch queue ({batchQueue.length} updates)</p>
                 {batchQueue.map((entry) => (
                   <div key={entry.id} className="flex items-center justify-between text-xs text-slate-700 py-0.5">
-                    <span>{uniqueRooms.find((r) => r.room_type_id === entry.roomTypeId)?.title} / {ratePlansForRoom.find((r) => r.rate_plan_id === entry.ratePlanId)?.title ?? '—'}</span>
+                    <span>
+                      {entry.dateFrom === entry.dateTo ? entry.dateFrom : `${entry.dateFrom} → ${entry.dateTo}`}
+                      {' · '}
+                      {uniqueRooms.find((r) => r.room_type_id === entry.roomTypeId)?.title}
+                      {entry.ratePlanId ? ` / ${allRatePlans.find((rp) => rp.rate_plan_id === entry.ratePlanId)?.title ?? '—'}` : ''}
+                    </span>
                     <button type="button" onClick={() => setBatchQueue((q) => q.filter((e) => e.id !== entry.id))} className="text-red-400 hover:text-red-600">✕</button>
                   </div>
                 ))}
