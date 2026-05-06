@@ -11,7 +11,6 @@ import type {
 
 export interface DayAvailability {
   availability: number;
-  booked: number | null;
   roomTypeId: string;
 }
 
@@ -47,116 +46,98 @@ export class ChannexARISnapshotService {
 
   constructor(private readonly firebase: FirebaseService) {}
 
-  // ─── Write helpers ────────────────────────────────────────────────────────
+  // ─── Refresh from Channex response ────────────────────────────────────────
 
   /**
-   * Merges availability entries into the relevant monthly Firestore documents.
-   * Uses a transaction per month-bucket so concurrent writes don't overwrite data
-   * for dates outside the current update window.
-   * Fire-and-forget: caller does NOT await this.
+   * Saves availability data pulled from GET /api/v1/availability.
+   * Response shape: data[roomTypeId][YYYY-MM-DD] = count (integer)
    */
   async saveAvailabilitySnapshot(
     tenantId: string,
     propertyId: string,
-    entries: ChannexAvailabilityReadResponse['data'],
+    data: ChannexAvailabilityReadResponse['data'],
   ): Promise<void> {
-    const db = this.firebase.getFirestore();
-    const byMonth = this.groupByMonth(entries.map((e) => e.attributes.date));
-
-    for (const [month, dates] of Object.entries(byMonth)) {
-      const docRef = db
-        .collection('channex_integrations')
-        .doc(tenantId)
-        .collection('properties')
-        .doc(propertyId)
-        .collection('ari_snapshots')
-        .doc(month);
-
-      const patch: Record<string, DayAvailability> = {};
-      for (const e of entries) {
-        if (!dates.includes(e.attributes.date)) continue;
-        patch[e.attributes.date] = {
-          availability: e.attributes.availability,
-          booked: e.attributes.booked ?? null,
-          roomTypeId: e.attributes.room_type_id,
-        } satisfies DayAvailability;
-      }
-
-      try {
-        await db.runTransaction(async (tx) => {
-          const snap = await tx.get(docRef);
-          const existing: MonthSnapshotDoc = snap.exists ? (snap.data() as MonthSnapshotDoc) : {};
-          for (const [date, avail] of Object.entries(patch)) {
-            existing[date] = { ...(existing[date] ?? {}), availability: avail };
-          }
-          tx.set(docRef, existing);
-        });
-        this.logger.log(
-          `[ARI-SNAPSHOT] ✓ Availability saved — tenantId=${tenantId} propertyId=${propertyId} month=${month} dates=${dates.length}`,
-        );
-      } catch (err) {
-        this.logger.error(
-          `[ARI-SNAPSHOT] ✗ Availability save failed — month=${month}`,
-          err,
-        );
+    // Flatten roomTypeId → date → count into date → DayAvailability
+    const byDate: Record<string, DayAvailability> = {};
+    for (const [roomTypeId, dates] of Object.entries(data)) {
+      for (const [date, count] of Object.entries(dates)) {
+        byDate[date] = { availability: count, roomTypeId };
       }
     }
+    await this._persistAvailabilityByDate(tenantId, propertyId, byDate);
   }
 
   /**
-   * Merges restriction entries into the relevant monthly Firestore documents.
-   * Same transaction-per-month pattern as saveAvailabilitySnapshot.
+   * Saves restrictions data pulled from GET /api/v1/restrictions.
+   * Response shape: data[ratePlanId][YYYY-MM-DD] = ChannexRestrictionsDayData
    */
   async saveRestrictionsSnapshot(
     tenantId: string,
     propertyId: string,
-    entries: ChannexRestrictionsReadResponse['data'],
+    data: ChannexRestrictionsReadResponse['data'],
   ): Promise<void> {
-    const db = this.firebase.getFirestore();
-    const byMonth = this.groupByMonth(entries.map((e) => e.attributes.date));
-
-    for (const [month, dates] of Object.entries(byMonth)) {
-      const docRef = db
-        .collection('channex_integrations')
-        .doc(tenantId)
-        .collection('properties')
-        .doc(propertyId)
-        .collection('ari_snapshots')
-        .doc(month);
-
-      const patch: Record<string, DayRestrictions> = {};
-      for (const e of entries) {
-        if (!dates.includes(e.attributes.date)) continue;
-        patch[e.attributes.date] = {
-          rate: e.attributes.rate ?? null,
-          minStayArrival: e.attributes.min_stay_arrival ?? null,
-          maxStay: e.attributes.max_stay ?? null,
-          stopSell: e.attributes.stop_sell,
-          closedToArrival: e.attributes.closed_to_arrival,
-          closedToDeparture: e.attributes.closed_to_departure,
-          ratePlanId: e.attributes.rate_plan_id,
-        } satisfies DayRestrictions;
-      }
-
-      try {
-        await db.runTransaction(async (tx) => {
-          const snap = await tx.get(docRef);
-          const existing: MonthSnapshotDoc = snap.exists ? (snap.data() as MonthSnapshotDoc) : {};
-          for (const [date, restr] of Object.entries(patch)) {
-            existing[date] = { ...(existing[date] ?? {}), restrictions: restr };
-          }
-          tx.set(docRef, existing);
-        });
-        this.logger.log(
-          `[ARI-SNAPSHOT] ✓ Restrictions saved — tenantId=${tenantId} propertyId=${propertyId} month=${month} dates=${dates.length}`,
-        );
-      } catch (err) {
-        this.logger.error(
-          `[ARI-SNAPSHOT] ✗ Restrictions save failed — month=${month}`,
-          err,
-        );
+    // Flatten ratePlanId → date → data into date → DayRestrictions
+    const byDate: Record<string, DayRestrictions> = {};
+    for (const [ratePlanId, dates] of Object.entries(data)) {
+      for (const [date, d] of Object.entries(dates)) {
+        byDate[date] = {
+          rate: d.rate ?? null,
+          minStayArrival: d.min_stay_arrival ?? null,
+          maxStay: d.max_stay === 0 ? null : (d.max_stay ?? null),
+          stopSell: d.stop_sell,
+          closedToArrival: d.closed_to_arrival,
+          closedToDeparture: d.closed_to_departure,
+          ratePlanId,
+        };
       }
     }
+    await this._persistRestrictionsByDate(tenantId, propertyId, byDate);
+  }
+
+  // ─── Optimistic write from push DTOs ─────────────────────────────────────
+
+  /**
+   * Expands AvailabilityEntryDto[] date ranges into per-day entries and saves.
+   * Called fire-and-forget after each successful Channex push.
+   */
+  async saveFromAvailabilityEntries(
+    tenantId: string,
+    propertyId: string,
+    entries: AvailabilityEntryDto[],
+  ): Promise<void> {
+    const byDate: Record<string, DayAvailability> = {};
+    for (const e of entries) {
+      for (const date of this.expandRange(e.date_from, e.date_to)) {
+        byDate[date] = { availability: e.availability, roomTypeId: e.room_type_id };
+      }
+    }
+    await this._persistAvailabilityByDate(tenantId, propertyId, byDate);
+  }
+
+  /**
+   * Expands RestrictionEntryDto[] date ranges into per-day entries and saves.
+   * Called fire-and-forget after each successful Channex push.
+   */
+  async saveFromRestrictionEntries(
+    tenantId: string,
+    propertyId: string,
+    entries: RestrictionEntryDto[],
+  ): Promise<void> {
+    const byDate: Record<string, DayRestrictions> = {};
+    for (const e of entries) {
+      for (const date of this.expandRange(e.date_from, e.date_to)) {
+        byDate[date] = {
+          rate: e.rate ?? null,
+          minStayArrival: e.min_stay_arrival ?? null,
+          maxStay: e.max_stay ?? null,
+          stopSell: e.stop_sell ?? false,
+          closedToArrival: e.closed_to_arrival ?? false,
+          closedToDeparture: e.closed_to_departure ?? false,
+          ratePlanId: e.rate_plan_id,
+        };
+      }
+    }
+    await this._persistRestrictionsByDate(tenantId, propertyId, byDate);
   }
 
   // ─── Read helpers ─────────────────────────────────────────────────────────
@@ -180,81 +161,89 @@ export class ChannexARISnapshotService {
     return snap.exists ? (snap.data() as MonthSnapshotDoc) : {};
   }
 
-  // ─── Optimistic write from push DTOs ─────────────────────────────────────
+  // ─── Internal Firestore writers ───────────────────────────────────────────
 
-  /**
-   * Expands AvailabilityEntryDto[] (date ranges) into per-day Firestore entries
-   * and saves them. Called fire-and-forget after each successful Channex push.
-   */
-  async saveFromAvailabilityEntries(
+  private async _persistAvailabilityByDate(
     tenantId: string,
     propertyId: string,
-    entries: AvailabilityEntryDto[],
+    byDate: Record<string, DayAvailability>,
   ): Promise<void> {
-    const expanded: ChannexAvailabilityReadResponse['data'] = [];
-    for (const e of entries) {
-      for (const date of this.expandRange(e.date_from, e.date_to)) {
-        expanded.push({
-          id: `${e.room_type_id}:${date}`,
-          type: 'availability',
-          attributes: {
-            property_id: e.property_id,
-            room_type_id: e.room_type_id,
-            date,
-            availability: e.availability,
-            booked: null,
-          },
+    const db = this.firebase.getFirestore();
+    const byMonth = this.groupByMonth(Object.keys(byDate));
+
+    for (const [month, dates] of Object.entries(byMonth)) {
+      const docRef = db
+        .collection('channex_integrations')
+        .doc(tenantId)
+        .collection('properties')
+        .doc(propertyId)
+        .collection('ari_snapshots')
+        .doc(month);
+
+      try {
+        await db.runTransaction(async (tx) => {
+          const snap = await tx.get(docRef);
+          const existing: MonthSnapshotDoc = snap.exists ? (snap.data() as MonthSnapshotDoc) : {};
+          for (const date of dates) {
+            existing[date] = { ...(existing[date] ?? {}), availability: byDate[date] };
+          }
+          tx.set(docRef, existing);
         });
+        this.logger.log(
+          `[ARI-SNAPSHOT] ✓ Availability saved — tenantId=${tenantId} propertyId=${propertyId} month=${month} dates=${dates.length}`,
+        );
+      } catch (err) {
+        this.logger.error(`[ARI-SNAPSHOT] ✗ Availability save failed — month=${month}`, err);
       }
     }
-    await this.saveAvailabilitySnapshot(tenantId, propertyId, expanded);
   }
 
-  /**
-   * Expands RestrictionEntryDto[] (date ranges) into per-day Firestore entries
-   * and saves them. Called fire-and-forget after each successful Channex push.
-   */
-  async saveFromRestrictionEntries(
+  private async _persistRestrictionsByDate(
     tenantId: string,
     propertyId: string,
-    entries: RestrictionEntryDto[],
+    byDate: Record<string, DayRestrictions>,
   ): Promise<void> {
-    const expanded: ChannexRestrictionsReadResponse['data'] = [];
-    for (const e of entries) {
-      for (const date of this.expandRange(e.date_from, e.date_to)) {
-        expanded.push({
-          id: `${e.rate_plan_id}:${date}`,
-          type: 'restriction',
-          attributes: {
-            property_id: e.property_id,
-            rate_plan_id: e.rate_plan_id,
-            date,
-            rate: e.rate ?? null,
-            min_stay_arrival: e.min_stay_arrival ?? null,
-            max_stay: e.max_stay ?? null,
-            stop_sell: e.stop_sell ?? false,
-            closed_to_arrival: e.closed_to_arrival ?? false,
-            closed_to_departure: e.closed_to_departure ?? false,
-          },
+    const db = this.firebase.getFirestore();
+    const byMonth = this.groupByMonth(Object.keys(byDate));
+
+    for (const [month, dates] of Object.entries(byMonth)) {
+      const docRef = db
+        .collection('channex_integrations')
+        .doc(tenantId)
+        .collection('properties')
+        .doc(propertyId)
+        .collection('ari_snapshots')
+        .doc(month);
+
+      try {
+        await db.runTransaction(async (tx) => {
+          const snap = await tx.get(docRef);
+          const existing: MonthSnapshotDoc = snap.exists ? (snap.data() as MonthSnapshotDoc) : {};
+          for (const date of dates) {
+            existing[date] = { ...(existing[date] ?? {}), restrictions: byDate[date] };
+          }
+          tx.set(docRef, existing);
         });
+        this.logger.log(
+          `[ARI-SNAPSHOT] ✓ Restrictions saved — tenantId=${tenantId} propertyId=${propertyId} month=${month} dates=${dates.length}`,
+        );
+      } catch (err) {
+        this.logger.error(`[ARI-SNAPSHOT] ✗ Restrictions save failed — month=${month}`, err);
       }
     }
-    await this.saveRestrictionsSnapshot(tenantId, propertyId, expanded);
   }
 
   // ─── Utility ──────────────────────────────────────────────────────────────
 
-  /** Groups ISO date strings by their YYYY-MM prefix. */
   private groupByMonth(dates: string[]): Record<string, string[]> {
     const result: Record<string, string[]> = {};
     for (const d of dates) {
-      const month = d.slice(0, 7); // YYYY-MM
+      const month = d.slice(0, 7);
       (result[month] ??= []).push(d);
     }
     return result;
   }
 
-  /** Expands a YYYY-MM-DD range into an array of individual ISO date strings. */
   private expandRange(dateFrom: string, dateTo: string): string[] {
     const dates: string[] = [];
     const cur = new Date(dateFrom + 'T00:00:00Z');

@@ -1038,7 +1038,8 @@ export class ChannexService {
 
   /**
    * Reads current availability from Channex for a date range.
-   * GET /api/v1/availability?property_id=&date_from=&date_to=
+   * GET /api/v1/availability?filter[date][gte]=&filter[date][lte]=&filter[property_id]=
+   * Response: data[roomTypeId][YYYY-MM-DD] = count
    */
   async fetchAvailability(
     propertyId: string,
@@ -1053,18 +1054,23 @@ export class ChannexService {
         method: 'GET',
         url: `${this.baseUrl}/availability`,
         headers: this.buildAuthHeaders(),
-        params: { property_id: propertyId, date_from: dateFrom, date_to: dateTo },
+        params: {
+          'filter[date][gte]': dateFrom,
+          'filter[date][lte]': dateTo,
+          'filter[property_id]': propertyId,
+        },
       });
-      return response?.data ?? [];
+      return response?.data ?? {};
     } catch (err) {
       this.normaliseError(err);
-      return [];
+      return {};
     }
   }
 
   /**
    * Reads current restrictions from Channex for a date range.
-   * GET /api/v1/restrictions?property_id=&date_from=&date_to=
+   * GET /api/v1/restrictions?filter[date][gte]=&filter[date][lte]=&filter[property_id]=&filter[restrictions]=
+   * Response: data[ratePlanId][YYYY-MM-DD] = ChannexRestrictionsDayData
    */
   async fetchRestrictions(
     propertyId: string,
@@ -1079,12 +1085,17 @@ export class ChannexService {
         method: 'GET',
         url: `${this.baseUrl}/restrictions`,
         headers: this.buildAuthHeaders(),
-        params: { property_id: propertyId, date_from: dateFrom, date_to: dateTo },
+        params: {
+          'filter[date][gte]': dateFrom,
+          'filter[date][lte]': dateTo,
+          'filter[property_id]': propertyId,
+          'filter[restrictions]': 'rate,stop_sell,closed_to_arrival,closed_to_departure,min_stay_arrival,min_stay_through,min_stay,max_stay,availability,stop_sell_manual,max_availability,availability_offset',
+        },
       });
-      return response?.data ?? [];
+      return response?.data ?? {};
     } catch (err) {
       this.normaliseError(err);
-      return [];
+      return {};
     }
   }
 

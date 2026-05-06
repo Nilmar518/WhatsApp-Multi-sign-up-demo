@@ -371,7 +371,7 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                   <>
                     <span className="text-slate-500">Availability</span>
                     <span className={`font-semibold ${avail.availability === 0 ? 'text-orange-600' : 'text-emerald-700'}`}>
-                      {avail.availability} units{avail.booked != null ? ` (${avail.booked} booked)` : ''}
+                      {avail.availability} units
                     </span>
                   </>
                 )}

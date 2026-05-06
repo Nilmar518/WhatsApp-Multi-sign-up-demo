@@ -173,7 +173,6 @@ export async function triggerFullSync(
 
 export interface DayAvailability {
   availability: number;
-  booked: number | null;
   roomTypeId: string;
 }
 

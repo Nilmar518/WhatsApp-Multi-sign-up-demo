@@ -461,45 +461,40 @@ export interface BookingRevisionDto {
 // ─── Channex API — ARI (Availability, Rates & Inventory) ────────────────────
 
 /**
- * Response shape for GET /api/v1/availability.
- * Returns one object per (property_id, room_type_id, date) combination.
+ * Per-date data returned inside GET /api/v1/restrictions.
+ * Keyed as: data[ratePlanId][YYYY-MM-DD]
  */
-export interface ChannexAvailabilityReadResponse {
-  data: Array<{
-    id: string;
-    type: string;
-    attributes: {
-      property_id: string;
-      room_type_id: string;
-      date: string;           // YYYY-MM-DD
-      availability: number;
-      booked: number | null;
-    };
-  }>;
-  meta: { total: number };
+export interface ChannexRestrictionsDayData {
+  availability: number;
+  availability_offset: number;
+  closed_to_arrival: boolean;
+  closed_to_departure: boolean;
+  max_availability: number | null;
+  max_stay: number;
+  min_stay_arrival: number;
+  min_stay_through: number;
+  rate: string;
+  stop_sell: boolean;
+  stop_sell_manual: boolean;
+  unavailable_reasons: string[];
 }
 
 /**
  * Response shape for GET /api/v1/restrictions.
- * Returns one object per (property_id, rate_plan_id, date) combination.
+ * Params: filter[date][gte], filter[date][lte], filter[property_id], filter[restrictions]
+ * Shape:  data[ratePlanId][YYYY-MM-DD] = ChannexRestrictionsDayData
  */
 export interface ChannexRestrictionsReadResponse {
-  data: Array<{
-    id: string;
-    type: string;
-    attributes: {
-      property_id: string;
-      rate_plan_id: string;
-      date: string;           // YYYY-MM-DD
-      rate: string | null;
-      min_stay_arrival: number | null;
-      max_stay: number | null;
-      stop_sell: boolean;
-      closed_to_arrival: boolean;
-      closed_to_departure: boolean;
-    };
-  }>;
-  meta: { total: number };
+  data: Record<string, Record<string, ChannexRestrictionsDayData>>;
+}
+
+/**
+ * Response shape for GET /api/v1/availability.
+ * Params: filter[date][gte], filter[date][lte], filter[property_id]
+ * Shape:  data[roomTypeId][YYYY-MM-DD] = availabilityCount (integer)
+ */
+export interface ChannexAvailabilityReadResponse {
+  data: Record<string, Record<string, number>>;
 }
 
 /**
