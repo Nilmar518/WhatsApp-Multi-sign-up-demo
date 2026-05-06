@@ -4,6 +4,7 @@ import App from './App';
 import CatalogManagerApp from './catalog-manager/CatalogManagerApp';
 import InventoryPage from './inventory/InventoryPage';
 import AuthGate from './auth/AuthGate';
+import MainLayout from './layout/MainLayout';
 import './index.css';
 
 // Pathname-based routing (no external router dependency)
@@ -18,7 +19,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       ) : isCatalogManager ? (
         <CatalogManagerApp />
       ) : (
-        <App />
+        <MainLayout>
+          <App />
+        </MainLayout>
       )}
     </AuthGate>
   </React.StrictMode>,
