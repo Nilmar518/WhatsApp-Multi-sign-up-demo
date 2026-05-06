@@ -11,6 +11,7 @@ import type { Queue } from 'bull';
 import type { Response } from 'express';
 import { ChannexHmacGuard } from './guards/channex-hmac.guard';
 import type { ChannexWebhookFullPayload, ChannexWebhookEvent } from './channex.types';
+import { Public } from '../auth-guard/public.decorator';
 
 // ─── Event filter ─────────────────────────────────────────────────────────────
 
@@ -70,6 +71,7 @@ const MESSAGE_EVENTS = new Set<ChannexWebhookEvent>(['message', 'inquiry']);
  *   this handler executes. Requests with an invalid or missing signature are
  *   rejected with 401 before any data is touched.
  */
+@Public()
 @UseGuards(ChannexHmacGuard)
 @Controller('channex/webhook')
 export class ChannexWebhookController {

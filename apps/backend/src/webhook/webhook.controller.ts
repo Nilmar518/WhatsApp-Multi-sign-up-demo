@@ -16,6 +16,7 @@ import type {
   ChannexWebhookEvent,
   ChannexWebhookFullPayload,
 } from '../channex/channex.types';
+import { Public } from '../auth-guard/public.decorator';
 
 const CHANNEX_BOOKING_EVENTS = new Set<ChannexWebhookEvent>([
   'booking_new',
@@ -26,6 +27,7 @@ const CHANNEX_BOOKING_EVENTS = new Set<ChannexWebhookEvent>([
   'alteration_request',
 ]);
 
+@Public()
 @Controller('webhook')
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);

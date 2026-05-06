@@ -19,6 +19,7 @@ import { SetupInstagramDto } from './dto/setup-instagram.dto';
 import { IgOAuthCallbackDto } from './dto/ig-oauth-callback.dto';
 import { ReplyToCommentDto } from './dto/reply-to-comment.dto';
 import { SendInstagramMessageDto } from './dto/send-instagram-message.dto';
+import { Public } from '../../auth-guard/public.decorator';
 
 /**
  * InstagramIntegrationController
@@ -65,6 +66,7 @@ export class InstagramIntegrationController {
    * the new META_INSTAGRAM document and swaps the connect screen for the dashboard.
    */
   @Get('oauth-callback')
+  @Public()
   async oauthCallback(
     @Query() query: IgOAuthCallbackDto,
     @Res() res: Response,
