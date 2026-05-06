@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import ARIGlossaryButton from './ARIGlossaryButton';
 import {
   listRoomTypes,
   pushAvailabilityBatch,
@@ -321,6 +322,7 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
           <p className="text-xs text-slate-500">Click a date to preview, click a second date to open the update panel.</p>
         </div>
         <div className="flex items-center gap-2">
+          <ARIGlossaryButton />
           {tenantId && (
             <button
               type="button"
