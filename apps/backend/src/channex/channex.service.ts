@@ -391,7 +391,7 @@ export class ChannexService {
     try {
       await this.defLogger.request<void>({
         method: 'POST',
-        url: `${this.baseUrl}/booking_revisions/${revisionId}/acknowledge`,
+        url: `${this.baseUrl}/booking_revisions/${revisionId}/ack`,
         headers: this.buildAuthHeaders(),
       });
 
