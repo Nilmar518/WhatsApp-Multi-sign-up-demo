@@ -221,3 +221,26 @@ export async function refreshARISnapshot(
     { method: 'POST' },
   );
 }
+
+// ─── Connection Health ────────────────────────────────────────────────────────
+
+export interface ConnectionHealthResult {
+  propertyExists: boolean;
+  roomsCount: number;
+  inTenantGroup: boolean;
+  webhookSubscribed: boolean;
+  webhookReregistered: boolean;
+  webhookId: string | null;
+  errors: string[];
+}
+
+export async function checkConnectionHealth(
+  propertyId: string,
+  tenantId: string,
+): Promise<ConnectionHealthResult> {
+  const params = new URLSearchParams({ tenantId });
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/connection-health?${params}`,
+    { method: 'POST' },
+  );
+}
