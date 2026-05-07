@@ -16,9 +16,14 @@ import type {
   RestrictionEntryDto,
   ChannexRoomTypeResponse,
   ChannexRatePlanResponse,
+  ChannexWebhookFullPayload,
   FullSyncOptions,
   FullSyncResult,
 } from './channex.types';
+import {
+  BookingRevisionTransformer,
+  type FirestoreReservationDoc,
+} from './transformers/booking-revision.transformer';
 
 // ─── Firestore constants ──────────────────────────────────────────────────────
 
@@ -507,6 +512,11 @@ export class ChannexARIService {
       date_from: dateFrom,
       date_to: dateTo,
       rate: options.defaultRate,
+      min_stay_arrival: 1,
+      max_stay: null,
+      closed_to_arrival: false,
+      closed_to_departure: false,
+      stop_sell: false,
     }));
 
     const restrictionsTaskId = await this.pushRestrictions(restrictionUpdates);
@@ -517,5 +527,119 @@ export class ChannexARIService {
     );
 
     return { availabilityTaskId, restrictionsTaskId };
+  }
+
+  // ─── Reservations ─────────────────────────────────────────────────────────
+
+  /**
+   * Returns bookings for a property, ordered newest-first.
+   *
+   * Firestore path:
+   *   channex_integrations/{tenantId}/properties/{propertyId}/bookings/
+   *
+   * Covers all channels (airbnb, booking.com, …) — the `channel` field on each
+   * document identifies the OTA source. Callers may filter client-side by channel.
+   */
+  async getPropertyBookings(
+    propertyId: string,
+    tenantId: string,
+    limit = 50,
+  ): Promise<FirestoreReservationDoc[]> {
+    this.logger.log(
+      `[ARI] getPropertyBookings — propertyId=${propertyId} tenantId=${tenantId} limit=${limit}`,
+    );
+
+    const db = this.firebase.getFirestore();
+    const snap = await db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(propertyId)
+      .collection('bookings')
+      .orderBy('created_at', 'desc')
+      .limit(limit)
+      .get();
+
+    const results: FirestoreReservationDoc[] = snap.docs.map(
+      (d) => ({ ...d.data(), id: d.id }) as unknown as FirestoreReservationDoc,
+    );
+
+    this.logger.log(
+      `[ARI] ✓ getPropertyBookings — found ${results.length} bookings`,
+    );
+
+    return results;
+  }
+
+  /**
+   * Pulls bookings directly from the Channex REST API and upserts them to Firestore.
+   *
+   * Use this as a manual recovery mechanism when webhook delivery failed or
+   * the push payload was not processed correctly.
+   *
+   * Flow:
+   *   1. Resolve tenantId + groupId from Firestore
+   *   2. GET /api/v1/bookings?filter[property_id]=...
+   *   3. Transform each booking via BookingRevisionTransformer
+   *   4. Upsert to channex_integrations/{tenantId}/properties/{propertyId}/bookings/{id}
+   *
+   * Returns the number of bookings upserted.
+   */
+  async pullBookingsFromChannex(
+    propertyId: string,
+    tenantId: string,
+  ): Promise<{ synced: number }> {
+    this.logger.log(
+      `[ARI] pullBookingsFromChannex (feed) — propertyId=${propertyId} tenantId=${tenantId}`,
+    );
+
+    // ── Fetch unacknowledged revisions from Channex feed ─────────────────
+    const revisions = await this.channex.fetchBookingRevisionsFeed(propertyId);
+
+    if (!revisions.length) {
+      this.logger.log(`[ARI] pullBookingsFromChannex — feed is empty (all acked)`);
+      return { synced: 0 };
+    }
+
+    // ── Transform + upsert + ACK each revision ────────────────────────────
+    const db = this.firebase.getFirestore();
+    const bookingsRef = db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(propertyId)
+      .collection('bookings');
+
+    let synced = 0;
+
+    for (const { revisionId, bookingId, status, bookingData } of revisions) {
+      try {
+        const payload = {
+          event: status,
+          property_id: propertyId,
+          revision_id: revisionId,
+          booking: bookingData,
+        } as ChannexWebhookFullPayload;
+
+        const doc = BookingRevisionTransformer.toFirestoreReservation(payload, tenantId);
+
+        const docId = (bookingData.booking_id as string) ?? bookingId ?? revisionId;
+        await this.firebase.set(bookingsRef.doc(docId), doc, { merge: true });
+        synced++;
+
+        // ACK — mark the revision as received so Channex removes it from the feed
+        await this.channex.acknowledgeBookingRevision(revisionId);
+      } catch (err: unknown) {
+        this.logger.error(
+          `[ARI] pullBookings — failed for revisionId=${revisionId}: ${(err as Error).message}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `[ARI] ✓ pullBookingsFromChannex — synced=${synced} of ${revisions.length} revisions`,
+    );
+
+    return { synced };
   }
 }

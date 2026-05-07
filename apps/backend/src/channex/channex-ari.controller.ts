@@ -8,6 +8,8 @@ import {
   Param,
   Post,
   Query,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ChannexARIService, StoredRoomType } from './channex-ari.service';
 import { ChannexARISnapshotService, MonthSnapshotDoc } from './channex-ari-snapshot.service';
@@ -24,6 +26,7 @@ import type {
   ChannexRatePlanResponse,
   FullSyncResult,
 } from './channex.types';
+import type { FirestoreReservationDoc } from './transformers/booking-revision.transformer';
 
 /**
  * ChannexARIController — Room Type CRUD and real-time ARI push endpoints.
@@ -252,6 +255,43 @@ export class ChannexARIController {
    *   3. Property's group_id matches the tenant's Firestore group
    *   4. Webhook with our callback_url is active → re-registers if missing
    */
+  /**
+   * GET /channex/properties/:propertyId/bookings?tenantId=X&limit=50
+   *
+   * Returns bookings for the property ordered newest-first.
+   * Covers all OTA channels — filter by the `channel` field on the client.
+   */
+  @Get('bookings')
+  async getPropertyBookings(
+    @Param('propertyId') propertyId: string,
+    @Query('tenantId') tenantId: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+  ): Promise<FirestoreReservationDoc[]> {
+    this.logger.log(
+      `[CTRL] GET /bookings — propertyId=${propertyId} tenantId=${tenantId} limit=${limit}`,
+    );
+    return this.ariService.getPropertyBookings(propertyId, tenantId, limit);
+  }
+
+  /**
+   * POST /channex/properties/:propertyId/bookings/pull?tenantId=X&limit=50
+   *
+   * Pulls bookings from the Channex REST API and upserts to Firestore.
+   * Use when webhook delivery failed or the push payload was not processed.
+   */
+  @Post('bookings/pull')
+  @HttpCode(HttpStatus.OK)
+  async pullBookings(
+    @Param('propertyId') propertyId: string,
+    @Query('tenantId') tenantId: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+  ): Promise<{ synced: number }> {
+    this.logger.log(
+      `[CTRL] POST /bookings/pull — propertyId=${propertyId} tenantId=${tenantId} limit=${limit}`,
+    );
+    return this.ariService.pullBookingsFromChannex(propertyId, tenantId);
+  }
+
   @Post('connection-health')
   @HttpCode(HttpStatus.OK)
   async checkConnectionHealth(

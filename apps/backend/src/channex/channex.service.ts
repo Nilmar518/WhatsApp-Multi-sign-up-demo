@@ -407,6 +407,125 @@ export class ChannexService {
     }
   }
 
+  /**
+   * Lists bookings for a property from the Channex API.
+   *
+   * GET /api/v1/bookings?filter[property_id]={id}&filter[group_id]={gid}&pagination[limit]={n}&order[inserted_at]=desc
+   *
+   * Used by the manual "Sync" pull to recover bookings that were not persisted
+   * via the push webhook (e.g. delivery failure, flat-payload mismatch).
+   *
+   * Returns raw booking attribute objects — callers are responsible for transforming
+   * them to the Firestore schema via BookingRevisionTransformer.
+   */
+  async fetchBookings(
+    propertyId: string,
+    groupId: string,
+    limit = 50,
+  ): Promise<Array<Record<string, unknown>>> {
+    this.logger.log(
+      `[CHANNEX] Fetching bookings — propertyId=${propertyId} groupId=${groupId} limit=${limit}`,
+    );
+
+    const url =
+      `${this.baseUrl}/bookings` +
+      `?filter[property_id]=${encodeURIComponent(propertyId)}` +
+      `&filter[group_id]=${encodeURIComponent(groupId)}` +
+      `&pagination[limit]=${limit}` +
+      `&order[inserted_at]=desc`;
+
+    try {
+      const res = await this.defLogger.request<{ data: Array<{ id: string; attributes: Record<string, unknown> }> }>({
+        method: 'GET',
+        url,
+        headers: this.buildAuthHeaders(),
+      });
+
+      const items = res?.data ?? [];
+      this.logger.log(`[CHANNEX] ✓ fetchBookings — ${items.length} booking(s) returned`);
+
+      // Return the attributes merged with the top-level id so callers have
+      // the booking UUID without digging into the JSON:API envelope.
+      return items.map((item) => ({
+        ...item.attributes,
+        booking_id: item.attributes.booking_id ?? item.id,
+        id: item.id,
+      }));
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
+   * Fetches unacknowledged booking revisions from the Channex feed endpoint.
+   *
+   * GET /api/v1/booking_revisions/feed?filter[property_id]={id}
+   *
+   * This is the correct endpoint for PMS booking reception — unlike
+   * GET /api/v1/bookings (administrative history), the feed returns ONLY
+   * revisions that have not yet been acknowledged by the PMS. After processing
+   * each revision, call acknowledgeBookingRevision() to mark it as received.
+   *
+   * Response follows JSON:API with `included` sideloading: booking data lives
+   * in `included[type=booking]`, linked via relationships.booking.data.id.
+   */
+  async fetchBookingRevisionsFeed(propertyId: string): Promise<Array<{
+    revisionId: string;
+    bookingId: string | null;
+    status: string;
+    bookingData: Record<string, unknown>;
+  }>> {
+    this.logger.log(
+      `[CHANNEX] Fetching booking_revisions/feed — propertyId=${propertyId}`,
+    );
+
+    try {
+      const res = await this.defLogger.request<{
+        data: Array<{
+          id: string;
+          attributes: Record<string, unknown>;
+          relationships?: {
+            booking?: { data?: { id?: string } };
+          };
+        }>;
+        included?: Array<{
+          id: string;
+          type: string;
+          attributes: Record<string, unknown>;
+        }>;
+      }>({
+        method: 'GET',
+        url: `${this.baseUrl}/booking_revisions/feed`,
+        headers: this.buildAuthHeaders(),
+        params: { 'filter[property_id]': propertyId },
+      });
+
+      const included = res?.included ?? [];
+      const bookingMap = new Map(
+        included
+          .filter((item) => item.type === 'booking')
+          .map((item) => [item.id, item.attributes]),
+      );
+
+      const revisions = res?.data ?? [];
+      this.logger.log(`[CHANNEX] ✓ feed — ${revisions.length} unacked revision(s)`);
+
+      return revisions.map((revision) => {
+        const bookingId = revision.relationships?.booking?.data?.id ?? null;
+        const bookingData = (bookingId ? bookingMap.get(bookingId) : null) ?? revision.attributes;
+        return {
+          revisionId: revision.id,
+          bookingId,
+          status: (revision.attributes.status as string) ?? 'booking_new',
+          bookingData: bookingData as Record<string, unknown>,
+        };
+      });
+    } catch (err) {
+      this.normaliseError(err);
+      return [];
+    }
+  }
+
   // ─── Room Type API ────────────────────────────────────────────────────────
 
   /**

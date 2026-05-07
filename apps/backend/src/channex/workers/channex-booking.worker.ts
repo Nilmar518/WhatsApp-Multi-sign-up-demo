@@ -157,27 +157,49 @@ export class ChannexBookingWorker {
     }
 
     // ── Step 3: Validate booking data presence (booking_* lifecycle events) ─
-    // Channex booking details are nested directly under `payload`.
-    const data = payload.payload as
-      | (Record<string, unknown> & {
-          booking_id?: string;
-          booking_unique_id?: string;
-        })
-      | undefined;
+    //
+    // Channex delivers booking data in one of three shapes depending on whether
+    // `send_data=true` is set on the webhook and whether it's the new (channex/webhook)
+    // or legacy (/webhook) controller path:
+    //
+    //   A) Nested  — payload.payload.booking_id   (send_data=true, new controller)
+    //   B) Typed   — payload.booking.booking_id   (mapped by worker in some paths)
+    //   C) Flat    — payload root fields           (Channex certification test tool)
+    //
+    // We probe all three in priority order so the worker is resilient regardless of
+    // how Channex delivers the event.
+    const rawRoot = payload as unknown as Record<string, unknown>;
+
+    type BookingData = Record<string, unknown> & {
+      booking_id?: string;
+      booking_unique_id?: string;
+    };
+
+    const data: BookingData | undefined =
+      (payload.payload as BookingData | undefined) ??
+      (payload.booking as BookingData | undefined) ??
+      (typeof rawRoot.booking_id === 'string' ? (rawRoot as BookingData) : undefined);
 
     if (!data) {
       this.logger.warn(
-        `[WORKER] payload is absent for event=${event} revisionId=${revisionId}. ` +
-          `Cannot transform. Job=${job.id} discarded.`,
+        `[WORKER] booking data absent in all known locations for event=${event} revisionId=${revisionId}. ` +
+          `payload.payload=${!!payload.payload} payload.booking=${!!payload.booking} ` +
+          `root.booking_id=${rawRoot.booking_id ?? 'missing'}. Job=${job.id} discarded.`,
       );
       return;
     }
 
-    const bookingId = typeof data.booking_id === 'string' ? data.booking_id : null;
+    // booking_id is the Channex booking UUID used as the Firestore document key.
+    // Also probe `id` at root level — the Channex certification tool uses `id` instead.
+    const bookingId =
+      (typeof data.booking_id === 'string' && data.booking_id) ||
+      (typeof rawRoot.id === 'string' && rawRoot.id) ||
+      null;
+
     if (!bookingId) {
       this.logger.error(
-        `[WORKER] booking_id is missing in payload for revisionId=${revisionId}. ` +
-          `Cannot construct Firestore document path. Job=${job.id} discarded.`,
+        `[WORKER] booking_id missing everywhere for revisionId=${revisionId}. ` +
+          `data.booking_id=${data.booking_id} root.id=${rawRoot.id}. Job=${job.id} discarded.`,
       );
       return;
     }
@@ -251,6 +273,12 @@ export class ChannexBookingWorker {
         `event=${event} bookingId=${bookingId} bookingRef=${bookingUniqueId ?? bookingId} ` +
         `status=${reservationDoc.booking_status} tenantId=${tenantId}`,
     );
+
+    // Send Booking Acknowledge so Channex marks this revision as processed.
+    // Required by the PMS certification spec regardless of push/pull mode.
+    if (revisionId) {
+      await this.channex.acknowledgeBookingRevision(revisionId);
+    }
 
     // Emit SSE booking_new so the frontend ReservationInbox (Phase 7) can
     // surface a real-time toast without polling Firestore.
