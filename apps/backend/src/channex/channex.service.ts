@@ -275,6 +275,21 @@ export class ChannexService {
     }
   }
 
+  /**
+   * GET /api/v1/properties/:propertyId
+   * Returns the full Channex property object including group_id.
+   * Throws if the property does not exist (404 from Channex).
+   */
+  async getProperty(propertyId: string): Promise<{ id: string; attributes: Record<string, unknown> }> {
+    this.logger.log(`[CHANNEX] GET property — propertyId=${propertyId}`);
+    const response = await this.defLogger.request<{ data: { id: string; attributes: Record<string, unknown> } }>({
+      method: 'GET',
+      url: `${this.baseUrl}/properties/${propertyId}`,
+      headers: this.buildAuthHeaders(),
+    });
+    return response.data;
+  }
+
   // ─── OAuth / IFrame API ───────────────────────────────────────────────────
 
   /**

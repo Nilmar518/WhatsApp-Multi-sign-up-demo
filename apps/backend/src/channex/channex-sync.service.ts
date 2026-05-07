@@ -11,6 +11,11 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import { ChannexService } from './channex.service';
 import {
+  StoredRoomType,
+  StoredRatePlan,
+  mergeRoomTypes,
+} from './channex-ari.service';
+import {
   ChannexConnectionStatus,
   ChannexUpdatePropertyPayload,
   ChannexWebhookPayload,
@@ -142,6 +147,21 @@ interface CalendarSeed {
   ratePlanId: string;
   price: number;
   channelRatePlanId?: string;
+  // Only populated when building StoredRoomType[] after commit (not needed for ARI push)
+  title?: string;
+  otaListingId?: string;
+  currency?: string | null;
+  capacity?: number;
+}
+
+export interface ConnectionHealthResult {
+  propertyExists: boolean;
+  roomsCount: number;
+  inTenantGroup: boolean;
+  webhookSubscribed: boolean;
+  webhookReregistered: boolean;
+  webhookId: string | null;
+  errors: string[];
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -597,21 +617,160 @@ export class ChannexSyncService {
 
     await this.unlockCalendarAndSeedAri(channelId, propertyId, commitSeeds);
 
-    // Build the room_types array for Firestore from the confirmed mappings
-    const roomTypes: SyncedRoomType[] = mappings.map((m) => ({
-      roomTypeId: '',        // resolved from staged data if available
-      ratePlanId: m.ratePlanId,
-      title: m.otaListingId, // fallback; Firestore already has full titles from staging
-      otaListingId: m.otaListingId,
-    }));
+    // Build StoredRoomType[] from enriched commitSeeds (include all OTA metadata)
+    const incomingRoomTypes: StoredRoomType[] = commitSeeds.map((seed) => {
+      const title = seed.title ?? seed.otaListingId ?? seed.roomTypeId;
+      const capacity = seed.capacity ?? 1;
+      const currency = seed.currency ?? 'USD';
+      const ratePlan: StoredRatePlan = {
+        rate_plan_id: seed.ratePlanId,
+        title: `${title} — Standard`,
+        currency,
+        rate: Math.round(seed.price * 100),
+        occupancy: capacity,
+        is_primary: true,
+        channel_rate_plan_id: seed.channelRatePlanId,
+      };
+      return {
+        room_type_id: seed.roomTypeId,
+        title,
+        default_occupancy: capacity,
+        occ_adults: capacity,
+        occ_children: 0,
+        occ_infants: 0,
+        count_of_rooms: 1,
+        source: 'airbnb' as const,
+        ota_listing_id: seed.otaListingId,
+        rate_plans: [ratePlan],
+      };
+    });
 
-    await this.finalizeFirestoreDocument(propertyId, channelId, roomTypes);
+    await this.finalizeFirestoreDocument(propertyId, channelId, incomingRoomTypes);
 
     this.logger.log(
       `[COMMIT] ✓ Complete — mapped=${mapped} alreadyMapped=${alreadyMapped}`,
     );
 
     return { channelId, mapped, alreadyMapped };
+  }
+
+  // ─── Connection Health ────────────────────────────────────────────────────
+
+  /**
+   * POST /channex/properties/:propertyId/connection-health
+   *
+   * Runs 4 live checks against Channex and Firestore:
+   *   1. Property exists in Channex (GET /properties/:id)
+   *   2. At least one room type exists (GET /room_types?filter[property_id])
+   *   3. Property's group_id matches the tenant's group in Firestore
+   *   4. A webhook with our callback_url is active (GET /webhooks?filter[property_id])
+   *      → auto-registers if missing or if Firestore says none registered
+   *
+   * Non-fatal: individual check failures are recorded in `errors[]` rather than
+   * throwing, so the caller always receives a complete report.
+   */
+  async checkConnectionHealth(
+    channexPropertyId: string,
+    tenantId: string,
+  ): Promise<ConnectionHealthResult> {
+    const result: ConnectionHealthResult = {
+      propertyExists: false,
+      roomsCount: 0,
+      inTenantGroup: false,
+      webhookSubscribed: false,
+      webhookReregistered: false,
+      webhookId: null,
+      errors: [],
+    };
+
+    const callbackUrl = `${process.env.CHANNEX_WEBHOOK_CALLBACK_URL ?? ''}/webhook`;
+
+    // ── Check 1: Property exists in Channex ────────────────────────────────
+    let channexGroupId: string | null = null;
+    try {
+      const prop = await this.channex.getProperty(channexPropertyId);
+      result.propertyExists = true;
+      channexGroupId = (prop.attributes?.group_id as string | undefined) ?? null;
+    } catch (err) {
+      result.errors.push(`Property not found in Channex: ${(err as Error).message}`);
+      return result;
+    }
+
+    // ── Check 2: Room types exist ──────────────────────────────────────────
+    try {
+      const roomTypes = await this.channex.getRoomTypes(channexPropertyId);
+      result.roomsCount = roomTypes.length;
+    } catch (err) {
+      result.errors.push(`Failed to list room types: ${(err as Error).message}`);
+    }
+
+    // ── Check 3: Property is in tenant's group ─────────────────────────────
+    try {
+      const db = this.firebase.getFirestore();
+      const snap = await db
+        .collectionGroup('properties')
+        .where('channex_property_id', '==', channexPropertyId)
+        .limit(1)
+        .get();
+
+      if (!snap.empty) {
+        const firestoreGroupId: string | null =
+          (snap.docs[0].data().channex_group_id as string | null | undefined) ?? null;
+        result.inTenantGroup =
+          !!channexGroupId &&
+          !!firestoreGroupId &&
+          channexGroupId === firestoreGroupId;
+      }
+    } catch (err) {
+      result.errors.push(`Failed to verify group membership: ${(err as Error).message}`);
+    }
+
+    // ── Check 4: Webhook subscription ─────────────────────────────────────
+    try {
+      const db = this.firebase.getFirestore();
+      const snap = await db
+        .collectionGroup('properties')
+        .where('channex_property_id', '==', channexPropertyId)
+        .limit(1)
+        .get();
+
+      const firestoreWebhookId: string | null = snap.empty
+        ? null
+        : ((snap.docs[0].data().channex_webhook_id as string | null | undefined) ?? null);
+
+      const webhooks = await this.channex.listPropertyWebhooks(channexPropertyId);
+      const activeWebhook = webhooks.find(
+        (wh) => wh.attributes?.callback_url === callbackUrl,
+      );
+
+      if (activeWebhook) {
+        result.webhookSubscribed = true;
+        result.webhookId = activeWebhook.id;
+      } else {
+        this.logger.warn(
+          `[HEALTH] Webhook missing — re-registering — propertyId=${channexPropertyId} firestoreWebhookId=${firestoreWebhookId ?? 'none'}`,
+        );
+        await this.registerPropertyWebhook(channexPropertyId);
+        result.webhookReregistered = true;
+
+        const refreshed = await this.channex.listPropertyWebhooks(channexPropertyId);
+        const newWebhook = refreshed.find(
+          (wh) => wh.attributes?.callback_url === callbackUrl,
+        );
+        if (newWebhook) {
+          result.webhookSubscribed = true;
+          result.webhookId = newWebhook.id;
+        }
+      }
+    } catch (err) {
+      result.errors.push(`Webhook check failed: ${(err as Error).message}`);
+    }
+
+    this.logger.log(
+      `[HEALTH] ✓ Check complete — propertyId=${channexPropertyId} propertyExists=${result.propertyExists} rooms=${result.roomsCount} inGroup=${result.inTenantGroup} webhook=${result.webhookSubscribed} reregistered=${result.webhookReregistered}`,
+    );
+
+    return result;
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
@@ -673,12 +832,16 @@ export class ChannexSyncService {
 
   /**
    * Finalizes the Firestore document after all mappings are committed.
-   * Sets connection_status → 'active' and clears staged data.
+   * Sets connection_status → 'active', merges incoming OTA room types with any
+   * existing manually-created rooms, and clears staged data.
+   *
+   * Uses a Firestore transaction so the read-modify-write is atomic, preserving
+   * manually created rooms (source: 'manual') untouched.
    */
   private async finalizeFirestoreDocument(
     propertyId: string,
     channelId: string,
-    roomTypes: SyncedRoomType[],
+    incomingRoomTypes: StoredRoomType[],
   ): Promise<void> {
     const db = this.firebase.getFirestore();
     const snapshot = await db
@@ -691,29 +854,38 @@ export class ChannexSyncService {
       throw new NotFoundException(`No integration document found for Channex property ID: ${propertyId}`);
     }
 
-    await this.firebase.update(snapshot.docs[0].ref, {
-      connection_status: ChannexConnectionStatus.Active,
-      channex_channel_id: channelId,
-      oauth_refresh_required: false,
-      room_types: roomTypes,
-      connected_channels: FieldValue.arrayUnion('airbnb'),
-      // Clear staged data — the pipeline is complete
-      staged_channel_id: null,
-      staged_listings: null,
-      staged_channex_entities: null,
-      staged_at: null,
-      last_sync_timestamp: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+    const docRef = snapshot.docs[0].ref;
 
-    // Mirror channel_id on the root integration doc for webhook routing
-    const tenantId = snapshot.docs[0].data().tenant_id as string;
-    if (tenantId) {
-      await this.firebase.update(
-        db.collection(COLLECTION).doc(tenantId),
-        { channex_channel_id: channelId, updated_at: new Date().toISOString() },
-      );
-    }
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      const data = snap.data() ?? {};
+      const existing: StoredRoomType[] = (data.room_types ?? []) as StoredRoomType[];
+      const merged = mergeRoomTypes(existing, incomingRoomTypes, 'airbnb');
+
+      tx.update(docRef, {
+        connection_status: ChannexConnectionStatus.Active,
+        channex_channel_id: channelId,
+        oauth_refresh_required: false,
+        room_types: merged,
+        connected_channels: FieldValue.arrayUnion('airbnb'),
+        // Clear staged data — the pipeline is complete
+        staged_channel_id: null,
+        staged_listings: null,
+        staged_channex_entities: null,
+        staged_at: null,
+        last_sync_timestamp: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      // Mirror channel_id on the root integration doc for webhook routing
+      const tenantId = data.tenant_id as string;
+      if (tenantId) {
+        tx.update(db.collection(COLLECTION).doc(tenantId), {
+          channex_channel_id: channelId,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    });
 
     this.logger.log(`[COMMIT] ✓ Firestore finalized — propertyId=${propertyId} status=active`);
   }
@@ -957,14 +1129,14 @@ export class ChannexSyncService {
     }
 
     const data = snapshot.docs[0].data() as {
-      staged_listings?: Array<{ airbnbId?: string; basePrice?: number }>;
-      staged_channex_entities?: Array<{ roomTypeId?: string; ratePlanId?: string }>;
+      staged_listings?: Array<{ airbnbId?: string; basePrice?: number; title?: string; currency?: string | null; capacity?: number }>;
+      staged_channex_entities?: Array<{ roomTypeId?: string; ratePlanId?: string; title?: string }>;
     };
 
-    const stagedPriceByListing = new Map(
+    const stagedListingByAirbnbId = new Map(
       (data.staged_listings ?? [])
         .filter((row) => row.airbnbId)
-        .map((row) => [row.airbnbId as string, Number(row.basePrice)]),
+        .map((row) => [row.airbnbId as string, row]),
     );
 
     const roomTypeByRatePlan = new Map(
@@ -975,7 +1147,8 @@ export class ChannexSyncService {
 
     const seeds: CalendarSeed[] = mappings.map((mapping) => {
       const roomTypeId = roomTypeByRatePlan.get(mapping.ratePlanId);
-      const price = stagedPriceByListing.get(mapping.otaListingId);
+      const listing = stagedListingByAirbnbId.get(mapping.otaListingId);
+      const price = Number(listing?.basePrice);
 
       if (!roomTypeId || !price || price <= 0) {
         throw new UnprocessableEntityException(
@@ -987,6 +1160,10 @@ export class ChannexSyncService {
         roomTypeId,
         ratePlanId: mapping.ratePlanId,
         price,
+        title: listing?.title ?? mapping.otaListingId,
+        otaListingId: mapping.otaListingId,
+        currency: listing?.currency ?? null,
+        capacity: listing?.capacity ?? 1,
       };
     });
 
@@ -1076,7 +1253,7 @@ export class ChannexSyncService {
    *   CHANNEX_WEBHOOK_CALLBACK_URL (.env) — base public URL of this server
    *   CHANNEX_WEBHOOK_SECRET (.env.secrets) — HMAC secret validated by ChannexHmacGuard
    */
-  private async registerPropertyWebhook(channexPropertyId: string): Promise<void> {
+  public async registerPropertyWebhook(channexPropertyId: string): Promise<void> {
     try {
       const baseCallbackUrl = process.env.CHANNEX_WEBHOOK_CALLBACK_URL;
       if (!baseCallbackUrl) {

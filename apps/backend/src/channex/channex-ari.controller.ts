@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ChannexARIService, StoredRoomType } from './channex-ari.service';
 import { ChannexARISnapshotService, MonthSnapshotDoc } from './channex-ari-snapshot.service';
+import { ChannexSyncService, ConnectionHealthResult } from './channex-sync.service';
 import { CreateRoomTypeDto } from './dto/create-room-type.dto';
 import { CreateRatePlanDto } from './dto/create-rate-plan.dto';
 import {
@@ -48,6 +49,7 @@ export class ChannexARIController {
   constructor(
     private readonly ariService: ChannexARIService,
     private readonly snapshotService: ChannexARISnapshotService,
+    private readonly syncService: ChannexSyncService,
   ) {}
 
   /**
@@ -239,5 +241,26 @@ export class ChannexARIController {
       defaultRate: dto.defaultRate,
       days: dto.days,
     });
+  }
+
+  /**
+   * POST /channex/properties/:propertyId/connection-health?tenantId=X
+   *
+   * Runs 4 live checks and auto-repairs a missing webhook:
+   *   1. Property exists in Channex
+   *   2. At least one room type exists
+   *   3. Property's group_id matches the tenant's Firestore group
+   *   4. Webhook with our callback_url is active → re-registers if missing
+   */
+  @Post('connection-health')
+  @HttpCode(HttpStatus.OK)
+  async checkConnectionHealth(
+    @Param('propertyId') propertyId: string,
+    @Query('tenantId') tenantId: string,
+  ): Promise<ConnectionHealthResult> {
+    this.logger.log(
+      `[CTRL] POST /connection-health — propertyId=${propertyId} tenantId=${tenantId}`,
+    );
+    return this.syncService.checkConnectionHealth(propertyId, tenantId);
   }
 }
