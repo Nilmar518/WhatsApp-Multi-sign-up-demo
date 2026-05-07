@@ -686,11 +686,21 @@ export class ChannexSyncService {
     const callbackUrl = `${process.env.CHANNEX_WEBHOOK_CALLBACK_URL ?? ''}/webhook`;
 
     // ── Check 1: Property exists in Channex ────────────────────────────────
+    // The group UUID lives in relationships.groups.data[0].id (not in attributes).
+    // The group title equals the tenant's WABA ID, i.e. the tenantId.
     let channexGroupId: string | null = null;
+    let channexGroupTitle: string | null = null;
     try {
       const prop = await this.channex.getProperty(channexPropertyId);
       result.propertyExists = true;
-      channexGroupId = (prop.attributes?.group_id as string | undefined) ?? null;
+
+      const groups = (
+        prop.relationships as
+          | { groups?: { data?: Array<{ id?: string; attributes?: { title?: string } }> } }
+          | undefined
+      )?.groups?.data;
+      channexGroupId = groups?.[0]?.id ?? null;
+      channexGroupTitle = groups?.[0]?.attributes?.title ?? null;
     } catch (err) {
       result.errors.push(`Property not found in Channex: ${(err as Error).message}`);
       return result;
@@ -705,6 +715,9 @@ export class ChannexSyncService {
     }
 
     // ── Check 3: Property is in tenant's group ─────────────────────────────
+    // Primary: compare Channex group UUID against channex_group_id in Firestore.
+    // Fallback: if Firestore lacks the UUID (older doc), compare group title
+    // against tenantId (Channex names groups after the WABA ID / tenantId).
     try {
       const db = this.firebase.getFirestore();
       const snap = await db
@@ -716,10 +729,13 @@ export class ChannexSyncService {
       if (!snap.empty) {
         const firestoreGroupId: string | null =
           (snap.docs[0].data().channex_group_id as string | null | undefined) ?? null;
-        result.inTenantGroup =
-          !!channexGroupId &&
-          !!firestoreGroupId &&
-          channexGroupId === firestoreGroupId;
+
+        if (channexGroupId && firestoreGroupId) {
+          result.inTenantGroup = channexGroupId === firestoreGroupId;
+        } else {
+          // Fallback: group title == tenantId (WABA ID used as group name at creation)
+          result.inTenantGroup = !!channexGroupTitle && channexGroupTitle === tenantId;
+        }
       }
     } catch (err) {
       result.errors.push(`Failed to verify group membership: ${(err as Error).message}`);

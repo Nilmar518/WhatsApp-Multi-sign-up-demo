@@ -277,12 +277,23 @@ export class ChannexService {
 
   /**
    * GET /api/v1/properties/:propertyId
-   * Returns the full Channex property object including group_id.
+   * Returns the full Channex property object.
+   * The group UUID lives in relationships.groups.data[0].id — NOT in attributes.
    * Throws if the property does not exist (404 from Channex).
    */
-  async getProperty(propertyId: string): Promise<{ id: string; attributes: Record<string, unknown> }> {
+  async getProperty(propertyId: string): Promise<{
+    id: string;
+    attributes: Record<string, unknown>;
+    relationships?: Record<string, unknown>;
+  }> {
     this.logger.log(`[CHANNEX] GET property — propertyId=${propertyId}`);
-    const response = await this.defLogger.request<{ data: { id: string; attributes: Record<string, unknown> } }>({
+    const response = await this.defLogger.request<{
+      data: {
+        id: string;
+        attributes: Record<string, unknown>;
+        relationships?: Record<string, unknown>;
+      };
+    }>({
       method: 'GET',
       url: `${this.baseUrl}/properties/${propertyId}`,
       headers: this.buildAuthHeaders(),
