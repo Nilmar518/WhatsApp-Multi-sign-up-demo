@@ -94,6 +94,7 @@ export default function PropertyDetail({ property, tenantId }: Props) {
               ok={healthResult.webhookSubscribed}
               detail={healthResult.webhookReregistered ? 're-registered' : undefined}
             />
+            <HealthRow label="Messages App installed" ok={healthResult.messagesAppInstalled} />
             {healthResult.errors.length > 0 && (
               <div className="mt-2 rounded-lg bg-red-50 px-3 py-2">
                 {healthResult.errors.map((e, i) => (

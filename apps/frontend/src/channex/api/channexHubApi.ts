@@ -231,6 +231,7 @@ export interface ConnectionHealthResult {
   webhookSubscribed: boolean;
   webhookReregistered: boolean;
   webhookId: string | null;
+  messagesAppInstalled: boolean;
   errors: string[];
 }
 

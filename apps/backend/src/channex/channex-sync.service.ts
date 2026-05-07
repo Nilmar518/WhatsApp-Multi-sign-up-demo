@@ -161,6 +161,7 @@ export interface ConnectionHealthResult {
   webhookSubscribed: boolean;
   webhookReregistered: boolean;
   webhookId: string | null;
+  messagesAppInstalled: boolean;
   errors: string[];
 }
 
@@ -610,6 +611,9 @@ export class ChannexSyncService {
     // Register per-property webhook subscription (non-fatal).
     await this.registerPropertyWebhook(propertyId);
 
+    // Install Channex Messages App — enables inbound guest messaging (non-fatal, idempotent).
+    await this.channex.installMessagesApp(propertyId);
+
     // Pull historical Airbnb reservations (non-fatal)
     await this.channex.loadFutureReservations(channelId);
 
@@ -680,6 +684,7 @@ export class ChannexSyncService {
       webhookSubscribed: false,
       webhookReregistered: false,
       webhookId: null,
+      messagesAppInstalled: false,
       errors: [],
     };
 
@@ -782,8 +787,18 @@ export class ChannexSyncService {
       result.errors.push(`Webhook check failed: ${(err as Error).message}`);
     }
 
+    // ── Check 5: Channex Messages App installed ────────────────────────────
+    // installMessagesApp is idempotent — 422 means already installed.
+    // Calling it here acts as both a check and an auto-repair.
+    try {
+      await this.channex.installMessagesApp(channexPropertyId);
+      result.messagesAppInstalled = true;
+    } catch (err) {
+      result.errors.push(`Messages App installation failed: ${(err as Error).message}`);
+    }
+
     this.logger.log(
-      `[HEALTH] ✓ Check complete — propertyId=${channexPropertyId} propertyExists=${result.propertyExists} rooms=${result.roomsCount} inGroup=${result.inTenantGroup} webhook=${result.webhookSubscribed} reregistered=${result.webhookReregistered}`,
+      `[HEALTH] ✓ Check complete — propertyId=${channexPropertyId} propertyExists=${result.propertyExists} rooms=${result.roomsCount} inGroup=${result.inTenantGroup} webhook=${result.webhookSubscribed} reregistered=${result.webhookReregistered} messagesApp=${result.messagesAppInstalled}`,
     );
 
     return result;
