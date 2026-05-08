@@ -161,7 +161,16 @@ export interface FullSyncResult {
 
 export async function triggerFullSync(
   propertyId: string,
-  options: { defaultAvailability: number; defaultRate: string; defaultMaxStay: number; days?: number },
+  options: {
+    defaultAvailability: number;
+    defaultRate: string;
+    defaultMinStayArrival: number;
+    defaultMaxStay: number;
+    defaultStopSell: boolean;
+    defaultClosedToArrival: boolean;
+    defaultClosedToDeparture: boolean;
+    days?: number;
+  },
 ): Promise<FullSyncResult> {
   return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/full-sync`, {
     method: 'POST',

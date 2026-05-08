@@ -236,13 +236,20 @@ export class ChannexARIController {
   ): Promise<FullSyncResult> {
     this.logger.log(
       `[CTRL] POST /full-sync — propertyId=${propertyId} ` +
-        `availability=${dto.defaultAvailability} rate=${dto.defaultRate} maxStay=${dto.defaultMaxStay} days=${dto.days ?? 500}`,
+        `availability=${dto.defaultAvailability} rate=${dto.defaultRate} ` +
+        `minStay=${dto.defaultMinStayArrival} maxStay=${dto.defaultMaxStay} ` +
+        `stopSell=${dto.defaultStopSell} cta=${dto.defaultClosedToArrival} ctd=${dto.defaultClosedToDeparture} ` +
+        `days=${dto.days ?? 500}`,
     );
 
     return this.ariService.fullSync(propertyId, {
       defaultAvailability: dto.defaultAvailability,
       defaultRate: dto.defaultRate,
+      defaultMinStayArrival: dto.defaultMinStayArrival,
       defaultMaxStay: dto.defaultMaxStay,
+      defaultStopSell: dto.defaultStopSell,
+      defaultClosedToArrival: dto.defaultClosedToArrival,
+      defaultClosedToDeparture: dto.defaultClosedToDeparture,
       days: dto.days,
     });
   }

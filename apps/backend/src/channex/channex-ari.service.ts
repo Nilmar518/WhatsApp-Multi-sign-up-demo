@@ -512,11 +512,11 @@ export class ChannexARIService {
       date_from: dateFrom,
       date_to: dateTo,
       rate: options.defaultRate,
-      min_stay_arrival: 1,
+      min_stay_arrival: options.defaultMinStayArrival,
       max_stay: options.defaultMaxStay,
-      closed_to_arrival: false,
-      closed_to_departure: false,
-      stop_sell: false,
+      closed_to_arrival: options.defaultClosedToArrival,
+      closed_to_departure: options.defaultClosedToDeparture,
+      stop_sell: options.defaultStopSell,
     }));
 
     const restrictionsTaskId = await this.pushRestrictions(restrictionUpdates);

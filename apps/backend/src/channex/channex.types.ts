@@ -558,7 +558,11 @@ export interface ChannexARIResponse {
 export interface FullSyncOptions {
   defaultAvailability: number;  // units to set on all room types
   defaultRate: string;          // base rate for all rate plans, e.g. "100.00"
-  defaultMaxStay: number;       // max stay in nights for all rate plans (required — Channex rejects null)
+  defaultMinStayArrival: number; // minimum nights required per stay (1 = open)
+  defaultMaxStay: number;       // max nights allowed per stay (required — Channex rejects null)
+  defaultStopSell: boolean;     // block all new bookings
+  defaultClosedToArrival: boolean;  // block check-in on every date
+  defaultClosedToDeparture: boolean; // block check-out on every date
   days?: number;                // days forward from today; default 500
 }
 

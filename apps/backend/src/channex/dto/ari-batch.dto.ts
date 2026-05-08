@@ -1,4 +1,4 @@
-import { IsArray, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import type { AvailabilityEntryDto, RestrictionEntryDto } from '../channex.types';
 
 /**
@@ -39,10 +39,27 @@ export class AriFullSyncDto {
   @IsString()
   defaultRate: string;
 
-  /** Max stay in nights for all rate plans. Required — Channex rejects null. */
+  /** Minimum nights required per stay. 1 = open. */
+  @IsNumber()
+  @Min(1)
+  defaultMinStayArrival: number;
+
+  /** Max stay in nights. Required — Channex rejects null. */
   @IsNumber()
   @Min(1)
   defaultMaxStay: number;
+
+  /** Block all new bookings on all dates. */
+  @IsBoolean()
+  defaultStopSell: boolean;
+
+  /** Block check-in on all dates. */
+  @IsBoolean()
+  defaultClosedToArrival: boolean;
+
+  /** Block check-out on all dates. */
+  @IsBoolean()
+  defaultClosedToDeparture: boolean;
 
   /** Days forward from today. Defaults to 500 (certification requirement). */
   @IsOptional()

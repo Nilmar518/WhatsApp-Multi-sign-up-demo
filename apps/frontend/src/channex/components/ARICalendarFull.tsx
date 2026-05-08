@@ -91,9 +91,14 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
 
   // Full sync state
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showSyncInfo, setShowSyncInfo] = useState(false);
   const [syncAvailability, setSyncAvailability] = useState(1);
   const [syncRate, setSyncRate] = useState('100');
+  const [syncMinStay, setSyncMinStay] = useState(1);
   const [syncMaxStay, setSyncMaxStay] = useState(30);
+  const [syncStopSell, setSyncStopSell] = useState(false);
+  const [syncClosedToArrival, setSyncClosedToArrival] = useState(false);
+  const [syncClosedToDeparture, setSyncClosedToDeparture] = useState(false);
   const [syncDays, setSyncDays] = useState(500);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<FullSyncResult | null>(null);
@@ -300,7 +305,11 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
       const result = await triggerFullSync(propertyId, {
         defaultAvailability: syncAvailability,
         defaultRate: syncRate,
+        defaultMinStayArrival: syncMinStay,
         defaultMaxStay: syncMaxStay,
+        defaultStopSell: syncStopSell,
+        defaultClosedToArrival: syncClosedToArrival,
+        defaultClosedToDeparture: syncClosedToDeparture,
         days: syncDays,
       });
       setSyncResult(result);
@@ -718,18 +727,58 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
       {/* Full Sync modal */}
       {showSyncModal && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/20" onClick={() => { if (!syncing) setShowSyncModal(false); }} />
-          <div className="fixed inset-x-4 top-1/3 z-50 mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <h3 className="text-base font-bold text-slate-900">Full Sync</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Sends {syncDays} days of ARI for all room types and rate plans in 2 Channex API calls. This is Test #1 of the certification.
-            </p>
+          <div className="fixed inset-0 z-40 bg-black/20" onClick={() => { if (!syncing) { setShowSyncModal(false); setShowSyncInfo(false); } }} />
+          <div className="fixed inset-x-4 top-[5%] z-50 mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+
+            {/* Header */}
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Full Sync</h3>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  Sends {syncDays} days of ARI to Channex in 2 API calls (availability + restrictions).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSyncInfo((v) => !v)}
+                title="Field descriptions"
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold transition-colors ${showSyncInfo ? 'border-indigo-300 bg-indigo-50 text-indigo-600' : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600'}`}
+              >
+                i
+              </button>
+            </div>
+
+            {/* Info panel */}
+            {showSyncInfo && (
+              <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-xs text-slate-700 space-y-2">
+                <p className="font-semibold text-indigo-700 mb-1">Field reference</p>
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+                  <span className="font-semibold text-slate-600">Availability</span>
+                  <span>Number of rooms/units available per day for each Room Type.</span>
+                  <span className="font-semibold text-slate-600">Rate</span>
+                  <span>Base nightly price applied to every Rate Plan for all {syncDays} days.</span>
+                  <span className="font-semibold text-slate-600">Min Stay</span>
+                  <span>Minimum nights a guest must book (min_stay_arrival). 1 = no restriction.</span>
+                  <span className="font-semibold text-slate-600">Max Stay</span>
+                  <span>Maximum nights a guest can book. Required by Channex — cannot be empty or null.</span>
+                  <span className="font-semibold text-slate-600">Stop Sell</span>
+                  <span>Closes all inventory — no new bookings accepted. Usually false for go-live.</span>
+                  <span className="font-semibold text-slate-600">Closed to Arrival</span>
+                  <span>Blocks guests from checking in on any synced date (CTA). Usually false.</span>
+                  <span className="font-semibold text-slate-600">Closed to Departure</span>
+                  <span>Blocks guests from checking out on any synced date (CTD). Usually false.</span>
+                  <span className="font-semibold text-slate-600">Days</span>
+                  <span>How many days forward from today to sync. 500 is required for certification.</span>
+                </div>
+              </div>
+            )}
+
+            {/* Numeric fields */}
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">Availability</label>
                 <input
-                  type="number"
-                  min={0}
+                  type="number" min={0}
                   value={syncAvailability}
                   onChange={(e) => setSyncAvailability(Number(e.target.value))}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
@@ -744,38 +793,75 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Max Stay (nights) *</label>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Min Stay (nights)</label>
                 <input
-                  type="number"
-                  min={1}
+                  type="number" min={1}
+                  value={syncMinStay}
+                  onChange={(e) => setSyncMinStay(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Max Stay (nights)</label>
+                <input
+                  type="number" min={1}
                   value={syncMaxStay}
                   onChange={(e) => setSyncMaxStay(Number(e.target.value))}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Days</label>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Days forward</label>
                 <input
-                  type="number"
-                  min={1}
+                  type="number" min={1}
                   value={syncDays}
                   onChange={(e) => setSyncDays(Number(e.target.value))}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
             </div>
+
+            {/* Boolean toggles */}
+            <div className="mt-4 space-y-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Restrictions</p>
+              {(
+                [
+                  { label: 'Stop Sell', desc: 'Close all inventory', value: syncStopSell, set: setSyncStopSell },
+                  { label: 'Closed to Arrival', desc: 'Block check-in on all dates', value: syncClosedToArrival, set: setSyncClosedToArrival },
+                  { label: 'Closed to Departure', desc: 'Block check-out on all dates', value: syncClosedToDeparture, set: setSyncClosedToDeparture },
+                ] as const
+              ).map(({ label, desc, value, set }) => (
+                <label key={label} className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 hover:bg-slate-100">
+                  <div>
+                    <span className="text-sm font-medium text-slate-700">{label}</span>
+                    <span className="ml-2 text-xs text-slate-400">{desc}</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={value}
+                    onClick={() => (set as (v: boolean) => void)(!value)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${value ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </label>
+              ))}
+            </div>
+
             {syncError && (
               <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{syncError}</div>
             )}
             {syncResult && (
               <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-emerald-700">Task IDs</p>
-                <p className="font-mono text-xs text-emerald-800">Availability: {syncResult.availabilityTaskId}</p>
-                <p className="font-mono text-xs text-emerald-800">Restrictions: {syncResult.restrictionsTaskId}</p>
+                <p className="font-mono text-xs text-emerald-800">Availability: {syncResult.availabilityTaskId || '—'}</p>
+                <p className="font-mono text-xs text-emerald-800">Restrictions: {syncResult.restrictionsTaskId || '—'}</p>
               </div>
             )}
+
             <div className="mt-5 flex justify-end gap-3">
-              <button type="button" onClick={() => setShowSyncModal(false)} disabled={syncing} className="text-sm text-slate-500">Cancel</button>
+              <button type="button" onClick={() => { setShowSyncModal(false); setShowSyncInfo(false); }} disabled={syncing} className="text-sm text-slate-500">Cancel</button>
               <button
                 type="button"
                 onClick={() => void handleFullSync()}
