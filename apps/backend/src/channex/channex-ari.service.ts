@@ -513,7 +513,7 @@ export class ChannexARIService {
       date_to: dateTo,
       rate: options.defaultRate,
       min_stay_arrival: 1,
-      max_stay: null,
+      max_stay: options.defaultMaxStay,
       closed_to_arrival: false,
       closed_to_departure: false,
       stop_sell: false,

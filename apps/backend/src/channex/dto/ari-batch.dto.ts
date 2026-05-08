@@ -39,6 +39,11 @@ export class AriFullSyncDto {
   @IsString()
   defaultRate: string;
 
+  /** Max stay in nights for all rate plans. Required — Channex rejects null. */
+  @IsNumber()
+  @Min(1)
+  defaultMaxStay: number;
+
   /** Days forward from today. Defaults to 500 (certification requirement). */
   @IsOptional()
   @IsNumber()

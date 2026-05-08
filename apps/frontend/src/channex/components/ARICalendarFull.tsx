@@ -93,6 +93,7 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncAvailability, setSyncAvailability] = useState(1);
   const [syncRate, setSyncRate] = useState('100');
+  const [syncMaxStay, setSyncMaxStay] = useState(30);
   const [syncDays, setSyncDays] = useState(500);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<FullSyncResult | null>(null);
@@ -102,8 +103,9 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
     setLoadingRooms(true);
     listRoomTypes(propertyId)
       .then((data) => {
-        setRoomTypes(data);
-        const firstRoom = data.find((rt) => rt.rate_plans.length > 0);
+        const safeData = Array.isArray(data) ? data : [];
+        setRoomTypes(safeData);
+        const firstRoom = safeData.find((rt) => rt.rate_plans.length > 0);
         if (firstRoom) {
           setSelectedRoomTypeId(firstRoom.room_type_id);
           setSelectedRatePlanId(firstRoom.rate_plans[0].rate_plan_id);
@@ -298,6 +300,7 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
       const result = await triggerFullSync(propertyId, {
         defaultAvailability: syncAvailability,
         defaultRate: syncRate,
+        defaultMaxStay: syncMaxStay,
         days: syncDays,
       });
       setSyncResult(result);
@@ -721,7 +724,7 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
             <p className="mt-1 text-sm text-slate-500">
               Sends {syncDays} days of ARI for all room types and rate plans in 2 Channex API calls. This is Test #1 of the certification.
             </p>
-            <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">Availability</label>
                 <input
@@ -737,6 +740,16 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                 <input
                   value={syncRate}
                   onChange={(e) => setSyncRate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Max Stay (nights) *</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={syncMaxStay}
+                  onChange={(e) => setSyncMaxStay(Number(e.target.value))}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>

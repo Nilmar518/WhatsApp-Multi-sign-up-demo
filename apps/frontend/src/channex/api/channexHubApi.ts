@@ -161,7 +161,7 @@ export interface FullSyncResult {
 
 export async function triggerFullSync(
   propertyId: string,
-  options: { defaultAvailability: number; defaultRate: string; days?: number },
+  options: { defaultAvailability: number; defaultRate: string; defaultMaxStay: number; days?: number },
 ): Promise<FullSyncResult> {
   return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/full-sync`, {
     method: 'POST',
@@ -218,6 +218,59 @@ export async function refreshARISnapshot(
   const params = new URLSearchParams({ tenantId, month });
   return apiFetch(
     `${BASE}/properties/${encodeURIComponent(propertyId)}/ari-refresh?${params}`,
+    { method: 'POST' },
+  );
+}
+
+// ─── Reservations ─────────────────────────────────────────────────────────────
+
+export interface Reservation {
+  id?: string;
+  reservation_id: string | null;
+  channex_booking_id: string | null;
+  booking_status: string;
+  /** OTA source — 'airbnb' | 'booking_com' | … */
+  channel: string;
+  channex_property_id: string;
+  room_type_id: string | null;
+  ota_listing_id?: string | null;
+  check_in: string;
+  check_out: string;
+  gross_amount: number;
+  currency: string;
+  ota_fee: number;
+  net_payout: number;
+  additional_taxes: number;
+  payment_collect: string;
+  payment_type: string;
+  guest_first_name: string | null;
+  guest_last_name: string | null;
+  whatsapp_number: null;
+  created_at: string;
+  updated_at: string;
+  count_of_nights?: number | null;
+  customer_name?: string | null;
+}
+
+export async function getPropertyBookings(
+  propertyId: string,
+  tenantId: string,
+  limit = 50,
+): Promise<Reservation[]> {
+  const params = new URLSearchParams({ tenantId, limit: String(limit) });
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings?${params}`,
+  );
+}
+
+export async function pullPropertyBookings(
+  propertyId: string,
+  tenantId: string,
+  limit = 50,
+): Promise<{ synced: number }> {
+  const params = new URLSearchParams({ tenantId, limit: String(limit) });
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings/pull?${params}`,
     { method: 'POST' },
   );
 }
