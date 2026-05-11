@@ -6,6 +6,11 @@ import {
 } from '@nestjs/common';
 import { FieldValue } from 'firebase-admin/firestore';
 import { FirebaseService } from '../firebase/firebase.service';
+import {
+  StoredRoomType,
+  StoredRatePlan,
+  mergeRoomTypes,
+} from '../channex/channex-ari.service';
 import { ChannexService } from '../channex/channex.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import type { ChannexWebhookPayload } from '../channex/channex.types';
@@ -217,48 +222,68 @@ export class BookingPipelineService {
     this.logger.log(`[BDC_PIPELINE] Step 8 ✓ — Messages App installed`);
 
     // ── Step 8: Update Firestore State ──────────────────────────────────────
-    // Build room_types: one entry per unique Channex room, with its rate plans.
-    const roomTypesIndex = new Map<
-      string,
-      { id: string; title: string; rate_plans: Array<{ id: string; title: string }> }
-    >();
+    // Build StoredRoomType[]: one entry per unique BDC room, with full rate plan data.
+    const roomTypeByOtaId = new Map<string, StoredRoomType>();
 
     for (const entry of entries) {
       const channexRoomTypeId = roomTypeMap.get(entry.otaRoomId)!;
-      if (!roomTypesIndex.has(entry.otaRoomId)) {
-        roomTypesIndex.set(entry.otaRoomId, {
-          id: channexRoomTypeId,
+
+      if (!roomTypeByOtaId.has(entry.otaRoomId)) {
+        roomTypeByOtaId.set(entry.otaRoomId, {
+          room_type_id: channexRoomTypeId,
           title: `BDC: ${entry.otaRoomTitle}`,
+          default_occupancy: entry.maxPersons,
+          occ_adults: entry.maxPersons,
+          occ_children: 0,
+          occ_infants: 0,
+          count_of_rooms: 1,
+          source: 'booking',
+          ota_room_id: entry.otaRoomId,
           rate_plans: [],
         });
       }
+
       const rateKey = `${entry.otaRoomId}_${entry.otaRateId}`;
       const channexRatePlanId = ratePlanMap.get(rateKey);
       if (channexRatePlanId) {
-        roomTypesIndex.get(entry.otaRoomId)!.rate_plans.push({
-          id: channexRatePlanId,
+        const ratePlan: StoredRatePlan = {
+          rate_plan_id: channexRatePlanId,
           title: `BDC: ${entry.otaRoomTitle} — ${entry.otaRateTitle}`,
-        });
+          currency: 'USD',
+          rate: 0,
+          occupancy: entry.maxPersons,
+          is_primary: true,
+          ota_rate_id: entry.otaRateId,
+        };
+        roomTypeByOtaId.get(entry.otaRoomId)!.rate_plans.push(ratePlan);
       }
     }
 
-    // Write room_types to the property subcol doc
+    const incomingRoomTypes = Array.from(roomTypeByOtaId.values());
+
+    // Merge with existing room_types (preserves source: 'manual' entries)
     const propertyRef = db
       .collection(CHANNEX_INTEGRATIONS)
       .doc(tenantId)
       .collection('properties')
       .doc(channexPropertyId);
 
-    await this.firebase.update(propertyRef, {
-      connection_status: 'active',
-      channel_name: 'BookingCom',
-      channex_channel_id: channexChannelId,
-      channex_property_id: channexPropertyId,
-      channex_webhook_id: webhookId ?? null,
-      room_types: Array.from(roomTypesIndex.values()),
-      connected_channels: FieldValue.arrayUnion('booking'),
-      pipeline_completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(propertyRef);
+      const existing: StoredRoomType[] = (snap.data()?.room_types ?? []) as StoredRoomType[];
+      const merged = mergeRoomTypes(existing, incomingRoomTypes, 'booking');
+
+      tx.update(propertyRef, {
+        connection_status: 'active',
+        channel_name: 'BookingCom',
+        channex_channel_id: channexChannelId,
+        channex_property_id: channexPropertyId,
+        channex_webhook_id: webhookId ?? null,
+        room_types: merged,
+        connected_channels: FieldValue.arrayUnion('booking'),
+        pipeline_completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
     });
 
     // Mirror connection_status + channel_id on root doc

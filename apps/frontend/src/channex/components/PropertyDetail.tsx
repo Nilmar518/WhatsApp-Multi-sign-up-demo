@@ -2,9 +2,10 @@ import { useState } from 'react';
 import type { ChannexProperty } from '../hooks/useChannexProperties';
 import RoomRateManager from './RoomRateManager';
 import ARICalendarFull from './ARICalendarFull';
+import ReservationsPanel from './ReservationsPanel';
 import { checkConnectionHealth, type ConnectionHealthResult } from '../api/channexHubApi';
 
-type InnerTab = 'rooms' | 'ari';
+type InnerTab = 'rooms' | 'ari' | 'reservations';
 
 interface Props {
   property: ChannexProperty;
@@ -117,6 +118,7 @@ export default function PropertyDetail({ property, tenantId }: Props) {
         {([
           { id: 'rooms' as InnerTab, label: 'Rooms & Rates' },
           { id: 'ari' as InnerTab, label: 'ARI Calendar' },
+          { id: 'reservations' as InnerTab, label: 'Reservations' },
         ] as const).map((tab) => (
           <button
             key={tab.id}
@@ -145,6 +147,13 @@ export default function PropertyDetail({ property, tenantId }: Props) {
         <ARICalendarFull
           propertyId={property.channex_property_id}
           currency={property.currency}
+          tenantId={tenantId}
+        />
+      )}
+
+      {innerTab === 'reservations' && (
+        <ReservationsPanel
+          propertyId={property.channex_property_id}
           tenantId={tenantId}
         />
       )}

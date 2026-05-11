@@ -126,7 +126,8 @@ export class BookingService {
       updated_at: new Date().toISOString(),
     }, { merge: true });
 
-    // Property subcol doc — idempotent merge
+    // Property subcol doc — idempotent merge (room_types intentionally omitted to
+    // preserve any manually created rooms from before the BDC connection flow)
     const propertyRef = rootRef.collection('properties').doc(channexPropertyId);
     await this.firebase.set(propertyRef, {
       channex_property_id: channexPropertyId,
@@ -134,7 +135,6 @@ export class BookingService {
       channex_group_id: channexGroupId,
       channex_channel_id: null,
       connection_status: 'pending',
-      room_types: [],
       connected_channels: [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { BullModule } from '@nestjs/bull';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SecretManagerModule } from './common/secrets/secret-manager.module';
 import { FirebaseModule } from './firebase/firebase.module';
@@ -36,14 +35,6 @@ import { UsersModule } from './users/users.module';
       wildcard: false,
       // Increase max listeners per event to accommodate concurrent SSE clients.
       maxListeners: 20,
-    }),
-    // Global BullMQ/Redis connection — shared by ChannexModule queues.
-    // Requires: pnpm --filter @migo-uit/backend add @nestjs/bull bull ioredis
-    BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST ?? '127.0.0.1',
-        port: Number(process.env.REDIS_PORT ?? 6379),
-      },
     }),
     // Feature modules
     AuthModule,

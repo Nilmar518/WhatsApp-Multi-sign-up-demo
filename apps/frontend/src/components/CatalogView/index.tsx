@@ -27,7 +27,10 @@ function HealthBadge({
 }) {
   if (!health) return null;
 
-  const missingTokenWarning = health.warnings.some((w) =>
+  const warnings = health.warnings ?? [];
+  const missingScopes = health.missingScopes ?? [];
+
+  const missingTokenWarning = warnings.some((w) =>
     /no meta access token found|no access token/i.test(w),
   );
 
@@ -46,10 +49,10 @@ function HealthBadge({
 
   const allOk =
     health.appIsValid &&
-    health.missingScopes.length === 0 &&
+    missingScopes.length === 0 &&
     health.hasCommerceAccount;
 
-  const hasCritical = !health.appIsValid || health.missingScopes.length > 0;
+  const hasCritical = !health.appIsValid || missingScopes.length > 0;
   const [showTooltip, setShowTooltip] = useState(false);
 
   if (allOk) {
@@ -67,11 +70,11 @@ function HealthBadge({
   const cls   = hasCritical ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50';
 
   const tooltipLines = [
-    ...health.missingScopes.map((s) => `Missing scope: ${s}`),
+    ...missingScopes.map((s) => `Missing scope: ${s}`),
     ...(!health.hasCommerceAccount
       ? ['No Commerce Account — catalog creation may fail']
       : []),
-    ...health.warnings.slice(0, 2),
+    ...warnings.slice(0, 2),
   ];
 
   return (

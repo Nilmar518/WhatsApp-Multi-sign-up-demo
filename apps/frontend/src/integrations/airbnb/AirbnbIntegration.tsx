@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import {
   AirbnbSidebar,
@@ -78,16 +78,12 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
     setIntegrationState('loading');
     setHydrationError(null);
 
-    const integrationQuery = query(
-      collection(db, 'channex_integrations'),
-      where('tenant_id', '==', tenantId),
-      limit(1),
-    );
+    const docRef = doc(db, 'channex_integrations', tenantId);
 
     const unsubscribe = onSnapshot(
-      integrationQuery,
+      docRef,
       (snapshot) => {
-        if (snapshot.empty) {
+        if (!snapshot.exists()) {
           setPropertyId(null);
           setConnectionStatus(undefined);
           setFirestoreDocId(null);
@@ -95,8 +91,7 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
           return;
         }
 
-        const integrationDoc = snapshot.docs[0];
-        const data = integrationDoc.data() as TenantIntegrationDoc;
+        const data = snapshot.data() as TenantIntegrationDoc;
         const resolvedPropertyId = data.channex_property_id ?? null;
         const nextConnectionStatus = data.connection_status;
 
@@ -108,10 +103,17 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
           return;
         }
 
-        setFirestoreDocId(integrationDoc.id);
+        setFirestoreDocId(snapshot.id);
         setPropertyId(resolvedPropertyId);
         setConnectionStatus(nextConnectionStatus);
-        setIntegrationState(resolveIntegrationStateFromConnectionStatus(nextConnectionStatus));
+
+        // If a channex_property_id exists but connection_status is missing,
+        // treat it as 'connecting' (we have a provisioned property to connect).
+        if (nextConnectionStatus === 'active') {
+          setIntegrationState('connected');
+        } else {
+          setIntegrationState('connecting');
+        }
       },
       (error) => {
         setPropertyId(null);

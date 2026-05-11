@@ -49,8 +49,10 @@ export default function PropertyProvisioningForm({ tenantId: tenantIdProp, onPro
     setCopyStatus('idle');
 
     try {
+      const resolvedTenant = tenantIdProp ?? resolveTenantId();
+
       const response = await provisionProperty({
-        tenantId: tenantIdProp ?? resolveTenantId(),
+        tenantId: resolvedTenant,
         migoPropertyId: resolveMigoPropertyId(title),
         title: title.trim(),
         currency,

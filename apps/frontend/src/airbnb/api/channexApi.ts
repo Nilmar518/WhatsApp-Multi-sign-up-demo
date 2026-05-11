@@ -49,7 +49,7 @@ export interface ARIAvailabilityPayload {
   room_type_id: string;
   date_from: string;
   date_to: string;
-  availability: 0 | 1;
+  availability: number;  // non-negative integer; 0=blocked, 1+=available
 }
 
 export interface ARIRestrictionPayload {
@@ -58,7 +58,21 @@ export interface ARIRestrictionPayload {
   date_to: string;
   rate?: string;
   min_stay_arrival?: number;
+  max_stay?: number | null;
   stop_sell?: boolean;
+  closed_to_arrival?: boolean;
+  closed_to_departure?: boolean;
+}
+
+export interface ARIFullSyncOptions {
+  defaultAvailability: number;
+  defaultRate: string;
+  days?: number;
+}
+
+export interface ARIFullSyncResult {
+  availabilityTaskId: string;
+  restrictionsTaskId: string;
 }
 
 // ─── Shared fetch helper ──────────────────────────────────────────────────────
@@ -178,33 +192,83 @@ export async function getCopyLink(propertyId: string): Promise<string> {
 /**
  * POST /api/channex/properties/:propertyId/availability
  *
- * Pushes an availability update synchronously to Channex.
- * Awaits Channex confirmation before resolving — hold a loading state in the UI
- * for the ~1-2 s duration of this call.
+ * Pushes a single availability update to Channex synchronously.
+ * Internally wraps the payload in { updates: [payload] } to match the batch API.
+ * Awaits Channex confirmation before resolving — hold a loading state in the UI.
  */
 export async function pushAvailability(
   propertyId: string,
   payload: ARIAvailabilityPayload,
-): Promise<{ status: 'ok' }> {
+): Promise<{ status: 'ok'; taskId: string }> {
   return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/availability`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ updates: [payload] }),
+  });
+}
+
+/**
+ * POST /api/channex/properties/:propertyId/availability (batch)
+ *
+ * Pushes multiple availability updates in a single Channex API call.
+ * Use for certification tests and bulk operations.
+ */
+export async function pushAvailabilityBatch(
+  propertyId: string,
+  updates: ARIAvailabilityPayload[],
+): Promise<{ status: 'ok'; taskId: string }> {
+  return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/availability`, {
+    method: 'POST',
+    body: JSON.stringify({ updates }),
   });
 }
 
 /**
  * POST /api/channex/properties/:propertyId/restrictions
  *
- * Pushes a rate/restriction update synchronously to Channex.
- * Same synchronous contract as pushAvailability — show a loading state.
+ * Pushes a single restriction/rate update to Channex synchronously.
+ * Internally wraps the payload in { updates: [payload] } to match the batch API.
  */
 export async function pushRestrictions(
   propertyId: string,
   payload: ARIRestrictionPayload,
-): Promise<{ status: 'ok' }> {
+): Promise<{ status: 'ok'; taskId: string }> {
   return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/restrictions`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ updates: [payload] }),
+  });
+}
+
+/**
+ * POST /api/channex/properties/:propertyId/restrictions (batch)
+ *
+ * Pushes multiple restriction/rate updates in a single Channex API call.
+ * Use for certification tests (Tests #3–#8) and bulk operations.
+ */
+export async function pushRestrictionsBatch(
+  propertyId: string,
+  updates: ARIRestrictionPayload[],
+): Promise<{ status: 'ok'; taskId: string }> {
+  return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/restrictions`, {
+    method: 'POST',
+    body: JSON.stringify({ updates }),
+  });
+}
+
+/**
+ * POST /api/channex/properties/:propertyId/full-sync
+ *
+ * Sends 500 days of ARI for all room types and rate plans of the property
+ * in exactly 2 Channex API calls — satisfying certification Test #1.
+ *
+ * Returns task IDs from both calls for the certification form.
+ */
+export async function fullSync(
+  propertyId: string,
+  options: ARIFullSyncOptions,
+): Promise<ARIFullSyncResult> {
+  return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/full-sync`, {
+    method: 'POST',
+    body: JSON.stringify(options),
   });
 }
 
