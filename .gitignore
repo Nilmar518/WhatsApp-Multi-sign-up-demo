@@ -122,6 +122,7 @@ dist
 # GCP Service Account keys — never commit
 *service-account*.json
 *service_account*.json
+smart-service-*.json
 
 # TernJS port file
 .tern-port

@@ -7,7 +7,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   app.setGlobalPrefix('api');
   const allowedOrigins = process.env.FRONTEND_URL
-    ? [process.env.FRONTEND_URL, 'https://pure-highlander-487218-g2.web.app', 'https://pure-highlander-487218-g2.firebaseapp.com']
+    ? [process.env.FRONTEND_URL, 'https://smart-service-85369.web.app', 'https://smart-service-85369.firebaseapp.com']
     : true;
   app.enableCors({ origin: allowedOrigins });
   const port = process.env.PORT ?? 3001;
