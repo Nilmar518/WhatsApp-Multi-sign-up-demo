@@ -1,17 +1,32 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+RUN npm install -g pnpm@9.15.4
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# Provide all workspace manifests so pnpm can resolve the monorepo graph
+COPY apps/backend/package.json ./apps/backend/
+COPY apps/frontend/package.json ./apps/frontend/
+
+RUN pnpm install --filter @migo-uit/backend --frozen-lockfile --ignore-scripts
+
+COPY apps/backend ./apps/backend
+
+RUN pnpm --filter @migo-uit/backend build
+
+# ---- runtime ----
 FROM node:20-alpine
 WORKDIR /app
 
 RUN npm install -g pnpm@9.15.4
 
-# Workspace manifest files for dependency resolution
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/backend/package.json ./apps/backend/
+COPY apps/frontend/package.json ./apps/frontend/
 
-# Production deps only — ignore-scripts skips husky prepare
 RUN pnpm install --prod --filter @migo-uit/backend --frozen-lockfile --ignore-scripts
 
-# Pre-compiled dist (built in CI before docker build)
-COPY apps/backend/dist ./apps/backend/dist
+COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001 -G nodejs
 USER nestjs
