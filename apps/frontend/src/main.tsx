@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import CatalogManagerApp from './catalog-manager/CatalogManagerApp';
 import InventoryPage from './inventory/InventoryPage';
+import AuthGate from './auth/AuthGate';
+import MainLayout from './layout/MainLayout';
 import './index.css';
 
 // Pathname-based routing (no external router dependency)
@@ -11,12 +13,16 @@ const isInventory       = window.location.pathname.startsWith('/inventory');
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {isInventory ? (
-      <InventoryPage />
-    ) : isCatalogManager ? (
-      <CatalogManagerApp />
-    ) : (
-      <App />
-    )}
+    <AuthGate>
+      {isInventory ? (
+        <InventoryPage />
+      ) : isCatalogManager ? (
+        <CatalogManagerApp />
+      ) : (
+        <MainLayout>
+          <App />
+        </MainLayout>
+      )}
+    </AuthGate>
   </React.StrictMode>,
 );

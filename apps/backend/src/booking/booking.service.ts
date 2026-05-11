@@ -8,6 +8,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { DefensiveLoggerService } from '../common/logger/defensive-logger.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import { FirebaseService } from '../firebase/firebase.service';
+import { ChannexGroupService } from '../channex/channex-group.service';
 import { DisconnectBookingDto } from './dto/disconnect-booking.dto';
 import { MapBookingDto } from './dto/map-booking.dto';
 
@@ -44,6 +45,7 @@ export class BookingService {
     private readonly defLogger: DefensiveLoggerService,
     private readonly secrets: SecretManagerService,
     private readonly firebase: FirebaseService,
+    private readonly groupService: ChannexGroupService,
   ) {
     this.baseUrl =
       process.env.CHANNEX_BASE_URL ?? 'https://staging.channex.io/api/v1';
@@ -64,52 +66,6 @@ export class BookingService {
   }
 
   /**
-   * Reads channex_group_id from channex_integrations/{tenantId}.
-   * If missing, creates a new Channex group and persists the ID back to Firestore.
-   * Reused by both getSessionToken and (if needed) future operations.
-   */
-  private async resolveGroupId(tenantId: string): Promise<string> {
-    const headers = this.buildAuthHeaders();
-    const db = this.firebase.getFirestore();
-    const docRef = db.collection(CHANNEX_INTEGRATIONS).doc(tenantId);
-    const doc = await docRef.get();
-    let channexGroupId: string = doc.data()?.channex_group_id ?? '';
-
-    if (!channexGroupId) {
-      this.logger.log(
-        `[BOOKING] No group_id found — creating Channex group for tenant=${tenantId}`,
-      );
-      const groupRes = await this.defLogger.request<any>({
-        method: 'POST',
-        url: `${this.baseUrl}/groups`,
-        headers,
-        data: { group: { title: `Tenant: ${tenantId}` } },
-      });
-      channexGroupId = groupRes.data.id;
-      this.logger.log(
-        `[BOOKING] ✓ Group created — channex_group_id=${channexGroupId}`,
-      );
-
-      const patch = { channex_group_id: channexGroupId, updated_at: new Date().toISOString() };
-      if (doc.exists) {
-        await this.firebase.update(docRef, patch);
-      } else {
-        await this.firebase.set(docRef, {
-          tenant_id: tenantId,
-          ...patch,
-          created_at: new Date().toISOString(),
-        });
-      }
-    } else {
-      this.logger.log(
-        `[BOOKING] ✓ Reusing channex_group_id=${channexGroupId}`,
-      );
-    }
-
-    return channexGroupId;
-  }
-
-  /**
    * GET /booking/session-token?tenantId=X
    *
    * Prepares the Channex popup session for Booking.com:
@@ -123,7 +79,7 @@ export class BookingService {
    */
   async getSessionToken(tenantId: string): Promise<SessionTokenResult> {
     const headers = this.buildAuthHeaders();
-    const channexGroupId = await this.resolveGroupId(tenantId);
+    const channexGroupId = await this.groupService.ensureGroup(tenantId);
 
     const db = this.firebase.getFirestore();
     const bookingDocRef = db.collection(CHANNEX_INTEGRATIONS).doc(tenantId);
@@ -153,28 +109,36 @@ export class BookingService {
         `[BOOKING_TOKEN] ✓ Property created — channexPropertyId=${channexPropertyId}`,
       );
 
-      if (bookingDoc.exists) {
-        await this.firebase.update(bookingDocRef, {
-          channex_property_id: channexPropertyId,
-          updated_at: new Date().toISOString(),
-        });
-      } else {
-        await this.firebase.set(bookingDocRef, {
-          tenant_id: tenantId,
-          channex_property_id: channexPropertyId,
-          channex_channel_id: null,
-          connection_status: 'pending',
-          rooms: [],
-          rates: [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
     } else {
       this.logger.log(
         `[BOOKING_TOKEN] ✓ Reusing property — channexPropertyId=${channexPropertyId}`,
       );
     }
+
+    // Root integration doc — idempotent merge
+    const rootRef = db.collection(CHANNEX_INTEGRATIONS).doc(tenantId);
+    await this.firebase.set(rootRef, {
+      tenant_id: tenantId,
+      channex_group_id: channexGroupId,
+      channex_property_id: channexPropertyId,   // mirror for pipeline quick-read
+      channex_channel_id: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { merge: true });
+
+    // Property subcol doc — idempotent merge (room_types intentionally omitted to
+    // preserve any manually created rooms from before the BDC connection flow)
+    const propertyRef = rootRef.collection('properties').doc(channexPropertyId);
+    await this.firebase.set(propertyRef, {
+      channex_property_id: channexPropertyId,
+      tenant_id: tenantId,
+      channex_group_id: channexGroupId,
+      channex_channel_id: null,
+      connection_status: 'pending',
+      connected_channels: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { merge: true });
 
     this.logger.log(
       `[BOOKING_TOKEN] Requesting session token for propertyId=${channexPropertyId}`,
@@ -207,15 +171,7 @@ export class BookingService {
   async syncBooking(tenantId: string): Promise<SyncBookingResult> {
     const headers = this.buildAuthHeaders();
     const db = this.firebase.getFirestore();
-
-    const airbnbDoc = await db.collection(CHANNEX_INTEGRATIONS).doc(tenantId).get();
-    const channexGroupId: string = airbnbDoc.data()?.channex_group_id ?? '';
-    if (!channexGroupId) {
-      throw new HttpException(
-        'No Channex group found for this tenant. Please open the connection popup first.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    const channexGroupId = await this.groupService.ensureGroup(tenantId);
 
     // 1. List channels for the group
     this.logger.log(
@@ -252,14 +208,23 @@ export class BookingService {
     //    OTA slots to fetch). Skip the mappings call; the commit pipeline (POST /booking/commit)
     //    will create room types, rate plans, and mappings in the correct order.
     if (channelCode === 'BookingCom') {
+      const propertyRef = db
+        .collection(CHANNEX_INTEGRATIONS)
+        .doc(tenantId)
+        .collection('properties')
+        .doc(channexPropertyId);
+
+      await this.firebase.update(propertyRef, {
+        channex_channel_id: channexChannelId,
+        channex_property_id: channexPropertyId,
+        connection_status: 'channel_ready',
+        updated_at: new Date().toISOString(),
+      });
+
+      // Mirror channel_id on root doc for webhook routing
       await this.firebase.update(
         db.collection(CHANNEX_INTEGRATIONS).doc(tenantId),
-        {
-          channex_channel_id: channexChannelId,
-          channex_property_id: channexPropertyId,
-          connection_status: 'channel_ready',
-          updated_at: new Date().toISOString(),
-        },
+        { channex_channel_id: channexChannelId, updated_at: new Date().toISOString() },
       );
       this.logger.log(
         `[BOOKING_SYNC] ✓ BDC channel persisted — ready for pipeline auto-commit`,
@@ -301,17 +266,25 @@ export class BookingService {
 
     const rooms: BookingRoom[] = Array.from(roomsMap.values());
 
-    // 4. Persist to channex_integrations/{tenantId}
+    // 4. Persist to channex_integrations/{tenantId}/properties/{channexPropertyId}
+    const propertyRef = db
+      .collection(CHANNEX_INTEGRATIONS)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(channexPropertyId);
+
+    await this.firebase.update(propertyRef, {
+      channex_channel_id: channexChannelId,
+      channex_property_id: channexPropertyId,
+      connection_status: 'active',
+      ota_rooms: rooms,
+      ota_rates: rates,
+      updated_at: new Date().toISOString(),
+    });
+
     await this.firebase.update(
       db.collection(CHANNEX_INTEGRATIONS).doc(tenantId),
-      {
-        channex_channel_id: channexChannelId,
-        channex_property_id: channexPropertyId,
-        connection_status: 'active',
-        ota_rooms: rooms,
-        ota_rates: rates,
-        updated_at: new Date().toISOString(),
-      },
+      { channex_channel_id: channexChannelId, updated_at: new Date().toISOString() },
     );
     this.logger.log(
       `[BOOKING_SYNC] ✓ Saved rooms and rates to Firestore for tenant=${tenantId}`,
@@ -329,13 +302,22 @@ export class BookingService {
    */
   async saveMapping(dto: MapBookingDto): Promise<{ saved: number }> {
     const db = this.firebase.getFirestore();
-    await this.firebase.update(
-      db.collection(CHANNEX_INTEGRATIONS).doc(dto.tenantId),
-      {
+    const rootDoc = await db.collection(CHANNEX_INTEGRATIONS).doc(dto.tenantId).get();
+    const channexPropertyId: string = rootDoc.data()?.channex_property_id ?? '';
+
+    if (channexPropertyId) {
+      const propertyRef = db
+        .collection(CHANNEX_INTEGRATIONS)
+        .doc(dto.tenantId)
+        .collection('properties')
+        .doc(channexPropertyId);
+
+      await this.firebase.update(propertyRef, {
         mappings: dto.mappings,
         updated_at: new Date().toISOString(),
-      },
-    );
+      });
+    }
+
     this.logger.log(
       `[BOOKING_MAP] ✓ Saved ${dto.mappings.length} mapping(s) for tenant=${dto.tenantId}`,
     );

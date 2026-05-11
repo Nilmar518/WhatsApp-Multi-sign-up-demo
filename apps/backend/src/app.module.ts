@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { BullModule } from '@nestjs/bull';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SecretManagerModule } from './common/secrets/secret-manager.module';
 import { FirebaseModule } from './firebase/firebase.module';
@@ -18,6 +17,8 @@ import { AutoReplyModule } from './auto-reply/auto-reply.module';
 import { CartModule } from './cart/cart.module';
 import { ChannexModule } from './channex/channex.module';
 import { BookingModule } from './booking/booking.module';
+import { AuthGuardModule } from './auth-guard/auth-guard.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -34,14 +35,6 @@ import { BookingModule } from './booking/booking.module';
       wildcard: false,
       // Increase max listeners per event to accommodate concurrent SSE clients.
       maxListeners: 20,
-    }),
-    // Global BullMQ/Redis connection — shared by ChannexModule queues.
-    // Requires: pnpm --filter @migo-uit/backend add @nestjs/bull bull ioredis
-    BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST ?? '127.0.0.1',
-        port: Number(process.env.REDIS_PORT ?? 6379),
-      },
     }),
     // Feature modules
     AuthModule,
@@ -61,6 +54,10 @@ import { BookingModule } from './booking/booking.module';
     ChannexModule,
     // Channex.io × Booking.com — XML channel connection
     BookingModule,
+    // Auth guard — global JWT verification via Firebase Admin
+    AuthGuardModule,
+    // Users CRUD — Firestore users collection
+    UsersModule,
   ],
 })
 export class AppModule {}

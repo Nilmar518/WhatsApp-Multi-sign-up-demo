@@ -15,7 +15,7 @@ export interface FirestoreReservationDoc {
   reservation_id: string;          // ota_reservation_code — doc ID and idempotency key
   channex_booking_id: string | null; // Channex revision UUID (booking.id) — for support/audit trails
   booking_status: string;          // 'new' | 'modified' | 'cancelled'
-  channel: 'airbnb';
+  channel: string;              // OTA key: 'airbnb' | 'booking_com' | … derived from ota_name
   channex_property_id: string;
   room_type_id: string | null;
   ota_listing_id?: string | null;
@@ -31,12 +31,11 @@ export interface FirestoreReservationDoc {
   net_payout: number;              // gross_amount - ota_fee
   additional_taxes: number;        // Sum of non-inclusive taxes
 
-  // Payment model — hardcoded for Airbnb:
-  //   payment_collect='ota'        → Airbnb charges the guest, Migo UIT never does
-  //   payment_type='bank_transfer' → Airbnb disperses net payout via bank wire
-  // This combination keeps Migo UIT's NestJS backend PCI-out-of-scope for Airbnb.
-  payment_collect: 'ota';
-  payment_type: 'bank_transfer';
+  // Payment model — varies by OTA:
+  //   Airbnb:      payment_collect='ota',      payment_type='bank_transfer'
+  //   Booking.com: payment_collect='property', payment_type='credit_card'
+  payment_collect: string;
+  payment_type: string;
 
   // Guest PII — OTA-gated:
   //   guest_first_name  always present
@@ -62,6 +61,29 @@ export interface FirestoreReservationDoc {
   count_of_nights?: number | null;
   count_of_rooms?: number | null;
   amount_raw?: string | number | null;
+}
+
+// ─── OTA name → channel key ───────────────────────────────────────────────────
+
+/**
+ * Normalises the `ota_name` string returned by Channex into a lowercase
+ * channel key used consistently across the Firestore schema and frontend badges.
+ *
+ * Channex ota_name values observed in production:
+ *   'Airbnb'     → 'airbnb'
+ *   'BookingCom' → 'booking_com'
+ *   'ABB'        → 'airbnb'   (OTA code variant)
+ *   'BDC'        → 'booking_com'
+ */
+function resolveChannel(otaName: unknown): string {
+  const raw = typeof otaName === 'string' ? otaName.toLowerCase().replace(/[\s-]/g, '_') : '';
+
+  if (raw === 'airbnb' || raw === 'abb') return 'airbnb';
+  if (raw === 'bookingcom' || raw === 'bdc' || raw === 'booking_com') return 'booking_com';
+  if (raw === 'vrbo' || raw === 'homeaway') return 'vrbo';
+
+  // Return the normalised raw string so unknown OTAs still display something meaningful.
+  return raw || 'unknown';
 }
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -219,12 +241,15 @@ export class BookingRevisionTransformer {
     //    Suppress the unused-variable lint rule rather than removing the param.
     void tenantId;
 
+    const otaName = booking.ota_name ?? booking.channel ?? booking.ota_code;
+    const channel = resolveChannel(otaName);
+
     return {
       // Identity
       reservation_id: reservationId,
       channex_booking_id: bookingRecordId,
       booking_status: bookingStatus,
-      channel: 'airbnb',
+      channel,
       channex_property_id: payload.property_id,
       room_type_id: roomTypeId,
 
@@ -239,9 +264,9 @@ export class BookingRevisionTransformer {
       net_payout: netPayout,
       additional_taxes: additionalTaxes,
 
-      // Payment model (Airbnb-hardcoded — PCI-out-of-scope)
-      payment_collect: 'ota',
-      payment_type: 'bank_transfer',
+      // Payment model — taken from the booking payload; varies by OTA
+      payment_collect: (typeof booking.payment_collect === 'string' ? booking.payment_collect : 'ota') as 'ota' | 'property',
+      payment_type: (typeof booking.payment_type === 'string' ? booking.payment_type : 'bank_transfer') as string,
 
       // Guest PII
       guest_first_name: guestFirstName ?? customerNameParts.firstName,

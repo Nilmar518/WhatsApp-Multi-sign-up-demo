@@ -127,14 +127,21 @@ async function pushAvailabilityUpdate(
     rate_plan_id: string;
     date_from: string;
     date_to: string;
-    availability: 0 | 1;
+    availability: number;
   },
 ): Promise<void> {
   const url = `/api/channex/properties/${encodeURIComponent(activeProperty.channex_property_id)}/availability`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      updates: [{
+        room_type_id: payload.room_type_id,
+        date_from: payload.date_from,
+        date_to: payload.date_to,
+        availability: payload.availability,
+      }],
+    }),
   });
 
   if (!response.ok) {

@@ -16,8 +16,7 @@ import ChannelTabs, { type Channel } from './components/ChannelTabs';
 import MessengerConnect from './components/MessengerConnect';
 import InstagramConnect from './components/InstagramConnect';
 import InstagramInbox from './components/InstagramInbox';
-import AirbnbIntegration from './integrations/airbnb/AirbnbIntegration';
-import BookingIntegrationView from './integrations/booking/BookingIntegrationView';
+import ChannexHub from './channex/ChannexHub';
 
 // ── Phase 4: business IDs loaded dynamically from the backend ─────────────────
 // Fallback to the fixture IDs while fetch is in flight so the UI renders
@@ -367,15 +366,12 @@ export default function App() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════ */}
-        {/*  AIRBNB CHANNEL                                                  */}
+        {/*  CHANNEX HUB (Properties + Airbnb + Booking.com sub-tabs)        */}
         {/* ══════════════════════════════════════════════════════════════════ */}
-        {activeChannel === 'airbnb' && <AirbnbIntegration />}
-
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/*  BOOKING.COM CHANNEL                                              */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {activeChannel === 'booking' && (
-          <BookingIntegrationView businessId={businessId} />
+        {activeChannel === 'channex' && (
+          <div className="mt-4">
+            <ChannexHub businessId={businessId} />
+          </div>
         )}
 
       </div>

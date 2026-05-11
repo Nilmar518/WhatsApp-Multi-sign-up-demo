@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
-import type { Firestore, DocumentReference, SetOptions } from 'firebase-admin/firestore';
+import type { Firestore, DocumentReference, SetOptions, Query, QuerySnapshot } from 'firebase-admin/firestore';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
 
 @Injectable()
@@ -67,6 +67,38 @@ export class FirebaseService implements OnModuleInit {
     } catch (err: any) {
       this.logger.error(
         `[FIRESTORE_WRITE_ERROR] update failed — code=${err?.code ?? 'unknown'} project=${this.config.get<string>('FIREBASE_PROJECT_ID')} path=${ref.path}`,
+      );
+      throw err;
+    }
+  }
+
+  // Wraps any Firestore query .get() so that missing-index errors (which embed
+  // the index creation URL inside err.message) are fully logged before re-throw.
+  async queryGet(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query: Query<any>,
+    context: string,
+  ): Promise<QuerySnapshot> {
+    try {
+      return await query.get();
+    } catch (err: any) {
+      // The gRPC transport used by the Admin SDK does NOT include the index
+      // creation URL in err.message — it lives in the status details trailer.
+      // We serialize the full error object so nothing is lost.
+      let details = '';
+      try {
+        details = JSON.stringify(err, Object.getOwnPropertyNames(err), 2);
+      } catch {
+        details = String(err);
+      }
+
+      this.logger.error(
+        `[FIRESTORE_QUERY_ERROR] ${context}\n` +
+        `  code   : ${err?.code ?? 'unknown'}\n` +
+        `  message: ${err?.message ?? ''}\n` +
+        `  details: ${err?.details ?? ''}\n` +
+        `  project: ${this.config.get<string>('FIREBASE_PROJECT_ID')}\n` +
+        `  full   : ${details}`,
       );
       throw err;
     }

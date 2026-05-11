@@ -5,7 +5,11 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
-  app.enableCors();
+  app.setGlobalPrefix('api');
+  const allowedOrigins = process.env.FRONTEND_URL
+    ? [process.env.FRONTEND_URL, 'https://pure-highlander-487218-g2.web.app', 'https://pure-highlander-487218-g2.firebaseapp.com']
+    : true;
+  app.enableCors({ origin: allowedOrigins });
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
   console.log(

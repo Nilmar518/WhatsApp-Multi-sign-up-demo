@@ -11,6 +11,7 @@ import {
 } from './api/bookingApi';
 import BookingReservations from './components/BookingReservations';
 import BookingInbox from './components/BookingInbox';
+import { useChannexProperties } from '../../channex/hooks/useChannexProperties';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,9 @@ export default function BookingIntegrationView({ businessId }: Props) {
 
   const tenantId = useMemo(() => businessId, [businessId]);
   const isLocked = viewState === 'opening' || viewState === 'syncing' || isDisconnecting;
+
+  const { properties: existingProperties } = useChannexProperties(tenantId);
+  const baseProperty = existingProperties[0] ?? null;
 
   // Rooms forwarded to BookingReservations: prefer the standardized room_types
   // array; fall back to legacy ota_rooms for integrations created before the
@@ -190,6 +194,21 @@ export default function BookingIntegrationView({ businessId }: Props) {
             Connect your Booking.com account
           </h3>
 
+          {baseProperty && (
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm">
+              <p className="font-semibold text-emerald-800">
+                Existing property detected
+              </p>
+              <p className="mt-0.5 text-emerald-700">
+                We'll connect Booking.com to:{' '}
+                <span className="font-medium">{baseProperty.title}</span>
+              </p>
+              <p className="mt-0.5 font-mono text-xs text-emerald-600 break-all">
+                {baseProperty.channex_property_id}
+              </p>
+            </div>
+          )}
+
           <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
             <li>
               <span className="font-semibold text-slate-800">Step 1.</span> Click{' '}
@@ -227,14 +246,7 @@ export default function BookingIntegrationView({ businessId }: Props) {
                 disabled={isLocked}
                 className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                {viewState === 'syncing' ? (
-                  <>
-                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    Syncing…
-                  </>
-                ) : (
-                  'Sync & Complete'
-                )}
+                Sync &amp; Complete
               </button>
             )}
           </div>

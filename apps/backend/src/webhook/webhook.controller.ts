@@ -7,15 +7,16 @@ import {
   Res,
   Logger,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
 import { ConfigService } from '@nestjs/config';
-import type { Queue } from 'bull';
 import { Response } from 'express';
 import { WebhookService } from './webhook.service';
 import type {
   ChannexWebhookEvent,
   ChannexWebhookFullPayload,
 } from '../channex/channex.types';
+import { Public } from '../auth-guard/public.decorator';
+import { ChannexBookingWorker } from '../channex/workers/channex-booking.worker';
+import { ChannexMessageWorker } from '../channex/workers/channex-message.worker';
 
 const CHANNEX_BOOKING_EVENTS = new Set<ChannexWebhookEvent>([
   'booking_new',
@@ -26,6 +27,7 @@ const CHANNEX_BOOKING_EVENTS = new Set<ChannexWebhookEvent>([
   'alteration_request',
 ]);
 
+@Public()
 @Controller('webhook')
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
@@ -33,10 +35,8 @@ export class WebhookController {
   constructor(
     private readonly config: ConfigService,
     private readonly webhookService: WebhookService,
-    @InjectQueue('booking-revisions')
-    private readonly channexBookingQueue: Queue<ChannexWebhookFullPayload>,
-    @InjectQueue('channex-messages')
-    private readonly channexMessageQueue: Queue<ChannexWebhookFullPayload>,
+    private readonly channexBookingWorker: ChannexBookingWorker,
+    private readonly channexMessageWorker: ChannexMessageWorker,
   ) {}
 
   // GET /webhook — Meta hub challenge verification (one-time setup)
@@ -75,87 +75,43 @@ export class WebhookController {
    * resend the same payload — potentially triggering a second auto-reply.
    */
   @Post()
-  receive(@Body() body: unknown, @Res() res: Response): void {
-    // ── Raw payload dump — first line of defence when tracing inbound issues ──
-    this.logger.log('[WEBHOOK_EVENT] Payload received — ACK sent immediately');
-    this.logger.debug(
-      `[WEBHOOK_INBOUND_PAYLOAD] ${JSON.stringify(body)}`,
-    );
+  async receive(@Body() body: unknown, @Res() res: Response): Promise<void> {
+    this.logger.log('[WEBHOOK_EVENT] Payload received');
+    this.logger.debug(`[WEBHOOK_INBOUND_PAYLOAD] ${JSON.stringify(body)}`);
 
-    // Acknowledge Meta before any async work begins
-    res.status(200).json({ received: true });
+    const channexEvent = (body as { event?: ChannexWebhookEvent })?.event;
 
-    // Dispatch processing outside the current event-loop tick so the HTTP
-    // response is flushed before any awaitable work starts.
-    setImmediate(() => {
-      const objectType = (body as { object?: string })?.object;
-      const channexEvent = (body as { event?: ChannexWebhookEvent })?.event;
+    if (channexEvent) {
+      // Channex path — process synchronously then ACK.
+      // Firestore writes are fast (~200ms); 3 retries with 1s backoff stays
+      // well within Channex's 30s ACK timeout.
+      const channexPayload = body as ChannexWebhookFullPayload;
+      const propertyId = channexPayload?.property_id ?? 'unknown';
 
-      if (channexEvent) {
-        const channexPayload = body as ChannexWebhookFullPayload;
-        const propertyId = channexPayload?.property_id ?? 'unknown';
+      this.logger.log(
+        `[WEBHOOK_CHANNEX] Processing event=${channexEvent} propertyId=${propertyId}`,
+      );
 
-        if (channexEvent === 'message' || channexEvent === 'inquiry') {
-          const payloadData = channexPayload?.payload as
-            | Record<string, unknown>
-            | undefined;
-          const rawMessageId =
-            payloadData?.id ??
-            payloadData?.ota_message_id ??
-            payloadData?.message_thread_id;
-          const messageId =
-            typeof rawMessageId === 'string' ? rawMessageId : undefined;
-
-          this.channexMessageQueue
-            .add(channexPayload, {
-              attempts: 3,
-              backoff: { type: 'fixed', delay: 5000 },
-              removeOnComplete: true,
-              removeOnFail: false,
-              jobId: messageId,
-            })
-            .then(() => {
-              this.logger.log(
-                `[WEBHOOK_CHANNEX] Routed ${channexEvent} event propertyId=${propertyId} messageId=${messageId ?? 'auto'}`,
-              );
-            })
-            .catch((err: unknown) => {
-              this.logger.error(
-                `[WEBHOOK_CHANNEX] Failed to enqueue ${channexEvent} event propertyId=${propertyId}: ${(err as Error).message ?? err}`,
-              );
-            });
-
-          return;
-        }
-
-        if (CHANNEX_BOOKING_EVENTS.has(channexEvent)) {
-          this.channexBookingQueue
-            .add(channexPayload, {
-              attempts: 3,
-              backoff: { type: 'fixed', delay: 5000 },
-              removeOnComplete: true,
-              removeOnFail: false,
-              jobId: channexPayload?.revision_id,
-            })
-            .then(() => {
-              this.logger.log(
-                `[WEBHOOK_CHANNEX] Routed booking event event=${channexEvent} propertyId=${propertyId} revisionId=${channexPayload?.revision_id ?? 'auto'}`,
-              );
-            })
-            .catch((err: unknown) => {
-              this.logger.error(
-                `[WEBHOOK_CHANNEX] Failed to enqueue booking event event=${channexEvent} propertyId=${propertyId}: ${(err as Error).message ?? err}`,
-              );
-            });
-
-          return;
-        }
-
+      if (channexEvent === 'message' || channexEvent === 'inquiry') {
+        await this.channexMessageWorker.handleWithRetry(channexPayload);
+      } else if (CHANNEX_BOOKING_EVENTS.has(channexEvent)) {
+        await this.channexBookingWorker.handleWithRetry(channexPayload);
+      } else {
         this.logger.warn(
           `[WEBHOOK_CHANNEX] Unsupported channex event="${channexEvent}"`,
         );
-        return;
       }
+
+      res.status(200).json({ received: true });
+      return;
+    }
+
+    // Meta path — fire-and-forget so the HTTP response is flushed before
+    // downstream calls (Firestore, Graph API) complete.
+    res.status(200).json({ received: true });
+
+    setImmediate(() => {
+      const objectType = (body as { object?: string })?.object;
 
       const processor =
         objectType === 'page'

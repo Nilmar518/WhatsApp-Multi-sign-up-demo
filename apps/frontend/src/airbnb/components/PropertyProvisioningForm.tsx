@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { provisionProperty } from '../api/channexApi';
 
 interface Props {
+  tenantId?: string;
   onProvisioned: (propertyId: string) => void;
 }
 
@@ -28,7 +29,7 @@ function resolveMigoPropertyId(title: string): string {
   return slug ? `${slug}-${Date.now().toString(36)}` : `property-${Date.now().toString(36)}`;
 }
 
-export default function PropertyProvisioningForm({ onProvisioned }: Props) {
+export default function PropertyProvisioningForm({ tenantId: tenantIdProp, onProvisioned }: Props) {
   const [title, setTitle] = useState('Oceanview Apartment');
   const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>('USD');
   const [timezone, setTimezone] = useState<(typeof TIMEZONES)[number]>('America/Lima');
@@ -48,8 +49,10 @@ export default function PropertyProvisioningForm({ onProvisioned }: Props) {
     setCopyStatus('idle');
 
     try {
+      const resolvedTenant = tenantIdProp ?? resolveTenantId();
+
       const response = await provisionProperty({
-        tenantId: resolveTenantId(),
+        tenantId: resolvedTenant,
         migoPropertyId: resolveMigoPropertyId(title),
         title: title.trim(),
         currency,

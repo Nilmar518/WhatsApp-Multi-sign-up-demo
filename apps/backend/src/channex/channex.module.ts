@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bull';
 import { ChannexService } from './channex.service';
 import { ChannexPropertyService } from './channex-property.service';
 import { ChannexOAuthService } from './channex-oauth.service';
 import { ChannexARIService } from './channex-ari.service';
+import { ChannexARIRateLimiter } from './channex-ari-rate-limiter.service';
+import { ChannexARISnapshotService } from './channex-ari-snapshot.service';
 import { ChannexMessagingBridgeService } from './channex-messaging-bridge.service';
+import { ChannexGroupService } from './channex-group.service';
 import { ChannexSyncService } from './channex-sync.service';
+import { ChannexIndexCheckerService } from './channex-index-checker.service';
 import { ChannexPropertyController } from './channex-property.controller';
 import { ChannexWebhookController } from './channex-webhook.controller';
 import { ChannexARIController } from './channex-ari.controller';
@@ -23,7 +26,7 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
  *     @Global() in AppModule — available to every module without explicit listing.
  *
  *   - The `booking-revisions` BullMQ queue is registered here for resilient
- *     webhook ingestion. ChannexBookingWorker (@Processor) consumes from it.
+ *     webhook ingestion. ChannexBookingWorker is now a plain @Injectable() service.
  *     Bull/Redis is retained exclusively for this webhook pipeline.
  *
  *   - The `ari-dlq` queue and ARIFlushCron / ARIRetryWorker have been removed.
@@ -42,29 +45,27 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
  *   [TODO] Phase 8: ChannexHealthCron
  */
 @Module({
-  imports: [
-    // booking-revisions queue — global Redis connection declared in AppModule.
-    // ChannexBookingWorker (@Processor) consumes from this queue.
-    BullModule.registerQueue({ name: 'booking-revisions' }),
-    // channex-messages queue — separate from booking-revisions for independent
-    // concurrency tuning and DLQ alerting. ChannexMessageWorker consumes from it.
-    BullModule.registerQueue({ name: 'channex-messages' }),
-  ],
+  imports: [],
   providers: [
     // ── Core services ────────────────────────────────────────────────────────
     ChannexService,
+    ChannexGroupService,
     ChannexPropertyService,
     ChannexOAuthService,
     // ── ARI pipeline (real-time direct push, no cron/buffer) ─────────────────
     ChannexARIService,
+    ChannexARIRateLimiter,
+    ChannexARISnapshotService,
     ChannexMessagingBridgeService,
     // ── Auto-Mapping & Stage/Review pipeline ─────────────────────────────────
     ChannexSyncService,
+    // ── Startup index health check ────────────────────────────────────────────
+    ChannexIndexCheckerService,
     // ── Guards ───────────────────────────────────────────────────────────────
     // Registered as a provider so NestJS DI can inject SecretManagerService
     // when @UseGuards(ChannexHmacGuard) resolves the guard from the container.
     ChannexHmacGuard,
-    // ── Webhook workers (BullMQ @Processor consumers) ────────────────────────
+    // ── Webhook workers (injectable services — synchronous with retry) ────────
     ChannexBookingWorker,
     ChannexMessageWorker,
   ],
@@ -77,9 +78,12 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
   ],
   exports: [
     ChannexService,
+    ChannexGroupService,
     ChannexPropertyService,
     ChannexOAuthService,
     ChannexARIService,
+    ChannexBookingWorker,
+    ChannexMessageWorker,
   ],
 })
 export class ChannexModule {}

@@ -154,56 +154,6 @@ export class ChannexPropertyController {
   }
 
   /**
-   * POST /channex/properties/:propertyId/availability
-   *
-   * Availability update endpoint used by the Inventory/ARI panel to block or
-   * unblock date ranges for a single room type.
-   */
-  @Post(':propertyId/availability')
-  @HttpCode(HttpStatus.OK)
-  async updateAvailability(
-    @Param('propertyId') propertyId: string,
-    @Body()
-    body: {
-      roomTypeId?: string;
-      dateFrom?: string;
-      dateTo?: string;
-      availability?: number;
-      room_type_id?: string;
-      date_from?: string;
-      date_to?: string;
-    },
-  ): Promise<{ status: 'ok' }> {
-    const roomTypeId = body.roomTypeId ?? body.room_type_id;
-    const dateFrom = body.dateFrom ?? body.date_from;
-    const dateTo = body.dateTo ?? body.date_to;
-    const availability = body.availability;
-
-    if (!roomTypeId || !dateFrom || !dateTo || (availability !== 0 && availability !== 1)) {
-      throw new BadRequestException(
-        'Invalid availability payload. Expected roomTypeId/dateFrom/dateTo and availability 0|1.',
-      );
-    }
-
-    this.logger.log(
-      `[CTRL] POST /channex/properties/${propertyId}/availability — roomTypeId=${roomTypeId} ${dateFrom}→${dateTo} availability=${availability}`,
-    );
-
-    await this.channexService.pushAvailabilityFromPropertyController(propertyId, {
-      roomTypeId,
-      dateFrom,
-      dateTo,
-      availability,
-    });
-
-    this.logger.log(
-      `[CTRL] ✓ Availability update accepted — propertyId=${propertyId} roomTypeId=${roomTypeId}`,
-    );
-
-    return { status: 'ok' };
-  }
-
-  /**
    * GET /channex/properties/:propertyId/one-time-token
    *
    * Step 2 of the Airbnb onboarding wizard (and re-connect flow).

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import {
   AirbnbSidebar,
@@ -34,23 +34,6 @@ export interface ActiveProperty {
   capacity: number | null;
 }
 
-function resolveTenantId(): string {
-  return new URLSearchParams(window.location.search).get('tenantId') ?? 'demo-business-001';
-}
-
-function resolveIntegrationStateFromConnectionStatus(
-  status: ConnectionStatus | undefined,
-): IntegrationState {
-  if (status === 'active') {
-    return 'connected';
-  }
-
-  if (status === 'pending' || status === 'token_expired' || status === 'error') {
-    return 'connecting';
-  }
-
-  return 'unprovisioned';
-}
 
 function PlaceholderPanel({ title, description }: { title: string; description: string }) {
   return (
@@ -64,7 +47,7 @@ function PlaceholderPanel({ title, description }: { title: string; description: 
   );
 }
 
-export default function AirbnbIntegration() {
+export default function AirbnbIntegration({ businessId }: { businessId: string }) {
   const [integrationState, setIntegrationState] = useState<IntegrationState>('loading');
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [propertyId, setPropertyId] = useState<string | null>(null);
@@ -75,23 +58,19 @@ export default function AirbnbIntegration() {
   const [firestoreDocId, setFirestoreDocId] = useState<string | null>(null);
   const [hydrateNonce, setHydrateNonce] = useState(0);
 
-  const tenantId = useMemo(resolveTenantId, []);
+  const tenantId = businessId;
 
   // ── Subscribe to parent integration document ────────────────────────────────
   useEffect(() => {
     setIntegrationState('loading');
     setHydrationError(null);
 
-    const integrationQuery = query(
-      collection(db, 'channex_integrations'),
-      where('tenant_id', '==', tenantId),
-      limit(1),
-    );
+    const docRef = doc(db, 'channex_integrations', tenantId);
 
     const unsubscribe = onSnapshot(
-      integrationQuery,
+      docRef,
       (snapshot) => {
-        if (snapshot.empty) {
+        if (!snapshot.exists()) {
           setPropertyId(null);
           setConnectionStatus(undefined);
           setFirestoreDocId(null);
@@ -99,8 +78,7 @@ export default function AirbnbIntegration() {
           return;
         }
 
-        const integrationDoc = snapshot.docs[0];
-        const data = integrationDoc.data() as TenantIntegrationDoc;
+        const data = snapshot.data() as TenantIntegrationDoc;
         const resolvedPropertyId = data.channex_property_id ?? null;
         const nextConnectionStatus = data.connection_status;
 
@@ -112,10 +90,17 @@ export default function AirbnbIntegration() {
           return;
         }
 
-        setFirestoreDocId(integrationDoc.id);
+        setFirestoreDocId(snapshot.id);
         setPropertyId(resolvedPropertyId);
         setConnectionStatus(nextConnectionStatus);
-        setIntegrationState(resolveIntegrationStateFromConnectionStatus(nextConnectionStatus));
+
+        // If a channex_property_id exists but connection_status is missing,
+        // treat it as 'connecting' (we have a provisioned property to connect).
+        if (nextConnectionStatus === 'active') {
+          setIntegrationState('connected');
+        } else {
+          setIntegrationState('connecting');
+        }
       },
       (error) => {
         setPropertyId(null);
@@ -219,7 +204,7 @@ export default function AirbnbIntegration() {
       case 'unprovisioned':
         return (
           <div className="h-full overflow-auto px-6 py-6">
-            <PropertyProvisioningForm onProvisioned={handleProvisioned} />
+            <PropertyProvisioningForm tenantId={tenantId} onProvisioned={handleProvisioned} />
           </div>
         );
       case 'connecting':

@@ -119,6 +119,10 @@ dist
 # Firebase cache directory
 .firebase/
 
+# GCP Service Account keys — never commit
+*service-account*.json
+*service_account*.json
+
 # TernJS port file
 .tern-port
 

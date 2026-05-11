@@ -15,6 +15,8 @@ import {
   AirbnbListingDetailsResponse,
   AvailabilityEntryDto,
   ChannexARIResponse,
+  ChannexAvailabilityReadResponse,
+  ChannexRestrictionsReadResponse,
   ChannexChannelItem,
   ChannexChannelListResponse,
   ChannexCreateMappingPayload,
@@ -38,6 +40,9 @@ import {
   ChannexSendMessageResponse,
   ChannexInstallApplicationPayload,
   ChannexInstallApplicationResponse,
+  ChannexGroupPayload,
+  ChannexGroupResponse,
+  ChannexGroupListResponse,
 } from './channex.types';
 
 // ─── Channex-specific error ──────────────────────────────────────────────────
@@ -194,6 +199,42 @@ export class ChannexService {
   }
 
   /**
+   * Returns all Groups visible to the API key.
+   * GET /api/v1/groups
+   */
+  async listGroups(): Promise<ChannexGroupListResponse> {
+    this.logger.log('[CHANNEX] Listing groups');
+    try {
+      return await this.defLogger.request<ChannexGroupListResponse>({
+        method: 'GET',
+        url: `${this.baseUrl}/groups`,
+        headers: this.buildAuthHeaders(),
+      });
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
+   * Creates a new Group in Channex.
+   * POST /api/v1/groups
+   * Used by ChannexGroupService to create one Group per businessId.
+   */
+  async createGroup(title: string): Promise<ChannexGroupResponse> {
+    this.logger.log(`[CHANNEX] Creating group: "${title}"`);
+    try {
+      return await this.defLogger.request<ChannexGroupResponse>({
+        method: 'POST',
+        url: `${this.baseUrl}/groups`,
+        headers: this.buildAuthHeaders(),
+        data: { group: { title } satisfies ChannexGroupPayload },
+      });
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
    * Updates an existing Channex Property entity with new attributes (partial update).
    *
    * PUT /api/v1/properties/{propertyId}
@@ -232,6 +273,32 @@ export class ChannexService {
     } catch (err) {
       this.normaliseError(err);
     }
+  }
+
+  /**
+   * GET /api/v1/properties/:propertyId
+   * Returns the full Channex property object.
+   * The group UUID lives in relationships.groups.data[0].id — NOT in attributes.
+   * Throws if the property does not exist (404 from Channex).
+   */
+  async getProperty(propertyId: string): Promise<{
+    id: string;
+    attributes: Record<string, unknown>;
+    relationships?: Record<string, unknown>;
+  }> {
+    this.logger.log(`[CHANNEX] GET property — propertyId=${propertyId}`);
+    const response = await this.defLogger.request<{
+      data: {
+        id: string;
+        attributes: Record<string, unknown>;
+        relationships?: Record<string, unknown>;
+      };
+    }>({
+      method: 'GET',
+      url: `${this.baseUrl}/properties/${propertyId}`,
+      headers: this.buildAuthHeaders(),
+    });
+    return response.data;
   }
 
   // ─── OAuth / IFrame API ───────────────────────────────────────────────────
@@ -324,7 +391,7 @@ export class ChannexService {
     try {
       await this.defLogger.request<void>({
         method: 'POST',
-        url: `${this.baseUrl}/booking_revisions/${revisionId}/acknowledge`,
+        url: `${this.baseUrl}/booking_revisions/${revisionId}/ack`,
         headers: this.buildAuthHeaders(),
       });
 
@@ -337,6 +404,125 @@ export class ChannexService {
       this.logger.error(
         `[CHANNEX] Failed to acknowledge revisionId=${revisionId}: ${(err as Error).message}`,
       );
+    }
+  }
+
+  /**
+   * Lists bookings for a property from the Channex API.
+   *
+   * GET /api/v1/bookings?filter[property_id]={id}&filter[group_id]={gid}&pagination[limit]={n}&order[inserted_at]=desc
+   *
+   * Used by the manual "Sync" pull to recover bookings that were not persisted
+   * via the push webhook (e.g. delivery failure, flat-payload mismatch).
+   *
+   * Returns raw booking attribute objects — callers are responsible for transforming
+   * them to the Firestore schema via BookingRevisionTransformer.
+   */
+  async fetchBookings(
+    propertyId: string,
+    groupId: string,
+    limit = 50,
+  ): Promise<Array<Record<string, unknown>>> {
+    this.logger.log(
+      `[CHANNEX] Fetching bookings — propertyId=${propertyId} groupId=${groupId} limit=${limit}`,
+    );
+
+    const url =
+      `${this.baseUrl}/bookings` +
+      `?filter[property_id]=${encodeURIComponent(propertyId)}` +
+      `&filter[group_id]=${encodeURIComponent(groupId)}` +
+      `&pagination[limit]=${limit}` +
+      `&order[inserted_at]=desc`;
+
+    try {
+      const res = await this.defLogger.request<{ data: Array<{ id: string; attributes: Record<string, unknown> }> }>({
+        method: 'GET',
+        url,
+        headers: this.buildAuthHeaders(),
+      });
+
+      const items = res?.data ?? [];
+      this.logger.log(`[CHANNEX] ✓ fetchBookings — ${items.length} booking(s) returned`);
+
+      // Return the attributes merged with the top-level id so callers have
+      // the booking UUID without digging into the JSON:API envelope.
+      return items.map((item) => ({
+        ...item.attributes,
+        booking_id: item.attributes.booking_id ?? item.id,
+        id: item.id,
+      }));
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
+   * Fetches unacknowledged booking revisions from the Channex feed endpoint.
+   *
+   * GET /api/v1/booking_revisions/feed?filter[property_id]={id}
+   *
+   * This is the correct endpoint for PMS booking reception — unlike
+   * GET /api/v1/bookings (administrative history), the feed returns ONLY
+   * revisions that have not yet been acknowledged by the PMS. After processing
+   * each revision, call acknowledgeBookingRevision() to mark it as received.
+   *
+   * Response follows JSON:API with `included` sideloading: booking data lives
+   * in `included[type=booking]`, linked via relationships.booking.data.id.
+   */
+  async fetchBookingRevisionsFeed(propertyId: string): Promise<Array<{
+    revisionId: string;
+    bookingId: string | null;
+    status: string;
+    bookingData: Record<string, unknown>;
+  }>> {
+    this.logger.log(
+      `[CHANNEX] Fetching booking_revisions/feed — propertyId=${propertyId}`,
+    );
+
+    try {
+      const res = await this.defLogger.request<{
+        data: Array<{
+          id: string;
+          attributes: Record<string, unknown>;
+          relationships?: {
+            booking?: { data?: { id?: string } };
+          };
+        }>;
+        included?: Array<{
+          id: string;
+          type: string;
+          attributes: Record<string, unknown>;
+        }>;
+      }>({
+        method: 'GET',
+        url: `${this.baseUrl}/booking_revisions/feed`,
+        headers: this.buildAuthHeaders(),
+        params: { 'filter[property_id]': propertyId },
+      });
+
+      const included = res?.included ?? [];
+      const bookingMap = new Map(
+        included
+          .filter((item) => item.type === 'booking')
+          .map((item) => [item.id, item.attributes]),
+      );
+
+      const revisions = res?.data ?? [];
+      this.logger.log(`[CHANNEX] ✓ feed — ${revisions.length} unacked revision(s)`);
+
+      return revisions.map((revision) => {
+        const bookingId = revision.relationships?.booking?.data?.id ?? null;
+        const bookingData = (bookingId ? bookingMap.get(bookingId) : null) ?? revision.attributes;
+        return {
+          revisionId: revision.id,
+          bookingId,
+          status: (revision.attributes.status as string) ?? 'booking_new',
+          bookingData: bookingData as Record<string, unknown>,
+        };
+      });
+    } catch (err) {
+      this.normaliseError(err);
+      return [];
     }
   }
 
@@ -908,22 +1094,25 @@ export class ChannexService {
    * Throws ChannexRateLimitError on HTTP 429 — the ARI worker catches this to
    * route the job to the Dead Letter Queue with a 60-second back-off delay.
    */
-  async pushAvailability(values: AvailabilityEntryDto[]): Promise<void> {
+  async pushAvailability(values: AvailabilityEntryDto[]): Promise<string> {
     this.logger.log(
       `[CHANNEX] Pushing availability — ${values.length} entry(s)`,
     );
 
     try {
-      await this.defLogger.request<ChannexARIResponse>({
+      const response = await this.defLogger.request<ChannexARIResponse>({
         method: 'POST',
         url: `${this.baseUrl}/availability`,
         headers: this.buildAuthHeaders(),
         data: { values },
       });
 
-      this.logger.log(`[CHANNEX] ✓ Availability push successful`);
+      const taskId = response?.data?.[0]?.id ?? '';
+      this.logger.log(`[CHANNEX] ✓ Availability push successful — taskId=${taskId}`);
+      return taskId;
     } catch (err) {
       this.normaliseError(err);
+      return '';
     }
   }
 
@@ -970,22 +1159,88 @@ export class ChannexService {
    *
    * Throws ChannexRateLimitError on HTTP 429 (same back-off policy as availability).
    */
-  async pushRestrictions(values: RestrictionEntryDto[]): Promise<void> {
+  async pushRestrictions(values: RestrictionEntryDto[]): Promise<string> {
     this.logger.log(
       `[CHANNEX] Pushing restrictions — ${values.length} entry(s)`,
     );
 
     try {
-      await this.defLogger.request<ChannexARIResponse>({
+      const response = await this.defLogger.request<ChannexARIResponse>({
         method: 'POST',
         url: `${this.baseUrl}/restrictions`,
         headers: this.buildAuthHeaders(),
         data: { values },
       });
 
-      this.logger.log(`[CHANNEX] ✓ Restrictions push successful`);
+      const taskId = response?.data?.[0]?.id ?? '';
+      this.logger.log(`[CHANNEX] ✓ Restrictions push successful — taskId=${taskId}`);
+      return taskId;
     } catch (err) {
       this.normaliseError(err);
+      return '';
+    }
+  }
+
+  /**
+   * Reads current availability from Channex for a date range.
+   * GET /api/v1/availability?filter[date][gte]=&filter[date][lte]=&filter[property_id]=
+   * Response: data[roomTypeId][YYYY-MM-DD] = count
+   */
+  async fetchAvailability(
+    propertyId: string,
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<ChannexAvailabilityReadResponse['data']> {
+    this.logger.log(
+      `[CHANNEX] Reading availability — propertyId=${propertyId} ${dateFrom}→${dateTo}`,
+    );
+    try {
+      const response = await this.defLogger.request<ChannexAvailabilityReadResponse>({
+        method: 'GET',
+        url: `${this.baseUrl}/availability`,
+        headers: this.buildAuthHeaders(),
+        params: {
+          'filter[date][gte]': dateFrom,
+          'filter[date][lte]': dateTo,
+          'filter[property_id]': propertyId,
+        },
+      });
+      return response?.data ?? {};
+    } catch (err) {
+      this.normaliseError(err);
+      return {};
+    }
+  }
+
+  /**
+   * Reads current restrictions from Channex for a date range.
+   * GET /api/v1/restrictions?filter[date][gte]=&filter[date][lte]=&filter[property_id]=&filter[restrictions]=
+   * Response: data[ratePlanId][YYYY-MM-DD] = ChannexRestrictionsDayData
+   */
+  async fetchRestrictions(
+    propertyId: string,
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<ChannexRestrictionsReadResponse['data']> {
+    this.logger.log(
+      `[CHANNEX] Reading restrictions — propertyId=${propertyId} ${dateFrom}→${dateTo}`,
+    );
+    try {
+      const response = await this.defLogger.request<ChannexRestrictionsReadResponse>({
+        method: 'GET',
+        url: `${this.baseUrl}/restrictions`,
+        headers: this.buildAuthHeaders(),
+        params: {
+          'filter[date][gte]': dateFrom,
+          'filter[date][lte]': dateTo,
+          'filter[property_id]': propertyId,
+          'filter[restrictions]': 'rate,stop_sell,closed_to_arrival,closed_to_departure,min_stay_arrival,min_stay_through,min_stay,max_stay,availability,stop_sell_manual,max_availability,availability_offset',
+        },
+      });
+      return response?.data ?? {};
+    } catch (err) {
+      this.normaliseError(err);
+      return {};
     }
   }
 
