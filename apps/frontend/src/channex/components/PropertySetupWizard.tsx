@@ -149,7 +149,13 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
               room_type_id: r.roomTypeId!,
               title: r.title,
               default_occupancy: r.defaultOccupancy,
-              rate_plan_id: rt.ratePlanId ?? null,
+              occ_adults: r.defaultOccupancy,
+              occ_children: 0,
+              occ_infants: 0,
+              count_of_rooms: 1,
+              rate_plans: rt.ratePlanId
+                ? [{ rate_plan_id: rt.ratePlanId, title: rt.title, currency, rate: rt.rate, occupancy: r.defaultOccupancy }]
+                : [],
             })),
         ),
     });

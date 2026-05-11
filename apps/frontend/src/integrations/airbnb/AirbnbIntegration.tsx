@@ -34,19 +34,6 @@ export interface ActiveProperty {
   capacity: number | null;
 }
 
-function resolveIntegrationStateFromConnectionStatus(
-  status: ConnectionStatus | undefined,
-): IntegrationState {
-  if (status === 'active') {
-    return 'connected';
-  }
-
-  if (status === 'pending' || status === 'token_expired' || status === 'error') {
-    return 'connecting';
-  }
-
-  return 'unprovisioned';
-}
 
 function PlaceholderPanel({ title, description }: { title: string; description: string }) {
   return (

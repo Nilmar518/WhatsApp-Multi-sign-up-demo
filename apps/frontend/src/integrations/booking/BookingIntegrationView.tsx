@@ -246,14 +246,7 @@ export default function BookingIntegrationView({ businessId }: Props) {
                 disabled={isLocked}
                 className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                {viewState === 'syncing' ? (
-                  <>
-                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    Syncing…
-                  </>
-                ) : (
-                  'Sync & Complete'
-                )}
+                Sync &amp; Complete
               </button>
             )}
           </div>
