@@ -41,8 +41,8 @@ function PlaceholderPanel({ title, description }: { title: string; description: 
       <div className="rounded-full bg-rose-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-600">
         Airbnb
       </div>
-      <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-      <p className="max-w-md text-sm leading-6 text-gray-500">{description}</p>
+      <h3 className="text-xl font-semibold text-content">{title}</h3>
+      <p className="max-w-md text-sm leading-6 text-content-2">{description}</p>
     </div>
   );
 }
@@ -191,10 +191,10 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
         return (
           <div className="flex h-full items-center justify-center px-6 py-10">
             <div className="flex flex-col items-center gap-4 text-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-rose-500" />
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-edge border-t-rose-500" />
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Loading Airbnb Integration</h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <h3 className="text-lg font-semibold text-content">Loading Airbnb Integration</h3>
+                <p className="mt-1 text-sm text-content-2">
                   Hydrating the integration state from Firestore and Channex.
                 </p>
               </div>
@@ -215,8 +215,8 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
         ) : (
           <div className="flex h-full items-center justify-center px-6 py-10 text-center">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Preparing connection flow</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="text-lg font-semibold text-content">Preparing connection flow</h3>
+              <p className="mt-1 text-sm text-content-2">
                 Waiting for the Airbnb property ID before opening secure authorization.
               </p>
             </div>
@@ -239,27 +239,27 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
           case 'settings':
             return (
               <div className="h-full overflow-auto px-6 py-6">
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <div className="rounded-2xl border border-edge bg-surface-raised p-6 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-2">
                     Connection Management
                   </p>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-900">Airbnb Channel &amp; Listing Mapping</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                  <h3 className="mt-2 text-xl font-semibold text-content">Airbnb Channel &amp; Listing Mapping</h3>
+                  <p className="mt-2 text-sm leading-6 text-content-2">
                     Listing Mapping: Open the Channex panel to link your Migo rooms to your Airbnb listings.
                     Keep this section available for remapping and connection repair at any time.
                   </p>
 
                   <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.1em] text-emerald-700">
+                    <span className="inline-flex items-center rounded-full bg-ok-bg px-3 py-1 text-xs font-semibold uppercase tracking-[0.1em] text-ok-text">
                       {connectionStatus === 'active' ? 'Active' : 'Inactive'}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                    <span className="rounded-full bg-surface-subtle px-3 py-1 text-xs font-medium text-content">
                       Property: {propertyId ?? 'Unavailable'}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/60">
+                <div className="mt-5 rounded-2xl border border-edge bg-surface-subtle/60">
                   {propertyId ? (
                     <ChannexOAuthPanel
                       propertyId={propertyId}
@@ -306,7 +306,7 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
   }, [activeProperty, activeView, connectionStatus, firestoreDocId, handleOAuthCompleted, handleProvisioned, handleRetryHydration, hydrationError, integrationState, propertyId, tenantId]);
 
   return (
-    <section className="flex h-full min-h-[640px] w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <section className="flex h-full min-h-[640px] w-full overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
       <AirbnbSidebar
         integrationDocId={firestoreDocId}
         propertyId={propertyId}
@@ -319,13 +319,13 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
       />
 
       <main className="flex-1 min-w-0 bg-white">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-edge px-6 py-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Airbnb Integration</p>
-            <h1 className="text-lg font-semibold text-gray-900">Native Migo UIT Shell</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-2">Airbnb Integration</p>
+            <h1 className="text-lg font-semibold text-content">Migo App · Airbnb</h1>
           </div>
 
-          <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 p-1 text-xs font-medium text-gray-600">
+          <div className="flex items-center gap-2 rounded-full border border-edge bg-surface-subtle p-1 text-xs font-medium text-content-2">
             {(['inbox', 'inventory', 'reservations', 'settings'] as ActiveView[]).map((view) => (
               <button
                 key={view}
@@ -333,7 +333,7 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
                 onClick={() => setActiveView(view)}
                 className={[
                   'rounded-full px-3 py-1.5 transition-colors',
-                  activeView === view ? 'bg-white text-gray-900 shadow-sm' : 'hover:text-gray-900',
+                  activeView === view ? 'bg-surface-raised text-content shadow-sm' : 'hover:text-content',
                 ].join(' ')}
               >
                 {view}

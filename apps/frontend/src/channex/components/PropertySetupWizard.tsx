@@ -5,6 +5,8 @@ import {
   createRatePlan,
 } from '../api/channexHubApi';
 import type { ChannexProperty } from '../hooks/useChannexProperties';
+import Button from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 
 interface RoomDraft {
   title: string;
@@ -39,7 +41,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
   // ─── END CERTIFICATION TEST DEFAULTS ───────────────────────────────────────
 
   // Step 1 — replace with '' for production
-  const [title, setTitle] = useState('Test Property - Migo UIT' /* '' */);
+  const [title, setTitle] = useState('Test Property - Migo App' /* '' */);
   const [currency, setCurrency] = useState('USD'); // same in production
   const [timezone, setTimezone] = useState('America/New_York'); // same in production
 
@@ -164,7 +166,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
   const stepLabels = ['Property details', 'Room types', 'Rate plans', 'Confirm'];
 
   return (
-    <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="mx-auto max-w-2xl rounded-2xl border border-edge bg-surface-raised p-6 shadow-sm">
       {/* Progress */}
       <div className="mb-6 flex items-center gap-2">
         {stepLabels.map((label, i) => (
@@ -174,26 +176,26 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
                 step > i + 1
                   ? 'bg-emerald-500 text-white'
                   : step === i + 1
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-100 text-slate-400'
+                    ? 'bg-brand text-white'
+                    : 'bg-surface-subtle text-content-3'
               }`}
             >
               {step > i + 1 ? '✓' : i + 1}
             </div>
             <span
-              className={`text-xs font-medium ${step === i + 1 ? 'text-slate-900' : 'text-slate-400'}`}
+              className={`text-xs font-medium ${step === i + 1 ? 'text-content' : 'text-content-3'}`}
             >
               {label}
             </span>
             {i < stepLabels.length - 1 && (
-              <div className="h-px w-6 bg-slate-200" />
+              <div className="h-px w-6 bg-edge" />
             )}
           </div>
         ))}
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-xl border border-danger-bg bg-danger-bg px-4 py-3 text-sm text-danger-text">
           {error}
         </div>
       )}
@@ -201,43 +203,41 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       {/* Step 1: Property details */}
       {step === 1 && (
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-slate-900">Property details</h3>
+          <h3 className="text-base font-semibold text-content">Property details</h3>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Name</label>
-            <input
+            <label className="mb-1 block text-xs font-semibold text-content-2">Name</label>
+            <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">Currency</label>
-              <input
+              <label className="mb-1 block text-xs font-semibold text-content-2">Currency</label>
+              <Input
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">Timezone</label>
-              <input
+              <label className="mb-1 block text-xs font-semibold text-content-2">Timezone</label>
+              <Input
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
           <div className="flex justify-between pt-2">
-            <button type="button" onClick={onCancel} className="text-sm text-slate-500 hover:text-slate-700">Cancel</button>
-            <button
+            <Button type="button" onClick={onCancel} variant="ghost" size="sm">Cancel</Button>
+            <Button
               type="button"
               onClick={() => void handleStep1()}
               disabled={saving || !title}
-              className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              variant="primary"
+              size="sm"
             >
               {saving ? 'Creating…' : 'Create Property →'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -245,26 +245,25 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       {/* Step 2: Room types */}
       {step === 2 && (
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-slate-900">Room types</h3>
-          <p className="text-sm text-slate-500">
-            Property ID: <code className="font-mono text-xs text-indigo-700">{channexPropertyId}</code>
+          <h3 className="text-base font-semibold text-content">Room types</h3>
+          <p className="text-sm text-content-2">
+            Property ID: <code className="font-mono text-xs text-brand">{channexPropertyId}</code>
           </p>
           {rooms.map((room, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
+            <div key={i} className="flex items-center gap-3 rounded-xl border border-edge px-4 py-3">
               <div className="flex-1">
-                <input
+                <Input
                   value={room.title}
                   onChange={(e) => {
                     const next = [...rooms];
                     next[i] = { ...room, title: e.target.value };
                     setRooms(next);
                   }}
-                  className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
               <div className="w-28">
-                <label className="block text-[11px] text-slate-500">Occupancy</label>
-                <input
+                <label className="block text-[11px] text-content-2">Occupancy</label>
+                <Input
                   type="number"
                   min={1}
                   value={room.defaultOccupancy}
@@ -273,13 +272,12 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
                     next[i] = { ...room, defaultOccupancy: Number(e.target.value) };
                     setRooms(next);
                   }}
-                  className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
               <button
                 type="button"
                 onClick={() => setRooms(rooms.filter((_, j) => j !== i))}
-                className="text-slate-400 hover:text-red-500"
+                className="text-content-3 hover:text-danger-text"
               >
                 ✕
               </button>
@@ -288,20 +286,21 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
           <button
             type="button"
             onClick={() => setRooms([...rooms, { title: '', defaultOccupancy: 2 }])}
-            className="text-sm text-indigo-600 hover:text-indigo-800"
+            className="text-sm text-brand hover:text-brand"
           >
             + Add room type
           </button>
           <div className="flex justify-between pt-2">
-            <button type="button" onClick={() => setStep(1)} className="text-sm text-slate-500 hover:text-slate-700">← Back</button>
-            <button
+            <Button type="button" onClick={() => setStep(1)} variant="ghost" size="sm">← Back</Button>
+            <Button
               type="button"
               onClick={() => void handleStep2()}
               disabled={saving || rooms.length === 0}
-              className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              variant="primary"
+              size="sm"
             >
               {saving ? 'Creating…' : 'Create Room Types →'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -309,24 +308,23 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       {/* Step 3: Rate plans */}
       {step === 3 && (
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-slate-900">Rate plans</h3>
+          <h3 className="text-base font-semibold text-content">Rate plans</h3>
           {rates.map((rate, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
+            <div key={i} className="flex items-center gap-3 rounded-xl border border-edge px-4 py-3">
               <div className="flex-1">
-                <label className="block text-[11px] text-slate-500">{rate.roomTitle}</label>
-                <input
+                <label className="block text-[11px] text-content-2">{rate.roomTitle}</label>
+                <Input
                   value={rate.title}
                   onChange={(e) => {
                     const next = [...rates];
                     next[i] = { ...rate, title: e.target.value };
                     setRates(next);
                   }}
-                  className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
                 />
               </div>
               <div className="w-24">
-                <label className="block text-[11px] text-slate-500">Base rate</label>
-                <input
+                <label className="block text-[11px] text-content-2">Base rate</label>
+                <Input
                   type="number"
                   min={0}
                   value={rate.rate}
@@ -335,21 +333,21 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
                     next[i] = { ...rate, rate: Number(e.target.value) };
                     setRates(next);
                   }}
-                  className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
                 />
               </div>
             </div>
           ))}
           <div className="flex justify-between pt-2">
-            <button type="button" onClick={() => setStep(2)} className="text-sm text-slate-500 hover:text-slate-700">← Back</button>
-            <button
+            <Button type="button" onClick={() => setStep(2)} variant="ghost" size="sm">← Back</Button>
+            <Button
               type="button"
               onClick={() => void handleStep3()}
               disabled={saving || rates.length === 0}
-              className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              variant="primary"
+              size="sm"
             >
               {saving ? 'Creating…' : 'Create Rate Plans →'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -357,25 +355,26 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       {/* Step 4: Confirmation */}
       {step === 4 && (
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-slate-900">Setup complete</h3>
-          <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-2 text-xs font-mono">
-            <p><span className="text-slate-500">Property ID:</span> <span className="text-emerald-700">{channexPropertyId}</span></p>
+          <h3 className="text-base font-semibold text-content">Setup complete</h3>
+          <div className="rounded-xl bg-ok-bg border border-ok-bg px-4 py-3 space-y-2 text-xs font-mono">
+            <p><span className="text-content-2">Property ID:</span> <span className="text-ok-text">{channexPropertyId}</span></p>
             {rooms.map((r) => (
-              <p key={r.roomTypeId}><span className="text-slate-500">{r.title}:</span> <span className="text-emerald-700">{r.roomTypeId}</span></p>
+              <p key={r.roomTypeId}><span className="text-content-2">{r.title}:</span> <span className="text-ok-text">{r.roomTypeId}</span></p>
             ))}
             {rates.map((r, i) => (
-              <p key={i}><span className="text-slate-500">{r.roomTitle} / {r.title}:</span> <span className="text-emerald-700">{r.ratePlanId}</span></p>
+              <p key={i}><span className="text-content-2">{r.roomTitle} / {r.title}:</span> <span className="text-ok-text">{r.ratePlanId}</span></p>
             ))}
           </div>
-          <p className="text-xs text-slate-500">Save these IDs for the Channex certification form (Section 2).</p>
+          <p className="text-xs text-content-2">Save these IDs for the Channex certification form (Section 2).</p>
           <div className="flex justify-end pt-2">
-            <button
+            <Button
               type="button"
               onClick={handleFinish}
-              className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              variant="primary"
+              size="sm"
             >
               Go to property →
-            </button>
+            </Button>
           </div>
         </div>
       )}

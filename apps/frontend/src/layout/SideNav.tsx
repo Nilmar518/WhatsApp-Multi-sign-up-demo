@@ -10,10 +10,8 @@ import {
 
 const LS_KEY = 'sidenav_collapsed';
 
-export function navigate(path: string) {
-  window.history.pushState(null, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
-}
+import { navigate } from '../lib/navigate';
+export { navigate };
 
 interface NavItem {
   icon: React.ReactNode;
@@ -123,7 +121,7 @@ export default function SideNav() {
         </div>
         {!collapsed && (
           <span className="text-content-inv font-bold text-sm tracking-tight">
-            Migo<span className="text-brand-dim">UI</span>
+            Migo<span className="text-brand-dim">App</span>
           </span>
         )}
       </div>
