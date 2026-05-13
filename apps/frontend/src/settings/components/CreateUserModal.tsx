@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Input, Select } from '../../../components/ui/Input';
-import Button from '../../../components/ui/Button';
+import { Input, Select } from '../../components/ui/Input';
+import Button from '../../components/ui/Button';
 import { createUser, type CreateUserResponse } from '../api/usersApi';
 
 const COUNTRY_OPTIONS = [
