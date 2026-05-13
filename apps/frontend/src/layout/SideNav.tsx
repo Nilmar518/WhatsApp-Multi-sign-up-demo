@@ -1,147 +1,228 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/firebase';
+import { useTheme } from '../context/ThemeContext';
+import {
+  LayoutDashboard, MessageSquare, Package, Smartphone,
+  Hotel, Globe, Settings, Moon, Sun, User, LogOut,
+  ChevronLeft, ChevronRight, MessageCircle, Camera, Home,
+} from 'lucide-react';
 
 const LS_KEY = 'sidenav_collapsed';
 
-function UserIcon() {
+export function navigate(path: string) {
+  window.history.pushState(null, '', path);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+interface NavItem {
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+}
+
+function computeActive(href: string, path: string): boolean {
+  if (href === '/') return path === '/';
+  // strip query from href for prefix matching
+  const hrefPath = href.split('?')[0];
+  return path === hrefPath || path.startsWith(hrefPath + '/');
+}
+
+function NavRow({ icon, label, href, collapsed, activeOverride, currentPath }: NavItem & { collapsed: boolean; activeOverride?: boolean; currentPath: string }) {
+  const active = activeOverride !== undefined ? activeOverride : computeActive(href, currentPath);
   return (
-    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-    </svg>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(href)}
+      onKeyDown={(e) => e.key === 'Enter' && navigate(href)}
+      className={[
+        'flex items-center gap-2.5 px-2.5 py-2 rounded-md cursor-pointer',
+        'text-content-sidebar text-sm font-medium transition-colors duration-150',
+        'hover:bg-surface-sidebar-hover hover:text-content-inv',
+        active
+          ? 'bg-surface-sidebar-act text-content-inv border-l-2 border-brand'
+          : 'border-l-2 border-transparent',
+      ].join(' ')}
+      title={collapsed ? label : undefined}
+    >
+      <span className="shrink-0">{icon}</span>
+      {!collapsed && <span className="truncate">{label}</span>}
+    </div>
   );
 }
 
-function LogoutIcon() {
+function SubNavRow({ icon, label, href, collapsed, currentPath }: NavItem & { collapsed: boolean; currentPath: string }) {
+  const active = computeActive(href, currentPath);
   return (
-    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
-    </svg>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(href)}
+      onKeyDown={(e) => e.key === 'Enter' && navigate(href)}
+      className={[
+        'flex items-center gap-2 py-1.5 rounded-md cursor-pointer transition-colors duration-150',
+        collapsed ? 'px-2.5 justify-center' : 'pl-8 pr-2.5',
+        active
+          ? 'text-brand bg-brand-subtle/10'
+          : 'text-content-sidebar-muted hover:text-content-sidebar hover:bg-surface-sidebar-hover/60',
+      ].join(' ')}
+      title={collapsed ? label : undefined}
+    >
+      <span className="shrink-0">{icon}</span>
+      {!collapsed && <span className="truncate text-xs font-medium">{label}</span>}
+    </div>
   );
 }
 
-function ChevronLeftIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-    </svg>
-  );
-}
 
 export default function SideNav() {
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(LS_KEY) !== 'false';
-    } catch {
-      return true;
-    }
-  });
+  const [collapsed, setCollapsed] = useState<boolean>(
+    () => localStorage.getItem(LS_KEY) === 'true',
+  );
+  const { theme, toggleTheme } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<string | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const soonRef = useRef<HTMLDivElement>(null);
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const [currentSearch, setCurrentSearch] = useState(window.location.search);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(LS_KEY, String(collapsed));
-    } catch {}
+    const onPop = () => {
+      setCurrentPath(window.location.pathname);
+      setCurrentSearch(window.location.search);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, String(collapsed));
   }, [collapsed]);
 
-  useEffect(() => {
-    if (!activeTab) return;
-    function handler(e: MouseEvent) {
-      if (soonRef.current && !soonRef.current.contains(e.target as Node)) {
-        setActiveTab(null);
-      }
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [activeTab]);
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
 
-  function toggleTab(tab: string) {
-    setActiveTab((prev) => (prev === tab ? null : tab));
-  }
+  const channelParam = new URLSearchParams(currentSearch).get('channel');
+  const channexOpen = currentPath.startsWith('/channex');
 
-  async function handleLogout() {
-    setLoggingOut(true);
-    try {
-      await signOut(auth);
-    } catch {
-      setLoggingOut(false);
-    }
-  }
+  const isChannelActive = (channel: string) =>
+    currentPath.startsWith('/mensajes') && currentSearch.includes(`channel=${channel}`);
 
   return (
-    <div className="relative flex">
-      {/* Sidebar panel */}
-      <div
-        className={`flex flex-col bg-slate-900 transition-all duration-200 ease-in-out shrink-0 ${
-          collapsed ? 'w-14' : 'w-48'
-        }`}
-      >
-        {/* Toggle button */}
-        <div className="flex justify-end px-2 pt-3 pb-2">
-          <button
-            type="button"
-            onClick={() => setCollapsed((c) => !c)}
-            className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 transition-colors"
-            title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-          >
-            {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-          </button>
+    <nav
+      className={[
+        'flex flex-col bg-surface-sidebar border-r border-edge/10',
+        'sticky top-0 h-screen overflow-y-auto transition-all duration-200',
+        collapsed ? 'w-14' : 'w-56',
+      ].join(' ')}
+    >
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-3 py-4 border-b border-white/5">
+        <div className="w-8 h-8 rounded-md bg-brand flex items-center justify-center shrink-0 shadow-brand">
+          <Smartphone size={16} className="text-white" />
         </div>
-
-        {/* Tabs */}
-        <nav className="flex-1 flex flex-col gap-1 px-2">
-          <button
-            type="button"
-            onClick={() => toggleTab('users')}
-            className={`flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors w-full text-left ${
-              activeTab === 'users'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`}
-            title={collapsed ? 'Users' : undefined}
-          >
-            <UserIcon />
-            {!collapsed && <span className="truncate">Users</span>}
-          </button>
-        </nav>
-
-        {/* Logout */}
-        <div className="px-2 pb-4">
-          <button
-            type="button"
-            onClick={() => void handleLogout()}
-            disabled={loggingOut}
-            className="flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors w-full text-left disabled:opacity-50"
-            title={collapsed ? 'Cerrar sesión' : undefined}
-          >
-            <LogoutIcon />
-            {!collapsed && (
-              <span className="truncate">{loggingOut ? 'Saliendo…' : 'Cerrar sesión'}</span>
-            )}
-          </button>
-        </div>
+        {!collapsed && (
+          <span className="text-content-inv font-bold text-sm tracking-tight">
+            Migo<span className="text-brand-dim">UI</span>
+          </span>
+        )}
       </div>
 
-      {/* "Próximamente" panel */}
-      {activeTab === 'users' && (
-        <div ref={soonRef} className="absolute left-full top-16 z-50 ml-2 animate-fade-in">
-          <div className="bg-slate-800 text-slate-200 text-xs rounded-lg px-4 py-3 shadow-xl whitespace-nowrap">
-            <p className="font-semibold text-sm text-white mb-0.5">Users</p>
-            <p className="text-slate-400">Próximamente ✦</p>
-          </div>
+      {/* Nav items */}
+      <div className="flex-1 flex flex-col gap-0.5 p-2 mt-1">
+        {!collapsed && (
+          <p className="text-content-sidebar-muted text-[10px] font-semibold uppercase tracking-widest px-2.5 py-2">
+            Principal
+          </p>
+        )}
+        <NavRow icon={<LayoutDashboard size={16} />} label="Dashboard"  href="/"         collapsed={collapsed} currentPath={currentPath} />
+        <NavRow icon={<MessageSquare size={16} />}   label="Mensajes"   href="/mensajes"  collapsed={collapsed} currentPath={currentPath} />
+        <NavRow icon={<Package size={16} />}         label="Inventario" href="/inventory" collapsed={collapsed} currentPath={currentPath} />
+
+        {!collapsed && (
+          <p className="text-content-sidebar-muted text-[10px] font-semibold uppercase tracking-widest px-2.5 pt-4 pb-2">
+            Integraciones
+          </p>
+        )}
+        {collapsed && <div className="my-1 mx-2 border-t border-white/5" />}
+
+        {/* Messaging channels — all at the same level */}
+        <NavRow
+          icon={<MessageCircle size={16} />} label="WhatsApp" href="/mensajes?channel=whatsapp" collapsed={collapsed} currentPath={currentPath}
+          activeOverride={currentPath.startsWith('/mensajes') && (!channelParam || channelParam === 'whatsapp')}
+        />
+        <NavRow
+          icon={<MessageSquare size={16} />} label="Messenger" href="/mensajes?channel=messenger" collapsed={collapsed} currentPath={currentPath}
+          activeOverride={isChannelActive('messenger')}
+        />
+        <NavRow
+          icon={<Camera size={16} />} label="Instagram" href="/mensajes?channel=instagram" collapsed={collapsed} currentPath={currentPath}
+          activeOverride={isChannelActive('instagram')}
+        />
+
+        {/* Channex with sub-items */}
+        <NavRow icon={<Hotel size={16} />} label="Channex" href="/channex" collapsed={collapsed} currentPath={currentPath} />
+        {(channexOpen || !collapsed) && (
+          <>
+            <SubNavRow icon={<Home size={12} />}  label="Airbnb"      href="/channex/airbnb"   collapsed={collapsed} currentPath={currentPath} />
+            <SubNavRow icon={<Globe size={12} />} label="Booking.com" href="/channex/booking"  collapsed={collapsed} currentPath={currentPath} />
+          </>
+        )}
+
+        {!collapsed && (
+          <p className="text-content-sidebar-muted text-[10px] font-semibold uppercase tracking-widest px-2.5 pt-4 pb-2">
+            Sistema
+          </p>
+        )}
+        {collapsed && <div className="my-1 mx-2 border-t border-white/5" />}
+        <NavRow icon={<Settings size={16} />} label="Configuración" href="/configuracion" collapsed={collapsed} currentPath={currentPath} />
+      </div>
+
+      {/* Bottom controls */}
+      <div className="p-2 border-t border-white/5 flex flex-col gap-0.5">
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+          className={[
+            'flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md',
+            'text-content-sidebar text-sm font-medium',
+            'hover:bg-surface-sidebar-hover hover:text-content-inv transition-colors duration-150',
+          ].join(' ')}
+        >
+          {theme === 'dark'
+            ? <Sun size={16} className="shrink-0" />
+            : <Moon size={16} className="shrink-0" />}
+          {!collapsed && (
+            <span>{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
+          )}
+        </button>
+
+        {/* User */}
+        <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-content-sidebar text-sm font-medium hover:bg-surface-sidebar-hover hover:text-content-inv transition-colors duration-150 cursor-pointer">
+          <User size={16} className="shrink-0" />
+          {!collapsed && <span className="truncate">Mi cuenta</span>}
         </div>
-      )}
-    </div>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          title="Cerrar sesión"
+          className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-danger text-sm font-medium hover:bg-danger-bg transition-colors duration-150"
+        >
+          <LogOut size={16} className="shrink-0" />
+          {!collapsed && <span>Cerrar sesión</span>}
+        </button>
+
+        {/* Collapse toggle */}
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center justify-center w-full mt-1 py-1.5 rounded-md text-content-sidebar-muted hover:text-content-sidebar hover:bg-surface-sidebar-hover transition-colors duration-150"
+          title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+      </div>
+    </nav>
   );
 }
