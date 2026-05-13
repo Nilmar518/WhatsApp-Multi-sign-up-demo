@@ -35,22 +35,11 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ─── CERTIFICATION TEST DEFAULTS ───────────────────────────────────────────
-  // These defaults pre-fill the wizard for Channex PMS certification testing.
-  // To reset for production: replace title with '' and rooms with [].
-  // ─── END CERTIFICATION TEST DEFAULTS ───────────────────────────────────────
+  const [title, setTitle] = useState('');
+  const [currency, setCurrency] = useState('USD');
+  const [timezone, setTimezone] = useState('America/New_York');
 
-  // Step 1 — replace with '' for production
-  const [title, setTitle] = useState('Test Property - Migo App' /* '' */);
-  const [currency, setCurrency] = useState('USD'); // same in production
-  const [timezone, setTimezone] = useState('America/New_York'); // same in production
-
-  // Step 2 — replace with [] for production
-  const [rooms, setRooms] = useState<RoomDraft[]>([
-    /* CERT: pre-filled for certification — replace with [] for production */
-    { title: 'Twin Room', defaultOccupancy: 2 },
-    { title: 'Double Room', defaultOccupancy: 2 },
-  ]);
+  const [rooms, setRooms] = useState<RoomDraft[]>([]);
 
   // Step 3
   const [rates, setRates] = useState<RateDraft[]>([]);
@@ -365,7 +354,6 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
               <p key={i}><span className="text-content-2">{r.roomTitle} / {r.title}:</span> <span className="text-ok-text">{r.ratePlanId}</span></p>
             ))}
           </div>
-          <p className="text-xs text-content-2">Save these IDs for the Channex certification form (Section 2).</p>
           <div className="flex justify-end pt-2">
             <Button
               type="button"

@@ -362,7 +362,7 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
       {/* Task ID display after save */}
       {lastTaskIds.length > 0 && (
         <div className="rounded-xl border border-ok-bg bg-ok-bg px-4 py-3">
-          <p className="text-xs font-semibold text-ok-text uppercase tracking-[0.1em]">Task IDs (save for certification form)</p>
+          <p className="text-xs font-semibold text-ok-text uppercase tracking-[0.1em]">Task IDs</p>
           {lastTaskIds.map((id) => (
             <p key={id} className="mt-1 font-mono text-xs text-ok-text">{id}</p>
           ))}
@@ -770,7 +770,7 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                   <span className="font-semibold text-content-2">Closed to Departure</span>
                   <span>Blocks guests from checking out on any synced date (CTD). Usually false.</span>
                   <span className="font-semibold text-content-2">Days</span>
-                  <span>How many days forward from today to sync. 500 is required for certification.</span>
+                  <span>How many days forward from today to sync.</span>
                 </div>
               </div>
             )}
