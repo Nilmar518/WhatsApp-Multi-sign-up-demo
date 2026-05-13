@@ -42,7 +42,7 @@ export default function SettingsPage() {
                     'px-4 py-3 text-sm font-semibold border-b-2 transition-colors',
                     activeTab === tab.id
                       ? 'border-brand text-brand'
-                      : 'border-transparent text-content-subtle hover:text-content hover:border-edge',
+                      : 'border-transparent text-content-2 hover:text-content hover:border-edge',
                   ].join(' ')}
                 >
                   {tab.label}

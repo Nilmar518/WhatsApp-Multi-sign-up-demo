@@ -224,13 +224,13 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
             <p className="text-sm text-content-2 mb-4">
               {createdUser.name} — {createdUser.email}
             </p>
-            <div className="rounded-lg border border-amber-400/40 bg-amber-50/10 px-4 py-3 mb-4">
-              <p className="text-sm font-medium text-amber-500">
+            <div className="rounded-lg border border-caution/30 bg-caution-bg px-4 py-3 mb-4">
+              <p className="text-sm font-medium text-caution-text">
                 Esta contraseña se muestra una sola vez. Cópiala antes de cerrar.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="flex-1 font-mono bg-surface text-content-inv rounded-md px-3 py-2 text-sm break-all select-all">
+              <span className="flex-1 font-mono bg-surface-subtle text-content rounded-md px-3 py-2 text-sm break-all select-all">
                 {createdUser.temporaryPassword}
               </span>
               <Button type="button" variant="outline" size="sm" onClick={handleCopy}>

@@ -86,7 +86,7 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs text-content-subtle font-medium">
+        <p className="text-xs text-content-2 font-medium">
           {users.length} {users.length === 1 ? 'usuario' : 'usuarios'}
         </p>
         <Button variant="primary" size="sm" onClick={onAddNew}>
@@ -97,29 +97,29 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
 
       {users.length === 0 ? (
         <div className="py-16 text-center">
-          <p className="text-sm text-content-subtle">No hay usuarios registrados.</p>
+          <p className="text-sm text-content-2">No hay usuarios registrados.</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-edge">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-subtle border-b border-edge">
-                <th className="text-left px-4 py-3 font-semibold text-content-subtle text-xs uppercase tracking-wide">
+                <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
                   Nombre
                 </th>
-                <th className="text-left px-4 py-3 font-semibold text-content-subtle text-xs uppercase tracking-wide">
+                <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
                   Email
                 </th>
-                <th className="text-left px-4 py-3 font-semibold text-content-subtle text-xs uppercase tracking-wide">
+                <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
                   Teléfono
                 </th>
-                <th className="text-left px-4 py-3 font-semibold text-content-subtle text-xs uppercase tracking-wide">
+                <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
                   País
                 </th>
-                <th className="text-left px-4 py-3 font-semibold text-content-subtle text-xs uppercase tracking-wide">
+                <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
                   Rol
                 </th>
-                <th className="text-right px-4 py-3 font-semibold text-content-subtle text-xs uppercase tracking-wide">
+                <th className="text-right px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
                   Acciones
                 </th>
               </tr>
@@ -128,11 +128,11 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
               {users.map((user) => (
                 <tr key={user.uid} className="hover:bg-surface-raised/50 transition-colors">
                   <td className="px-4 py-3 font-medium text-content">{user.name}</td>
-                  <td className="px-4 py-3 text-content-subtle">{user.email}</td>
-                  <td className="px-4 py-3 text-content-subtle">
+                  <td className="px-4 py-3 text-content-2">{user.email}</td>
+                  <td className="px-4 py-3 text-content-2">
                     {user.dialCode} {user.phone}
                   </td>
-                  <td className="px-4 py-3 text-content-subtle">{user.country}</td>
+                  <td className="px-4 py-3 text-content-2">{user.country}</td>
                   <td className="px-4 py-3">
                     <Badge variant={roleVariant[user.role]}>{roleLabel[user.role]}</Badge>
                   </td>
@@ -140,7 +140,7 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
                     <div className="flex items-center justify-end gap-2">
                       {confirmingUid === user.uid ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-content-subtle">¿Confirmar?</span>
+                          <span className="text-xs text-content-2">¿Confirmar?</span>
                           <Button
                             variant="danger"
                             size="sm"
