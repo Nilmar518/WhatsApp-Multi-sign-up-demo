@@ -55,9 +55,9 @@ function normalizeStatus(raw: string | undefined): string {
 
 function getStatusMeta(raw: string | undefined): { label: string; badgeClass: string } {
   const s = normalizeStatus(raw);
-  if (s.includes('cancel')) return { label: 'Cancelado', badgeClass: 'bg-rose-100 text-rose-700' };
-  if (s.includes('modif'))  return { label: 'Modificado', badgeClass: 'bg-amber-100 text-amber-700' };
-  return { label: 'Activo', badgeClass: 'bg-emerald-100 text-emerald-700' };
+  if (s.includes('cancel')) return { label: 'Cancelado', badgeClass: 'bg-danger-bg text-danger-text' };
+  if (s.includes('modif'))  return { label: 'Modificado', badgeClass: 'bg-caution-bg text-caution-text' };
+  return { label: 'Activo', badgeClass: 'bg-ok-bg text-ok-text' };
 }
 
 function isCancelled(raw: string | undefined): boolean {
@@ -126,8 +126,8 @@ export default function BookingReservations({ tenantId, propertyId, roomTypes, o
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" />
+      <div className="flex items-center gap-3 rounded-xl border border-edge bg-surface-subtle px-4 py-4 text-sm text-content-2">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-notice-text" />
         {propertyId ? 'Loading reservations…' : 'Waiting for property…'}
       </div>
     );
@@ -136,7 +136,7 @@ export default function BookingReservations({ tenantId, propertyId, roomTypes, o
   // ── Error ────────────────────────────────────────────────────────────────
   if (error) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div className="rounded-xl border border-danger-bg bg-danger-bg px-4 py-3 text-sm text-danger-text">
         {error}
       </div>
     );
@@ -144,30 +144,30 @@ export default function BookingReservations({ tenantId, propertyId, roomTypes, o
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
-        <h2 className="text-xl font-semibold text-slate-900">Booking.com Reservations</h2>
-        <p className="mt-1 text-sm text-slate-600">
+    <div className="overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
+      <div className="border-b border-edge bg-surface-subtle px-6 py-5">
+        <h2 className="text-xl font-semibold text-content">Booking.com Reservations</h2>
+        <p className="mt-1 text-sm text-content-2">
           Live reservation feed — updates instantly when webhooks are received.
         </p>
       </div>
 
       {reservations.length === 0 ? (
         <div className="px-6 py-12 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
-            <svg className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-notice-bg">
+            <svg className="h-6 w-6 text-notice-text" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 9v7.5" />
             </svg>
           </div>
-          <p className="text-sm font-medium text-slate-500">No reservations yet</p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="text-sm font-medium text-content-2">No reservations yet</p>
+          <p className="mt-1 text-xs text-content-3">
             Booking.com reservations will appear here when webhooks are received.
           </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <table className="min-w-full divide-y divide-edge text-left text-sm">
+            <thead className="bg-surface-subtle text-xs uppercase tracking-[0.16em] text-content-2">
               <tr>
                 <th className="px-4 py-3">Reservation</th>
                 <th className="px-4 py-3">Guest</th>
@@ -178,14 +178,14 @@ export default function BookingReservations({ tenantId, propertyId, roomTypes, o
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-edge bg-surface-raised">
               {reservations.map((r) => {
                 const cancelled = isCancelled(r.booking_status);
                 const { label, badgeClass } = getStatusMeta(r.booking_status);
-                const dimClass = cancelled ? 'text-slate-400 line-through' : 'text-slate-700';
+                const dimClass = cancelled ? 'text-content-3 line-through' : 'text-content';
 
                 return (
-                  <tr key={r.id} className={cancelled ? 'bg-rose-50/40' : ''}>
+                  <tr key={r.id} className={cancelled ? 'bg-danger-bg/10' : ''}>
                     <td className={`px-4 py-4 font-mono text-xs ${dimClass}`}>
                       {getDisplayId(r)}
                     </td>
@@ -197,7 +197,7 @@ export default function BookingReservations({ tenantId, propertyId, roomTypes, o
                     <td className={`px-4 py-4 ${dimClass}`}>
                       {roomTitle(r.room_type_id)}
                     </td>
-                    <td className={`px-4 py-4 font-medium ${cancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                    <td className={`px-4 py-4 font-medium ${cancelled ? 'text-content-3 line-through' : 'text-content'}`}>
                       {formatMoney(r.gross_amount, r.currency)}
                     </td>
                     <td className="px-4 py-4">
@@ -205,7 +205,7 @@ export default function BookingReservations({ tenantId, propertyId, roomTypes, o
                         <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
                           {label}
                         </span>
-                        <span className="text-[11px] text-slate-500">{r.booking_status}</span>
+                        <span className="text-[11px] text-content-2">{r.booking_status}</span>
                       </div>
                     </td>
                   </tr>

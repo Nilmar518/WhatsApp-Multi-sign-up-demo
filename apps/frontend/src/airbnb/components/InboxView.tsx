@@ -464,9 +464,9 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
 
   if (!integrationDocId || !activeProperty) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
-        <p className="text-sm font-medium text-slate-500">Select a listing to view its inbox</p>
-        <p className="text-xs text-slate-400">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-edge bg-surface-subtle px-6 py-10 text-center">
+        <p className="text-sm font-medium text-content-2">Select a listing to view its inbox</p>
+        <p className="text-xs text-content-3">
           Choose a synced Airbnb listing from the sidebar to load guest messages.
         </p>
       </div>
@@ -475,24 +475,24 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
 
   if (loadingThreads) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-rose-500" />
+      <div className="flex items-center gap-3 rounded-xl border border-edge bg-surface-subtle px-4 py-4 text-sm text-content-2">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-rose-500" />
         Loading inbox…
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
 
       {/* ── Error banner ────────────────────────────────────────────────────── */}
       {error && (
-        <div className="flex items-center justify-between gap-3 border-b border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">
+        <div className="flex items-center justify-between gap-3 border-b border-danger-text/20 bg-danger-bg px-4 py-2 text-xs text-danger-text">
           <span>{error}</span>
           <button
             type="button"
             onClick={() => setError(null)}
-            className="shrink-0 font-semibold hover:text-red-900"
+            className="shrink-0 font-semibold hover:text-danger-text"
           >
             Dismiss
           </button>
@@ -500,9 +500,9 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
       )}
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
-        <h2 className="text-xl font-semibold text-slate-900">Guest Inbox</h2>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="border-b border-edge bg-surface-subtle px-6 py-5">
+        <h2 className="text-xl font-semibold text-content">Guest Inbox</h2>
+        <p className="mt-1 text-sm text-content-2">
           Airbnb messages and pre-booking inquiries, delivered via Channex.
         </p>
       </div>
@@ -511,21 +511,21 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
       <div className="flex" style={{ height: '520px' }}>
 
         {/* ── Left pane: thread list ────────────────────────────────────────── */}
-        <aside className="w-72 shrink-0 overflow-y-auto border-r border-slate-100">
+        <aside className="w-72 shrink-0 overflow-y-auto border-r border-edge">
           {threads.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full px-6 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                <svg className="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-subtle">
+                <svg className="h-6 w-6 text-content-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
                 </svg>
               </div>
-              <p className="text-sm font-medium text-slate-500">No messages yet</p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="text-sm font-medium text-content-2">No messages yet</p>
+              <p className="mt-1 text-xs text-content-3">
                 Guest inquiries will appear here once Airbnb delivers them.
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-edge">
               {threads.map((thread) => {
                 const isActive = thread.id === activeThreadId;
                 return (
@@ -535,20 +535,20 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
                       onClick={() => setActiveThreadId(thread.id)}
                       className={[
                         'w-full text-left px-4 py-4 transition-colors',
-                        isActive ? 'bg-rose-50' : 'hover:bg-slate-50',
+                        isActive ? 'bg-rose-50' : 'hover:bg-surface-subtle',
                       ].join(' ')}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className={['truncate text-sm font-semibold', isActive ? 'text-rose-700' : 'text-slate-800'].join(' ')}>
+                        <span className={['truncate text-sm font-semibold', isActive ? 'text-rose-700' : 'text-content'].join(' ')}>
                           {thread.guestName}
                         </span>
-                        <span className="shrink-0 text-[11px] text-slate-400">
+                        <span className="shrink-0 text-[11px] text-content-3">
                           {formatThreadTime(thread.updatedAt)}
                         </span>
                       </div>
-                      <p className="mt-1 truncate text-xs text-slate-500">{thread.lastMessage}</p>
+                      <p className="mt-1 truncate text-xs text-content-2">{thread.lastMessage}</p>
                       {thread.bookingId === null && (
-                        <span className="mt-2 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                        <span className="mt-2 inline-flex items-center rounded-full bg-caution-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-caution-text">
                           Inquiry
                         </span>
                       )}
@@ -565,14 +565,14 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
 
           {/* Thread header */}
           {activeThread ? (
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-3.5">
+            <div className="flex items-center justify-between gap-3 border-b border-edge bg-surface-raised px-5 py-3.5">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-100 text-sm font-bold text-rose-600">
                   {activeThread.guestName.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-800">{activeThread.guestName}</p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="truncate text-sm font-semibold text-content">{activeThread.guestName}</p>
+                  <p className="text-[11px] text-content-3">
                     {activeThread.bookingId ? `Booking · ${activeThread.bookingId}` : 'Pre-booking inquiry'}
                   </p>
                 </div>
@@ -582,34 +582,34 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowInfoModal(true)}
-                  className="inline-flex shrink-0 items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex shrink-0 items-center rounded-lg border border-edge bg-surface-raised px-3 py-1.5 text-xs font-semibold text-content transition hover:bg-surface-subtle"
                 >
                   Informacion
                 </button>
               )}
             </div>
           ) : (
-            <div className="border-b border-slate-100 bg-white px-5 py-3.5">
-              <p className="text-sm text-slate-400">Select a conversation from the left</p>
+            <div className="border-b border-edge bg-surface-raised px-5 py-3.5">
+              <p className="text-sm text-content-3">Select a conversation from the left</p>
             </div>
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-surface-subtle/50">
             {!activeThreadId && (
               <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-slate-400">Choose a thread to view the conversation.</p>
+                <p className="text-sm text-content-3">Choose a thread to view the conversation.</p>
               </div>
             )}
             {activeThreadId && loadingMessages && (
-              <div className="flex items-center gap-2 text-sm text-slate-400">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-rose-400" />
+              <div className="flex items-center gap-2 text-sm text-content-3">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-rose-400" />
                 Loading messages…
               </div>
             )}
             {activeThreadId && !loadingMessages && messages.length === 0 && (
               <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-slate-400">No messages in this thread yet.</p>
+                <p className="text-sm text-content-3">No messages in this thread yet.</p>
               </div>
             )}
             {messages.map((message) => {
@@ -621,13 +621,13 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
                   <div className={[
                     'max-w-[72%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm',
                     isGuest
-                      ? 'rounded-tl-sm bg-white text-slate-800 ring-1 ring-slate-200'
+                      ? 'rounded-tl-sm bg-surface-raised text-content ring-1 ring-edge'
                       : isFailed
-                        ? 'rounded-tr-sm bg-red-100 text-red-800 ring-1 ring-red-300'
+                        ? 'rounded-tr-sm bg-danger-bg text-danger-text ring-1 ring-danger-text/30'
                         : 'rounded-tr-sm bg-rose-600 text-white',
                   ].join(' ')}>
                     <p>{message.text}</p>
-                    <p className={['mt-1 flex items-center justify-end gap-1 text-[10px]', isGuest ? 'text-slate-400' : isFailed ? 'text-red-500' : 'text-rose-200'].join(' ')}>
+                    <p className={['mt-1 flex items-center justify-end gap-1 text-[10px]', isGuest ? 'text-content-3' : isFailed ? 'text-danger-text' : 'text-rose-200'].join(' ')}>
                       {isFailed && <span>Failed to send ·</span>}
                       {isSending && <span>Sending…</span>}
                       {!isSending && formatTime(message.createdAt)}
@@ -641,7 +641,7 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
 
           {/* ── Reply input ─────────────────────────────────────────────────── */}
           {activeThreadId && (
-            <div className="border-t border-slate-100 bg-white px-4 py-3">
+            <div className="border-t border-edge bg-surface-raised px-4 py-3">
               <div className="flex items-end gap-2">
                 <textarea
                   ref={textareaRef}
@@ -651,13 +651,13 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
                   onKeyDown={handleKeyDown}
                   placeholder="Reply to guest… (⌘↵ to send)"
                   disabled={sending}
-                  className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-rose-300 focus:bg-white focus:ring-4 focus:ring-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 resize-none rounded-xl border border-edge bg-surface-subtle px-3 py-2.5 text-sm text-content placeholder:text-content-3 outline-none transition focus:border-rose-300 focus:bg-surface-raised focus:ring-4 focus:ring-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <button
                   type="button"
                   disabled={!replyText.trim() || sending}
                   onClick={() => void handleSend()}
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-content-3"
                   aria-label="Send reply"
                 >
                   {sending ? (
@@ -676,28 +676,28 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
 
       {showInfoModal && activeThread && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-content/45 px-4"
           onClick={() => setShowInfoModal(false)}
           role="presentation"
         >
           <div
-            className="w-full max-w-xl rounded-2xl bg-white shadow-2xl"
+            className="w-full max-w-xl rounded-2xl bg-surface-raised shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-label="Inquiry information"
           >
-            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4">
+            <div className="flex items-start justify-between border-b border-edge px-6 py-4">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Informacion de la consulta</h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <h3 className="text-lg font-semibold text-content">Informacion de la consulta</h3>
+                <p className="mt-1 text-sm text-content-2">
                   Contexto previo para responder a {activeThread.guestName}.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowInfoModal(false)}
-                className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-md p-1 text-content-3 transition hover:bg-surface-subtle hover:text-content"
                 aria-label="Close inquiry information"
               >
                 <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -712,32 +712,32 @@ export default function InboxView({ integrationDocId, activeProperty }: Props) {
 
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 px-6 py-5 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Listing</p>
-                <p className="mt-1 text-sm font-medium text-slate-800">{listingName}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-content-3">Listing</p>
+                <p className="mt-1 text-sm font-medium text-content">{listingName}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Huesped</p>
-                <p className="mt-1 text-sm font-medium text-slate-800">{activeThread.guestName}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-content-3">Huesped</p>
+                <p className="mt-1 text-sm font-medium text-content">{activeThread.guestName}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Check-in</p>
-                <p className="mt-1 text-sm text-slate-700">{toDateLabel(checkinDate)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-content-3">Check-in</p>
+                <p className="mt-1 text-sm text-content">{toDateLabel(checkinDate)}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Check-out</p>
-                <p className="mt-1 text-sm text-slate-700">{toDateLabel(checkoutDate)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-content-3">Check-out</p>
+                <p className="mt-1 text-sm text-content">{toDateLabel(checkoutDate)}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Noches</p>
-                <p className="mt-1 text-sm text-slate-700">{resolvedNights ?? 'N/A'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-content-3">Noches</p>
+                <p className="mt-1 text-sm text-content">{resolvedNights ?? 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Huespedes</p>
-                <p className="mt-1 text-sm text-slate-700">{guestsLabel}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-content-3">Huespedes</p>
+                <p className="mt-1 text-sm text-content">{guestsLabel}</p>
               </div>
               <div className="sm:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Payout estimado</p>
-                <p className="mt-1 text-sm text-slate-700">{payoutLabel}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-content-3">Payout estimado</p>
+                <p className="mt-1 text-sm text-content">{payoutLabel}</p>
               </div>
             </div>
           </div>

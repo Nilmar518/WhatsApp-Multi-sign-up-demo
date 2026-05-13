@@ -59,9 +59,9 @@ function AccordionHeader({ label, icon, count, isOpen, onToggle }: AccordionHead
   return (
     <button
       onClick={onToggle}
-      className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors"
+      className="w-full flex items-center justify-between px-3 py-2 hover:bg-surface-subtle transition-colors"
     >
-      <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+      <span className="flex items-center gap-1.5 text-xs font-semibold text-content-2 uppercase tracking-wide">
         <span>{icon}</span>
         <span>{label}</span>
         {count > 0 && (
@@ -70,7 +70,7 @@ function AccordionHeader({ label, icon, count, isOpen, onToggle }: AccordionHead
           </span>
         )}
       </span>
-      <span className={`text-gray-400 text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+      <span className={`text-content-3 text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`}>
         ▾
       </span>
     </button>
@@ -90,17 +90,17 @@ function ContactRow({ igsid, preview, timestamp, isActive, typeIcon, onClick }: 
     <button
       onClick={onClick}
       className={[
-        'w-full text-left px-3 py-2.5 border-l-2 transition-colors hover:bg-gray-50',
+        'w-full text-left px-3 py-2.5 border-l-2 transition-colors hover:bg-surface-subtle',
         isActive ? 'border-pink-500 bg-pink-50' : 'border-transparent',
       ].join(' ')}
     >
       <div className="flex items-center justify-between gap-1">
-        <span className="text-sm font-medium text-gray-800 truncate">
+        <span className="text-sm font-medium text-content truncate">
           {typeIcon} {shortId(igsid)}
         </span>
-        <span className="text-[10px] text-gray-400 shrink-0">{formatTime(timestamp)}</span>
+        <span className="text-[10px] text-content-3 shrink-0">{formatTime(timestamp)}</span>
       </div>
-      <p className="text-xs text-gray-400 truncate mt-0.5">{preview || '—'}</p>
+      <p className="text-xs text-content-3 truncate mt-0.5">{preview || '—'}</p>
     </button>
   );
 }
@@ -119,18 +119,18 @@ function CommentRow({ commentId: _commentId, igsid, text, mediaId, timestamp, is
     <button
       onClick={onClick}
       className={[
-        'w-full text-left px-3 py-2.5 border-l-2 transition-colors hover:bg-gray-50',
+        'w-full text-left px-3 py-2.5 border-l-2 transition-colors hover:bg-surface-subtle',
         isActive ? 'border-orange-400 bg-orange-50' : 'border-transparent',
       ].join(' ')}
     >
       <div className="flex items-center justify-between gap-1">
-        <span className="text-sm font-medium text-gray-800 truncate">
+        <span className="text-sm font-medium text-content truncate">
           💬 {shortId(igsid)}
         </span>
-        <span className="text-[10px] text-gray-400 shrink-0">{formatDate(timestamp)}</span>
+        <span className="text-[10px] text-content-3 shrink-0">{formatDate(timestamp)}</span>
       </div>
-      <p className="text-xs text-gray-500 truncate mt-0.5">{text || '—'}</p>
-      <p className="text-[10px] text-gray-300 truncate mt-0.5">Post: {mediaId || 'unknown'}</p>
+      <p className="text-xs text-content-2 truncate mt-0.5">{text || '—'}</p>
+      <p className="text-[10px] text-content-3 truncate mt-0.5">Post: {mediaId || 'unknown'}</p>
     </button>
   );
 }
@@ -208,15 +208,15 @@ function ChatThread({ igsid, type, messages, integrationId }: ChatThreadProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Thread header */}
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-        <span className="text-sm font-semibold text-gray-800">{headerLabel}</span>
-        <span className="text-xs text-gray-400">{shortId(igsid)}</span>
+      <div className="px-4 py-3 border-b border-edge flex items-center gap-2">
+        <span className="text-sm font-semibold text-content">{headerLabel}</span>
+        <span className="text-xs text-content-3">{shortId(igsid)}</span>
       </div>
 
       {/* Messages */}
       <div ref={feedRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {thread.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-6">No messages yet.</p>
+          <p className="text-xs text-content-3 text-center py-6">No messages yet.</p>
         ) : (
           thread.map((msg) => (
             <div
@@ -228,14 +228,14 @@ function ChatThread({ igsid, type, messages, integrationId }: ChatThreadProps) {
                   'max-w-[75%] px-3 py-2 rounded-2xl text-sm',
                   msg.direction === 'outbound'
                     ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-br-sm'
-                    : 'bg-gray-100 text-gray-800 rounded-bl-sm',
+                    : 'bg-surface-subtle text-content rounded-bl-sm',
                 ].join(' ')}
               >
                 <p className="leading-snug">{msg.text || <em className="opacity-60">[media]</em>}</p>
                 <p
                   className={[
                     'text-[10px] mt-1',
-                    msg.direction === 'outbound' ? 'text-white/60 text-right' : 'text-gray-400',
+                    msg.direction === 'outbound' ? 'text-white/60 text-right' : 'text-content-3',
                   ].join(' ')}
                 >
                   {formatTime(msg.timestamp)}
@@ -247,7 +247,7 @@ function ChatThread({ igsid, type, messages, integrationId }: ChatThreadProps) {
       </div>
 
       {/* Composer */}
-      <div className="px-4 py-3 border-t border-gray-100 space-y-2">
+      <div className="px-4 py-3 border-t border-edge space-y-2">
         <div className="flex gap-2">
           <input
             type="text"
@@ -261,7 +261,7 @@ function ChatThread({ igsid, type, messages, integrationId }: ChatThreadProps) {
             }}
             placeholder="Type a reply…"
             disabled={isSending}
-            className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 disabled:opacity-50 disabled:bg-gray-50"
+            className="flex-1 text-sm border border-edge rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 disabled:opacity-50 disabled:bg-surface-subtle"
           />
           <button
             onClick={() => void handleSend()}
@@ -272,7 +272,7 @@ function ChatThread({ igsid, type, messages, integrationId }: ChatThreadProps) {
           </button>
         </div>
         {sendError && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+          <p className="text-xs text-danger-text bg-danger-bg border border-danger/40 rounded-lg px-3 py-1.5">
             {sendError}
           </p>
         )}
@@ -361,9 +361,9 @@ function CommentDetail({ selection, integrationId }: CommentDetailProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-        <span className="text-sm font-semibold text-gray-800">💬 Comment</span>
-        <span className="text-xs text-gray-400">{shortId(selection.igsid)}</span>
+      <div className="px-4 py-3 border-b border-edge flex items-center gap-2">
+        <span className="text-sm font-semibold text-content">💬 Comment</span>
+        <span className="text-xs text-content-3">{shortId(selection.igsid)}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -381,18 +381,18 @@ function CommentDetail({ selection, integrationId }: CommentDetailProps) {
         </div>
 
         {/* Comment text */}
-        <div className="bg-gray-50 rounded-xl px-4 py-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+        <div className="bg-surface-subtle rounded-xl px-4 py-3">
+          <p className="text-xs font-semibold text-content-2 uppercase tracking-wide mb-1">
             Comment text
           </p>
-          <p className="text-sm text-gray-800 leading-relaxed">
-            {selection.commentText || <em className="text-gray-400">No text</em>}
+          <p className="text-sm text-content leading-relaxed">
+            {selection.commentText || <em className="text-content-3">No text</em>}
           </p>
         </div>
 
         {/* Reply composer */}
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          <p className="text-xs font-semibold text-content-2 uppercase tracking-wide">
             Reply
           </p>
           <textarea
@@ -401,7 +401,7 @@ function CommentDetail({ selection, integrationId }: CommentDetailProps) {
             disabled={isSending}
             rows={3}
             placeholder="Type your reply…"
-            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-pink-300 disabled:opacity-50 disabled:bg-gray-50"
+            className="w-full text-sm border border-edge rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-pink-300 disabled:opacity-50 disabled:bg-surface-subtle"
           />
         </div>
 
@@ -411,8 +411,8 @@ function CommentDetail({ selection, integrationId }: CommentDetailProps) {
             className={[
               'rounded-xl px-3 py-2.5 text-xs leading-relaxed',
               feedback.kind === 'success'
-                ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                : 'bg-red-50 border border-red-200 text-red-700',
+                ? 'bg-ok-bg border border-ok/40 text-ok-text'
+                : 'bg-danger-bg border border-danger/40 text-danger-text',
             ].join(' ')}
           >
             {feedback.message}
@@ -421,22 +421,22 @@ function CommentDetail({ selection, integrationId }: CommentDetailProps) {
 
         {/* Action buttons */}
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          <p className="text-xs font-semibold text-content-2 uppercase tracking-wide">
             Send as
           </p>
 
           <button
             onClick={() => sendReply('PUBLIC')}
             disabled={isSending || !replyText.trim()}
-            className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-between px-4 py-3 bg-surface-raised border border-edge rounded-xl hover:bg-surface-subtle hover:border-edge transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="text-left">
-              <p className="text-sm font-semibold text-gray-800">Public Reply</p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-sm font-semibold text-content">Public Reply</p>
+              <p className="text-xs text-content-2 mt-0.5">
                 Visible under the post — replies publicly to this comment
               </p>
             </div>
-            <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
+            <span className="text-content-3 group-hover:text-content-2 transition-colors">
               {isSending ? '…' : '→'}
             </span>
           </button>
@@ -488,8 +488,8 @@ function EmptyState() {
       <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center text-3xl">
         📸
       </div>
-      <p className="text-sm font-medium text-gray-700">Select a conversation</p>
-      <p className="text-xs text-gray-400 max-w-xs leading-relaxed">
+      <p className="text-sm font-medium text-content-2">Select a conversation</p>
+      <p className="text-xs text-content-3 max-w-xs leading-relaxed">
         Choose a Direct Message, Story Mention, or Comment from the left sidebar to view the
         conversation and take action.
       </p>
@@ -567,13 +567,13 @@ export default function InstagramInbox({ igMessages, igIntegrationId }: Props) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex border border-gray-200 rounded-xl overflow-hidden h-[600px]">
+    <div className="flex border border-edge rounded-xl overflow-hidden h-[600px]">
 
       {/* ── Left Sidebar: Accordion ──────────────────────────────────────── */}
-      <div className="w-60 shrink-0 border-r border-gray-100 flex flex-col overflow-hidden">
+      <div className="w-60 shrink-0 border-r border-edge flex flex-col overflow-hidden">
 
         {/* ── Section 1: Conversations (DMs) ───────────────────────────── */}
-        <div className="border-b border-gray-100">
+        <div className="border-b border-edge">
           <AccordionHeader
             label="Conversations"
             icon="💬"
@@ -584,7 +584,7 @@ export default function InstagramInbox({ igMessages, igIntegrationId }: Props) {
           {openSection === 'conversations' && (
             <div className="overflow-y-auto max-h-[160px]">
               {dmContacts.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center px-3 py-4 leading-relaxed">
+                <p className="text-xs text-content-3 text-center px-3 py-4 leading-relaxed">
                   No DMs yet.
                 </p>
               ) : (
@@ -605,7 +605,7 @@ export default function InstagramInbox({ igMessages, igIntegrationId }: Props) {
         </div>
 
         {/* ── Section 2: Mentions (Story Mentions) ─────────────────────── */}
-        <div className="border-b border-gray-100">
+        <div className="border-b border-edge">
           <AccordionHeader
             label="Mentions"
             icon="📸"
@@ -616,7 +616,7 @@ export default function InstagramInbox({ igMessages, igIntegrationId }: Props) {
           {openSection === 'mentions' && (
             <div className="overflow-y-auto max-h-[160px]">
               {mentionContacts.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center px-3 py-4 leading-relaxed">
+                <p className="text-xs text-content-3 text-center px-3 py-4 leading-relaxed">
                   No Story Mentions yet.
                 </p>
               ) : (
@@ -648,7 +648,7 @@ export default function InstagramInbox({ igMessages, igIntegrationId }: Props) {
           {openSection === 'comments' && (
             <div className="flex-1 overflow-y-auto">
               {commentItems.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center px-3 py-4 leading-relaxed">
+                <p className="text-xs text-content-3 text-center px-3 py-4 leading-relaxed">
                   No comments yet.
                   <br />
                   Subscribe to Posts/Reels to receive them.

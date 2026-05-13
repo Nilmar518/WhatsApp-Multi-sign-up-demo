@@ -95,7 +95,7 @@ function getStatusDisplay(status: string): {
 
   return {
     label: 'Activo',
-    badgeClass: 'bg-emerald-100 text-emerald-700',
+    badgeClass: 'bg-ok-bg text-ok-text',
   };
 }
 
@@ -150,7 +150,7 @@ export default function DetailedReservationsView({ integrationDocId, activePrope
 
   if (!integrationDocId || !activeProperty) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
+      <div className="rounded-2xl border border-dashed border-edge bg-surface-subtle px-6 py-10 text-center text-sm text-content-2">
         Select a listing to view reservations.
       </div>
     );
@@ -158,8 +158,8 @@ export default function DetailedReservationsView({ integrationDocId, activePrope
 
   if (loading) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-rose-500" />
+      <div className="flex items-center gap-3 rounded-xl border border-edge bg-surface-subtle px-4 py-4 text-sm text-content-2">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-rose-500" />
         Loading reservations...
       </div>
     );
@@ -167,7 +167,7 @@ export default function DetailedReservationsView({ integrationDocId, activePrope
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div className="rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
         {error}
       </div>
     );
@@ -175,24 +175,24 @@ export default function DetailedReservationsView({ integrationDocId, activePrope
 
   if (bookings.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
+      <div className="rounded-2xl border border-dashed border-edge bg-surface-subtle px-6 py-10 text-center text-sm text-content-2">
         No reservations found for this listing.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
-        <h2 className="text-xl font-semibold text-slate-900">Reservations Detail</h2>
-        <p className="mt-1 text-sm text-slate-600">
+    <div className="overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
+      <div className="border-b border-edge bg-surface-subtle px-6 py-5">
+        <h2 className="text-xl font-semibold text-content">Reservations Detail</h2>
+        <p className="mt-1 text-sm text-content-2">
           Full booking data for {activeProperty.title}.
         </p>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <table className="min-w-full divide-y divide-edge text-left text-sm">
+          <thead className="bg-surface-subtle text-xs uppercase tracking-[0.16em] text-content-2">
             <tr>
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">Guest</th>
@@ -202,7 +202,7 @@ export default function DetailedReservationsView({ integrationDocId, activePrope
               <th className="px-4 py-3">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
+          <tbody className="divide-y divide-edge bg-surface-raised">
             {bookings.map((booking) => {
               const id = getReservationId(booking);
               const status = getStatus(booking);
@@ -213,19 +213,19 @@ export default function DetailedReservationsView({ integrationDocId, activePrope
 
               return (
                 <tr key={id} className={cancelled ? 'bg-rose-50/40' : ''}>
-                  <td className={`px-4 py-4 font-mono text-xs ${cancelled ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                  <td className={`px-4 py-4 font-mono text-xs ${cancelled ? 'text-content-3 line-through' : 'text-content'}`}>
                     {id}
                   </td>
-                  <td className={`px-4 py-4 ${cancelled ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                  <td className={`px-4 py-4 ${cancelled ? 'text-content-3 line-through' : 'text-content'}`}>
                     {getGuestName(booking)}
                   </td>
-                  <td className={`px-4 py-4 ${cancelled ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                  <td className={`px-4 py-4 ${cancelled ? 'text-content-3 line-through' : 'text-content'}`}>
                     {getCheckIn(booking)}
                   </td>
-                  <td className={`px-4 py-4 ${cancelled ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                  <td className={`px-4 py-4 ${cancelled ? 'text-content-3 line-through' : 'text-content'}`}>
                     {getCheckOut(booking)}
                   </td>
-                  <td className={`px-4 py-4 font-medium ${cancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                  <td className={`px-4 py-4 font-medium ${cancelled ? 'text-content-3 line-through' : 'text-content'}`}>
                     {amount === null ? 'N/A' : formatMoney(amount, currency)}
                   </td>
                   <td className="px-4 py-4">
@@ -238,7 +238,7 @@ export default function DetailedReservationsView({ integrationDocId, activePrope
                       >
                         {statusDisplay.label}
                       </span>
-                      <span className="text-[11px] text-slate-500">{status}</span>
+                      <span className="text-[11px] text-content-2">{status}</span>
                     </div>
                   </td>
                 </tr>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Button from '../ui/Button';
 
 interface Props {
   businessId: string;
@@ -40,30 +41,23 @@ export default function DisconnectButton({ businessId }: Props) {
   };
 
   return (
-    <div className="border-t border-gray-100 pt-4 space-y-2">
+    <div className="border-t border-edge pt-4 space-y-2">
       <div className="flex justify-center">
-        <button
+        <Button
+          variant="danger"
+          size="sm"
           onClick={() => void handleDisconnect()}
           disabled={isDisconnecting}
-          className="
-            inline-flex items-center gap-2
-            px-4 py-2 rounded-xl text-sm font-medium
-            border border-red-200 text-red-600
-            hover:bg-red-50 hover:border-red-300
-            active:bg-red-100
-            disabled:opacity-40 disabled:cursor-not-allowed
-            transition-colors
-          "
         >
           {isDisconnecting ? (
             <>
-              <span className="w-3 h-3 rounded-full border-2 border-red-300 border-t-red-600 animate-spin" />
+              <span className="w-3 h-3 rounded-full border-2 border-danger/30 border-t-danger-text animate-spin" />
               Desconectando…
             </>
           ) : (
             'Desconectar cuenta de WhatsApp'
           )}
-        </button>
+        </Button>
       </div>
 
       {error && (

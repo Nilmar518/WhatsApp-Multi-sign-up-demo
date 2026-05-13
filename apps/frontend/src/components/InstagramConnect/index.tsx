@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useInstagramConnect } from '../../hooks/useInstagramConnect';
+import Button from '../ui/Button';
 
 interface Props {
   businessId: string;
@@ -59,8 +60,8 @@ export default function InstagramConnect({ businessId }: Props) {
 
       {/* Copy */}
       <div className="space-y-2 max-w-sm">
-        <h2 className="text-xl font-bold text-gray-900">Connect Instagram</h2>
-        <p className="text-sm text-gray-500 leading-relaxed">
+        <h2 className="text-xl font-bold text-content">Connect Instagram</h2>
+        <p className="text-sm text-content-2 leading-relaxed">
           Link an Instagram Professional account (Business or Creator) to receive and
           reply to Direct Messages, automate comment responses, and track Story Mentions.
           No Facebook Page required.
@@ -68,22 +69,22 @@ export default function InstagramConnect({ businessId }: Props) {
       </div>
 
       {/* Scope list */}
-      <ul className="text-left text-xs text-gray-500 space-y-1.5 bg-gray-50 rounded-xl px-5 py-4 w-full max-w-sm">
+      <ul className="text-left text-xs text-content-2 space-y-1.5 bg-surface-subtle rounded-xl px-5 py-4 w-full max-w-sm">
         <li className="flex items-center gap-2">
-          <span className="text-green-500 font-bold">✓</span>
+          <span className="text-ok-text font-bold">✓</span>
           <span>
             <strong>instagram_business_basic</strong> — read your Instagram Business profile
           </span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="text-green-500 font-bold">✓</span>
+          <span className="text-ok-text font-bold">✓</span>
           <span>
             <strong>instagram_business_manage_messages</strong> — send &amp; receive DMs,
             Story Mentions
           </span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="text-green-500 font-bold">✓</span>
+          <span className="text-ok-text font-bold">✓</span>
           <span>
             <strong>instagram_business_manage_comments</strong> — read comments, send
             Private Replies
@@ -94,16 +95,17 @@ export default function InstagramConnect({ businessId }: Props) {
       {/* Error state */}
       {hasError && (
         <div className="w-full max-w-sm space-y-3">
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700 text-left">
+          <div className="bg-danger-bg border border-danger/40 rounded-xl px-4 py-3 text-xs text-danger-text text-left">
             <strong className="font-semibold">Connection failed:</strong>{' '}
             {displayError}
           </div>
-          <button
+          <Button
+            variant="secondary"
+            className="w-full"
             onClick={reset}
-            className="w-full py-2.5 px-6 rounded-xl font-semibold text-sm text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
           >
             Try Again
-          </button>
+          </Button>
         </div>
       )}
 

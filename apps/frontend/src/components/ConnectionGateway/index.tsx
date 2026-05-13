@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { IntegrationStatus } from '../../types/integration';
+import type { TranslationKey } from '../../i18n/es';
 import ConnectButton from '../ConnectButton';
 import ForceMigrationForm from '../ForceMigrationForm';
 import { useWhatsAppConnect } from '../../hooks/useWhatsAppConnect';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface Props {
   businessId: string;
@@ -35,6 +39,7 @@ type ModalView = 'choice' | 'standard' | 'force_migration';
  *   - MIGRATING — migration form must stay open for OTP input
  */
 export default function ConnectionGateway({ businessId, currentStatus, onSetupStepChange }: Props) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<ModalView>('choice');
   const [fromFailedPopup, setFromFailedPopup] = useState(false);
@@ -97,31 +102,25 @@ export default function ConnectionGateway({ businessId, currentStatus, onSetupSt
     currentStatus === 'MIGRATING';
 
   const triggerLabel: Partial<Record<IntegrationStatus, string>> = {
-    IDLE:          'Connect WhatsApp',
-    CONNECTING:    'Connecting...',
-    PENDING_TOKEN: 'Awaiting Token...',
-    MIGRATING:     'Migrating...',
-    ACTIVE:        'Connected',
-    ERROR:         'Retry Connection',
+    IDLE:          t('conn.connectWhatsApp'),
+    CONNECTING:    t('conn.connecting'),
+    PENDING_TOKEN: t('conn.awaitingToken'),
+    MIGRATING:     t('conn.migrating'),
+    ACTIVE:        t('conn.connected'),
+    ERROR:         t('conn.retry'),
   };
 
   return (
     <>
       {/* ── Trigger button ──────────────────────────────────────────────── */}
-      <button
+      <Button
+        variant="primary"
         onClick={open}
         disabled={isDisabled}
-        className={[
-          'w-full py-3 px-6 rounded-xl font-semibold text-white transition-colors',
-          isDisabled
-            ? 'bg-gray-300 cursor-not-allowed'
-            : currentStatus === 'ERROR'
-              ? 'bg-red-500 hover:bg-red-600 active:bg-red-700'
-              : 'bg-green-500 hover:bg-green-600 active:bg-green-700',
-        ].join(' ')}
+        className="w-full"
       >
-        {triggerLabel[currentStatus] ?? 'Connect WhatsApp'}
-      </button>
+        {triggerLabel[currentStatus] ?? t('conn.connectWhatsApp')}
+      </Button>
 
       {/* ── Modal overlay ────────────────────────────────────────────────── */}
       {isOpen && (
@@ -129,10 +128,10 @@ export default function ConnectionGateway({ businessId, currentStatus, onSetupSt
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
           onClick={(e) => { if (e.target === e.currentTarget) close(); }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5 relative">
+          <Card padding={false} className="w-full max-w-md p-6 space-y-5 relative">
             <button
               onClick={close}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors text-xl leading-none"
+              className="absolute top-4 right-4 text-content-3 hover:text-content-2 transition-colors text-xl leading-none"
               aria-label="Close"
             >
               ×
@@ -142,41 +141,39 @@ export default function ConnectionGateway({ businessId, currentStatus, onSetupSt
             {view === 'choice' && (
               <>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Connect WhatsApp</h2>
-                  <p className="text-sm text-gray-500 mt-1">Choose how to register your number.</p>
+                  <h2 className="text-lg font-bold text-content">{t('conn.connectWhatsApp')}</h2>
+                  <p className="text-sm text-content-2 mt-1">{t('conn.chooseMethod')}</p>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-900 leading-relaxed">
-                  <strong className="font-semibold">Heads up:</strong> If your number is currently
-                  active on WhatsApp on a phone, the standard signup will ask you to delete that
-                  account.{' '}
-                  <span className="font-medium">Use Force Migration to skip this step.</span>
+                <div className="bg-caution-bg border border-yellow-200 rounded-xl px-4 py-3 text-xs text-caution-text leading-relaxed">
+                  <strong className="font-semibold">{t('conn.headsUpTitle')}</strong>{' '}
+                  {t('conn.headsUpBody')}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => { setFromFailedPopup(false); setView('standard'); }}
-                    className="flex flex-col gap-2 p-4 rounded-xl border-2 border-gray-200 hover:border-green-400 hover:bg-green-50 transition-colors text-left group"
+                    className="flex flex-col gap-2 p-4 rounded-xl border-2 border-edge hover:border-channel-wa hover:bg-ok-bg transition-colors text-left group"
                   >
                     <span className="text-2xl">📲</span>
-                    <span className="font-semibold text-sm text-gray-800 group-hover:text-green-700">
-                      Standard Connect
+                    <span className="font-semibold text-sm text-content group-hover:text-ok-text">
+                      {t('conn.standard.title')}
                     </span>
-                    <span className="text-xs text-gray-500">
-                      Meta Embedded Signup popup. Works for new or unregistered numbers.
+                    <span className="text-xs text-content-2">
+                      {t('conn.standard.desc')}
                     </span>
                   </button>
 
                   <button
                     onClick={() => { setFromFailedPopup(false); setView('force_migration'); }}
-                    className="flex flex-col gap-2 p-4 rounded-xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50 transition-colors text-left group"
+                    className="flex flex-col gap-2 p-4 rounded-xl border-2 border-edge hover:border-purple-400 hover:bg-purple-50 transition-colors text-left group"
                   >
                     <span className="text-2xl">⚡</span>
-                    <span className="font-semibold text-sm text-gray-800 group-hover:text-purple-700">
+                    <span className="font-semibold text-sm text-content group-hover:text-purple-700">
                       Force Migration
                     </span>
-                    <span className="text-xs text-gray-500">
-                      Enter your number and verify via OTP. No popup required.
+                    <span className="text-xs text-content-2">
+                      {t('conn.force.desc')}
                     </span>
                   </button>
                 </div>
@@ -189,15 +186,14 @@ export default function ConnectionGateway({ businessId, currentStatus, onSetupSt
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setView('choice')}
-                    className="text-gray-400 hover:text-gray-600 transition-colors text-sm"
+                    className="text-content-3 hover:text-content-2 transition-colors text-sm"
                   >
-                    ← Back
+                    {t('conn.back')}
                   </button>
-                  <h2 className="text-base font-bold text-gray-900">Standard Connect</h2>
+                  <h2 className="text-base font-bold text-content">{t('conn.standard.title')}</h2>
                 </div>
-                <p className="text-xs text-gray-500 -mt-2">
-                  Opens the Meta Embedded Signup popup. If it fails or closes unexpectedly,
-                  you'll be guided to Force Migration automatically.
+                <p className="text-xs text-content-2 -mt-2">
+                  {t('conn.standard.sub')}
                 </p>
 
                 {/* Step progress bar — visible once the hook leaves idle  */}
@@ -222,11 +218,11 @@ export default function ConnectionGateway({ businessId, currentStatus, onSetupSt
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setView('choice')}
-                    className="text-gray-400 hover:text-gray-600 transition-colors text-sm"
+                    className="text-content-3 hover:text-content-2 transition-colors text-sm"
                   >
-                    ← Back
+                    {t('conn.back')}
                   </button>
-                  <h2 className="text-base font-bold text-gray-900">Force Migration</h2>
+                  <h2 className="text-base font-bold text-content">Force Migration</h2>
                 </div>
                 <ForceMigrationForm
                   businessId={businessId}
@@ -234,7 +230,7 @@ export default function ConnectionGateway({ businessId, currentStatus, onSetupSt
                 />
               </>
             )}
-          </div>
+          </Card>
         </div>
       )}
     </>
@@ -245,15 +241,16 @@ export default function ConnectionGateway({ businessId, currentStatus, onSetupSt
 
 type SetupStep = ReturnType<typeof useWhatsAppConnect>['step'];
 
-const STEPS: { key: SetupStep; label: string }[] = [
-  { key: 'exchanging_token',    label: 'Verify account'   },
-  { key: 'registering_phone',   label: 'Activate number'  },
-  { key: 'verifying_status',    label: 'Confirm status'   },
-  { key: 'subscribing_webhooks', label: 'Subscribe'       },
-  { key: 'complete',            label: 'Done'             },
+const STEPS: { key: SetupStep; labelKey: TranslationKey }[] = [
+  { key: 'exchanging_token',     labelKey: 'conn.step.verify'    },
+  { key: 'registering_phone',    labelKey: 'conn.step.activate'  },
+  { key: 'verifying_status',     labelKey: 'conn.step.confirm'   },
+  { key: 'subscribing_webhooks', labelKey: 'conn.step.subscribe' },
+  { key: 'complete',             labelKey: 'conn.step.done'      },
 ];
 
 function SetupProgressBar({ step }: { step: SetupStep }) {
+  const { t } = useLanguage();
   const currentIndex = STEPS.findIndex((s) => s.key === step);
 
   return (
@@ -268,26 +265,26 @@ function SetupProgressBar({ step }: { step: SetupStep }) {
               <div
                 className={[
                   'w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold transition-colors',
-                  isDone   ? 'bg-green-500 text-white'
+                  isDone   ? 'bg-brand text-white'
                   : isActive ? 'bg-yellow-400 text-white animate-pulse'
-                  : 'bg-gray-200 text-gray-400',
+                  : 'bg-surface-subtle text-content-3',
                 ].join(' ')}
               >
                 {isDone ? '✓' : i + 1}
               </div>
               <span className={[
                 'text-[9px] leading-none whitespace-nowrap',
-                isDone   ? 'text-green-600 font-medium'
-                : isActive ? 'text-yellow-600 font-medium'
-                : 'text-gray-400',
+                isDone   ? 'text-ok-text font-medium'
+                : isActive ? 'text-caution-text font-medium'
+                : 'text-content-3',
               ].join(' ')}>
-                {s.label}
+                {t(s.labelKey)}
               </span>
             </div>
             {i < STEPS.length - 1 && (
               <div className={[
                 'h-0.5 flex-1 mb-3 transition-colors',
-                isDone ? 'bg-green-400' : 'bg-gray-200',
+                isDone ? 'bg-ok-text' : 'bg-surface-subtle',
               ].join(' ')} />
             )}
           </div>

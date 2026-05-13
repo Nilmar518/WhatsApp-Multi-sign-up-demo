@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { MetaCatalog } from '../api/catalogManagerApi';
 import { createCatalog, deleteCatalog } from '../api/catalogManagerApi';
+import Button from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 
 interface Props {
   businessId: string;
@@ -66,52 +68,54 @@ export default function CatalogList({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-800">
+        <h2 className="text-base font-semibold text-content">
           Product Catalogs
         </h2>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => {
             setShowForm((v) => !v);
             setError(null);
           }}
-          className="text-sm font-medium text-green-600 hover:text-green-700 transition-colors"
+          className="text-ok-text hover:text-ok-text"
         >
           {showForm ? 'Cancel' : '+ New Catalog'}
-        </button>
+        </Button>
       </div>
 
       {/* Create form */}
       {showForm && (
         <form
           onSubmit={(e) => void handleCreate(e)}
-          className="flex gap-2 items-end bg-green-50 border border-green-200 rounded-xl p-3"
+          className="flex gap-2 items-end bg-ok-bg border border-ok-bg rounded-xl p-3"
         >
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+            <label className="block text-xs font-medium text-content-2 mb-1">
               Catalog Name
             </label>
-            <input
+            <Input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. Summer Collection"
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
               autoFocus
             />
           </div>
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
             disabled={submitting || !newName.trim()}
-            className="text-sm font-medium bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-40 transition-colors"
           >
             {submitting ? 'Creating…' : 'Create'}
-          </button>
+          </Button>
         </form>
       )}
 
       {/* Error */}
       {error && (
-        <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <p className="text-xs text-danger-text bg-danger-bg border border-danger-bg rounded-lg px-3 py-2">
           {error}
         </p>
       )}
@@ -122,7 +126,7 @@ export default function CatalogList({
           {[1, 2].map((i) => (
             <div
               key={i}
-              className="h-14 bg-gray-100 animate-pulse rounded-xl"
+              className="h-14 bg-surface-subtle animate-pulse rounded-xl"
             />
           ))}
         </div>
@@ -130,7 +134,7 @@ export default function CatalogList({
 
       {/* Empty state */}
       {!isLoading && catalogs.length === 0 && (
-        <div className="text-center py-10 text-gray-400">
+        <div className="text-center py-10 text-content-3">
           <p className="text-sm">No catalogs found in your Business account.</p>
           <p className="text-xs mt-1">
             Click "+ New Catalog" to create one.
@@ -144,30 +148,32 @@ export default function CatalogList({
           {catalogs.map((catalog) => (
             <li
               key={catalog.id}
-              className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 gap-3"
+              className="flex items-center justify-between bg-surface-subtle border border-edge rounded-xl px-4 py-3 gap-3"
             >
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-800 truncate">
+                <p className="text-sm font-semibold text-content truncate">
                   {catalog.name}
                 </p>
-                <p className="text-xs text-gray-400 font-mono truncate">
+                <p className="text-xs text-content-3 font-mono truncate">
                   {catalog.id}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => onViewProducts(catalog)}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   Products →
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={() => void handleDelete(catalog)}
                   disabled={deletingId === catalog.id}
-                  className="text-xs font-medium text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
                 >
                   {deletingId === catalog.id ? '…' : 'Delete'}
-                </button>
+                </Button>
               </div>
             </li>
           ))}
@@ -177,12 +183,14 @@ export default function CatalogList({
       {/* Refresh */}
       {!isLoading && (
         <div className="flex justify-end">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onRefresh}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-content-3 hover:text-content-2"
           >
             ↻ Refresh
-          </button>
+          </Button>
         </div>
       )}
     </div>

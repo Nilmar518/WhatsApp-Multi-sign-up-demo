@@ -12,6 +12,8 @@ import {
   type ARIMonthSnapshot,
   type DayRatePlanSnapshot,
 } from '../api/channexHubApi';
+import Button from '../../components/ui/Button';
+import { Input, Select } from '../../components/ui/Input';
 
 interface Props {
   propertyId: string;
@@ -330,37 +332,39 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
       {/* Header bar */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-semibold text-slate-900">ARI Calendar</h3>
-          <p className="text-xs text-slate-500">Click a date to preview, click a second date to open the update panel.</p>
+          <h3 className="text-base font-semibold text-content">ARI Calendar</h3>
+          <p className="text-xs text-content-2">Click a date to preview, click a second date to open the update panel.</p>
         </div>
         <div className="flex items-center gap-2">
           <ARIGlossaryButton />
           {tenantId && (
-            <button
+            <Button
               type="button"
               onClick={() => void handleRefreshSnapshot()}
               disabled={refreshingSnapshot || loadingSnapshot}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              variant="secondary"
+              size="sm"
             >
               {refreshingSnapshot ? 'Refreshing…' : '↻ Refresh Calendar'}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
             onClick={() => { setShowSyncModal(true); setSyncResult(null); setSyncError(null); }}
-            className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+            variant="outline"
+            size="sm"
           >
             Full Sync ({syncDays} days)
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Task ID display after save */}
       {lastTaskIds.length > 0 && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-[0.1em]">Task IDs (save for certification form)</p>
+        <div className="rounded-xl border border-ok-bg bg-ok-bg px-4 py-3">
+          <p className="text-xs font-semibold text-ok-text uppercase tracking-[0.1em]">Task IDs (save for certification form)</p>
           {lastTaskIds.map((id) => (
-            <p key={id} className="mt-1 font-mono text-xs text-emerald-800">{id}</p>
+            <p key={id} className="mt-1 font-mono text-xs text-ok-text">{id}</p>
           ))}
         </div>
       )}
@@ -384,25 +388,25 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
         }));
 
         return (
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="rounded-xl border border-edge bg-surface-raised px-4 py-3 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold text-slate-800">{popupDate}</p>
-              <button type="button" onClick={() => setPopupDate(null)} className="text-xs text-slate-400 hover:text-slate-600">✕</button>
+              <p className="text-sm font-semibold text-content">{popupDate}</p>
+              <button type="button" onClick={() => setPopupDate(null)} className="text-xs text-content-3 hover:text-content-2">✕</button>
             </div>
 
             {!hasData ? (
-              <p className="text-xs text-slate-400 italic">
+              <p className="text-xs text-content-3 italic">
                 No hay datos — usa ↻ Refresh Calendar para cargar desde Channex.
               </p>
             ) : (
               <div className="space-y-2">
                 {cards.map(({ rt, availability, plans }) => (
-                  <div key={rt.room_type_id} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                  <div key={rt.room_type_id} className="rounded-lg border border-edge bg-surface-subtle p-2.5">
                     {/* Room type header */}
                     <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-xs font-semibold text-slate-800">{rt.title}</p>
+                      <p className="text-xs font-semibold text-content">{rt.title}</p>
                       {availability !== null && (
-                        <span className={`text-xs font-bold ${availability === 0 ? 'text-orange-600' : 'text-emerald-700'}`}>
+                        <span className={`text-xs font-bold ${availability === 0 ? 'text-caution-text' : 'text-ok-text'}`}>
                           {availability} u
                         </span>
                       )}
@@ -410,32 +414,32 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
 
                     {/* Rate plans */}
                     {plans.map(({ rp, snap }) => (
-                      <div key={rp.rate_plan_id} className="flex items-center justify-between py-0.5 text-xs border-t border-slate-100 mt-1 pt-1">
-                        <span className="text-slate-500 truncate max-w-[40%]">{rp.title}</span>
+                      <div key={rp.rate_plan_id} className="flex items-center justify-between py-0.5 text-xs border-t border-edge mt-1 pt-1">
+                        <span className="text-content-2 truncate max-w-[40%]">{rp.title}</span>
                         <div className="flex items-center gap-1 flex-wrap justify-end">
                           {snap ? (
                             <>
                               {snap.rate && (
-                                <span className="font-semibold text-slate-700">{currency} {snap.rate}</span>
+                                <span className="font-semibold text-content">{currency} {snap.rate}</span>
                               )}
                               {snap.minStayArrival != null && (
-                                <span className="text-slate-400">{snap.minStayArrival}n+</span>
+                                <span className="text-content-3">{snap.minStayArrival}n+</span>
                               )}
                               {snap.maxStay != null && (
-                                <span className="text-slate-400">max {snap.maxStay}n</span>
+                                <span className="text-content-3">max {snap.maxStay}n</span>
                               )}
                               {snap.stopSell && (
-                                <span className="rounded bg-red-100 px-1 py-0.5 text-[10px] font-bold text-red-700">SS</span>
+                                <span className="rounded bg-danger-bg px-1 py-0.5 text-[10px] font-bold text-danger-text">SS</span>
                               )}
                               {snap.closedToArrival && (
-                                <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-bold text-amber-700">CTA</span>
+                                <span className="rounded bg-caution-bg px-1 py-0.5 text-[10px] font-bold text-caution-text">CTA</span>
                               )}
                               {snap.closedToDeparture && (
-                                <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-bold text-amber-700">CTD</span>
+                                <span className="rounded bg-caution-bg px-1 py-0.5 text-[10px] font-bold text-caution-text">CTD</span>
                               )}
                             </>
                           ) : (
-                            <span className="text-slate-300 italic text-[10px]">sin datos</span>
+                            <span className="text-content-3 italic text-[10px]">sin datos</span>
                           )}
                         </div>
                       </div>
@@ -444,7 +448,7 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                 ))}
               </div>
             )}
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-xs text-content-3">
               Haz click en otra fecha para definir un rango.
             </p>
           </div>
@@ -452,26 +456,26 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
       })()}
 
       {loadingRooms ? (
-        <p className="text-sm text-slate-500">Loading room types…</p>
+        <p className="text-sm text-content-2">Loading room types…</p>
       ) : (
         <>
           {/* Month navigation */}
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => setVisibleMonth((m) => new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() - 1, 1)))}
-              className="rounded-lg border px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Prev</button>
-            <span className="min-w-36 text-center text-sm font-semibold text-slate-900">{monthLabel}</span>
+              className="rounded-lg border border-edge px-3 py-1.5 text-sm text-content-2 hover:bg-surface-subtle">Prev</button>
+            <span className="min-w-36 text-center text-sm font-semibold text-content">{monthLabel}</span>
             <button type="button" onClick={() => setVisibleMonth((m) => new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1)))}
-              className="rounded-lg border px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Next</button>
+              className="rounded-lg border border-edge px-3 py-1.5 text-sm text-content-2 hover:bg-surface-subtle">Next</button>
           </div>
 
           {/* Calendar grid */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white select-none" onMouseDown={(e) => e.preventDefault()}>
-            <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+          <div className="overflow-hidden rounded-2xl border border-edge bg-surface-raised select-none" onMouseDown={(e) => e.preventDefault()}>
+            <div className="grid grid-cols-7 border-b border-edge bg-surface-subtle">
               {WEEKDAY_LABELS.map((d) => (
-                <div key={d} className="py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{d}</div>
+                <div key={d} className="py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-content-2">{d}</div>
               ))}
             </div>
-            <div className="divide-y divide-slate-200">
+            <div className="divide-y divide-edge">
               {weeks.map((weekDates) => (
                 <div key={isoDate(weekDates[0])} className="grid grid-cols-7">
                   {weekDates.map((date) => {
@@ -499,9 +503,9 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
 
                     let cellBg = '';
                     if (!sel && inMonth) {
-                      if (isBlocked) cellBg = 'bg-red-50';
-                      else if (isClosed) cellBg = 'bg-orange-50';
-                      else if (totalAvail !== null && totalAvail > 0) cellBg = 'bg-emerald-50/60';
+                      if (isBlocked) cellBg = 'bg-danger-bg';
+                      else if (isClosed) cellBg = 'bg-caution-bg';
+                      else if (totalAvail !== null && totalAvail > 0) cellBg = 'bg-ok-bg/60';
                     }
 
                     return (
@@ -509,28 +513,28 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                         key={ds}
                         onClick={() => handleCellClick(ds)}
                         className={[
-                          'flex flex-col items-start p-1.5 border border-slate-200 cursor-pointer min-h-[56px] transition-colors',
-                          sel ? 'bg-indigo-100 ring-2 ring-inset ring-indigo-500 z-10' : `hover:bg-slate-50 ${cellBg}`,
-                          !inMonth ? 'bg-slate-50/70' : '',
-                          isPopup && !sel ? 'ring-2 ring-inset ring-violet-400 z-10' : '',
+                          'flex flex-col items-start p-1.5 border border-edge cursor-pointer min-h-[56px] transition-colors',
+                          sel ? 'bg-brand-subtle ring-2 ring-inset ring-brand-light z-10' : `hover:bg-surface-subtle ${cellBg}`,
+                          !inMonth ? 'bg-surface-subtle/70' : '',
+                          isPopup && !sel ? 'ring-2 ring-inset ring-brand-light z-10' : '',
                         ].join(' ')}
                         onMouseDown={(e) => e.preventDefault()}
                       >
-                        <span className={`text-sm font-medium ${inMonth ? 'text-slate-700' : 'text-slate-300'}`}>
+                        <span className={`text-sm font-medium ${inMonth ? 'text-content' : 'text-content-3'}`}>
                           {date.getUTCDate()}
                         </span>
                         {inMonth && minRate !== null && (
-                          <span className="text-[10px] font-semibold text-slate-600 leading-tight">
+                          <span className="text-[10px] font-semibold text-content-2 leading-tight">
                             {currency}&nbsp;{minRate.toFixed(2)}
                           </span>
                         )}
                         {inMonth && totalAvail !== null && (
-                          <span className={`text-[10px] leading-tight ${totalAvail === 0 ? 'text-orange-500' : 'text-emerald-600'}`}>
+                          <span className={`text-[10px] leading-tight ${totalAvail === 0 ? 'text-caution-text' : 'text-ok-text'}`}>
                             {totalAvail}u
                           </span>
                         )}
                         {inMonth && isBlocked && (
-                          <span className="text-[9px] font-bold text-red-500 leading-tight">SS</span>
+                          <span className="text-[9px] font-bold text-danger-text leading-tight">SS</span>
                         )}
                       </div>
                     );
@@ -546,120 +550,114 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
       {showPanel && selectedRange && (
         <>
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => { if (!saving) setShowPanel(false); }} />
-          <div className="fixed inset-y-0 right-0 z-50 w-96 border-l border-gray-200 bg-white p-6 shadow-2xl overflow-y-auto">
+          <div className="fixed inset-y-0 right-0 z-50 w-96 border-l border-edge bg-surface-raised p-6 shadow-2xl overflow-y-auto">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Update ARI</h2>
-              <button type="button" onClick={() => { if (!saving) setShowPanel(false); }} className="text-gray-400 hover:text-gray-700 disabled:opacity-50" disabled={saving}>✕</button>
+              <h2 className="text-base font-bold text-content">Update ARI</h2>
+              <button type="button" onClick={() => { if (!saving) setShowPanel(false); }} className="text-content-3 hover:text-content-2 disabled:opacity-50" disabled={saving}>✕</button>
             </div>
 
-            <div className="mb-4 rounded-xl bg-slate-50 px-3 py-2 text-sm">
-              <span className="text-slate-500">Range: </span>
-              <span className="font-semibold text-slate-900">{selectedRange[0]} → {selectedRange[1]}</span>
+            <div className="mb-4 rounded-xl bg-surface-subtle px-3 py-2 text-sm">
+              <span className="text-content-2">Range: </span>
+              <span className="font-semibold text-content">{selectedRange[0]} → {selectedRange[1]}</span>
             </div>
 
             <div className="space-y-4">
               {/* Room Type selector */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Room Type</label>
-                <select
+                <label className="mb-1 block text-xs font-semibold text-content-2">Room Type</label>
+                <Select
                   value={selectedRoomTypeId}
                   onChange={(e) => {
                     setSelectedRoomTypeId(e.target.value);
                     const room = roomTypes.find((rt) => rt.room_type_id === e.target.value);
                     setSelectedRatePlanId(room?.rate_plans[0]?.rate_plan_id ?? '');
                   }}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">— select —</option>
                   {uniqueRooms.map((rt) => (
                     <option key={rt.room_type_id} value={rt.room_type_id}>{rt.title}</option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               {/* Rate Plan selector */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Rate Plan</label>
-                <select
+                <label className="mb-1 block text-xs font-semibold text-content-2">Rate Plan</label>
+                <Select
                   value={selectedRatePlanId}
                   onChange={(e) => setSelectedRatePlanId(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">— select —</option>
                   {ratePlansForRoom.map((rp) => (
                     <option key={rp.rate_plan_id} value={rp.rate_plan_id}>{rp.title}</option>
                   ))}
-                </select>
+                </Select>
               </div>
 
-              <hr className="border-slate-200" />
+              <hr className="border-edge" />
 
               {/* Availability */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">
+                <label className="mb-1 block text-xs font-semibold text-content-2">
                   Availability (units) — leave blank to skip
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   value={availability}
                   onChange={(e) => setAvailability(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="e.g. 7"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              <hr className="border-slate-200" />
+              <hr className="border-edge" />
 
               {/* Rate */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">
+                <label className="mb-1 block text-xs font-semibold text-content-2">
                   Rate ({currency}) — leave blank to skip
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   step="0.01"
                   value={rate}
                   onChange={(e) => setRate(e.target.value)}
                   placeholder="e.g. 333"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               {/* Min Stay */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">
+                <label className="mb-1 block text-xs font-semibold text-content-2">
                   Min Stay (nights) — leave blank to skip
                 </label>
-                <input
+                <Input
                   type="number"
                   min={1}
                   value={minStay}
                   onChange={(e) => setMinStay(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="e.g. 3"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               {/* Max Stay */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">
+                <label className="mb-1 block text-xs font-semibold text-content-2">
                   Max Stay (nights) — leave blank to skip
                 </label>
-                <input
+                <Input
                   type="number"
                   min={1}
                   value={maxStay}
                   onChange={(e) => setMaxStay(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="e.g. 14"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               {/* Restriction checkboxes */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Restrictions</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-content-2">Restrictions</p>
                 {[
                   { id: 'stop_sell', label: 'Stop Sell', value: stopSell, set: setStopSell },
                   { id: 'cta', label: 'Closed to Arrival', value: closedToArrival, set: setClosedToArrival },
@@ -670,9 +668,9 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                       type="checkbox"
                       checked={value}
                       onChange={(e) => set(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="h-4 w-4 rounded border-edge text-brand focus:ring-brand"
                     />
-                    <span className="text-sm text-slate-700">{label}</span>
+                    <span className="text-sm text-content">{label}</span>
                   </label>
                 ))}
               </div>
@@ -680,44 +678,48 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
 
             {/* Batch queue preview */}
             {batchQueue.length > 0 && (
-              <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
-                <p className="text-xs font-semibold text-slate-600 mb-2">Batch queue ({batchQueue.length} updates)</p>
+              <div className="mt-3 rounded-xl bg-surface-subtle border border-edge p-3">
+                <p className="text-xs font-semibold text-content-2 mb-2">Batch queue ({batchQueue.length} updates)</p>
                 {batchQueue.map((entry) => (
-                  <div key={entry.id} className="flex items-center justify-between text-xs text-slate-700 py-0.5">
+                  <div key={entry.id} className="flex items-center justify-between text-xs text-content py-0.5">
                     <span>
                       {entry.dateFrom === entry.dateTo ? entry.dateFrom : `${entry.dateFrom} → ${entry.dateTo}`}
                       {' · '}
                       {uniqueRooms.find((r) => r.room_type_id === entry.roomTypeId)?.title}
                       {entry.ratePlanId ? ` / ${allRatePlans.find((rp) => rp.rate_plan_id === entry.ratePlanId)?.title ?? '—'}` : ''}
                     </span>
-                    <button type="button" onClick={() => setBatchQueue((q) => q.filter((e) => e.id !== entry.id))} className="text-red-400 hover:text-red-600">✕</button>
+                    <button type="button" onClick={() => setBatchQueue((q) => q.filter((e) => e.id !== entry.id))} className="text-danger-text hover:text-danger-text">✕</button>
                   </div>
                 ))}
               </div>
             )}
 
             {saveError && (
-              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{saveError}</div>
+              <div className="mt-4 rounded-xl border border-danger-bg bg-danger-bg px-3 py-2 text-sm text-danger-text">{saveError}</div>
             )}
 
             <div className="mt-4 flex gap-2">
-              <button
+              <Button
                 type="button"
                 onClick={handleAddToBatch}
                 disabled={!selectedRoomTypeId}
-                className="flex-1 rounded-xl border border-indigo-300 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                variant="outline"
+                size="sm"
+                className="flex-1"
               >
                 + Add to Batch
-              </button>
+              </Button>
               {batchQueue.length > 0 && (
-                <button
+                <Button
                   type="button"
                   onClick={() => void handleSaveBatch()}
                   disabled={saving}
-                  className="flex-1 rounded-xl bg-indigo-600 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  variant="primary"
+                  size="sm"
+                  className="flex-1"
                 >
                   {saving ? 'Saving…' : `Save (${batchQueue.length})`}
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -728,13 +730,13 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
       {showSyncModal && (
         <>
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => { if (!syncing) { setShowSyncModal(false); setShowSyncInfo(false); } }} />
-          <div className="fixed inset-x-4 top-[5%] z-50 mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+          <div className="fixed inset-x-4 top-[5%] z-50 mx-auto max-w-lg rounded-2xl border border-edge bg-surface-raised p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
 
             {/* Header */}
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Full Sync</h3>
-                <p className="mt-0.5 text-xs text-slate-400">
+                <h3 className="text-base font-bold text-content">Full Sync</h3>
+                <p className="mt-0.5 text-xs text-content-3">
                   Sends {syncDays} days of ARI to Channex in 2 API calls (availability + restrictions).
                 </p>
               </div>
@@ -742,7 +744,7 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                 type="button"
                 onClick={() => setShowSyncInfo((v) => !v)}
                 title="Field descriptions"
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold transition-colors ${showSyncInfo ? 'border-indigo-300 bg-indigo-50 text-indigo-600' : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600'}`}
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold transition-colors ${showSyncInfo ? 'border-brand-light bg-brand-subtle text-brand' : 'border-edge bg-surface-subtle text-content-2 hover:border-brand-light hover:bg-brand-subtle hover:text-brand'}`}
               >
                 i
               </button>
@@ -750,24 +752,24 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
 
             {/* Info panel */}
             {showSyncInfo && (
-              <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-xs text-slate-700 space-y-2">
-                <p className="font-semibold text-indigo-700 mb-1">Field reference</p>
+              <div className="mt-3 rounded-xl border border-brand-light bg-brand-subtle p-4 text-xs text-content space-y-2">
+                <p className="font-semibold text-brand mb-1">Field reference</p>
                 <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
-                  <span className="font-semibold text-slate-600">Availability</span>
+                  <span className="font-semibold text-content-2">Availability</span>
                   <span>Number of rooms/units available per day for each Room Type.</span>
-                  <span className="font-semibold text-slate-600">Rate</span>
+                  <span className="font-semibold text-content-2">Rate</span>
                   <span>Base nightly price applied to every Rate Plan for all {syncDays} days.</span>
-                  <span className="font-semibold text-slate-600">Min Stay</span>
+                  <span className="font-semibold text-content-2">Min Stay</span>
                   <span>Minimum nights a guest must book (min_stay_arrival). 1 = no restriction.</span>
-                  <span className="font-semibold text-slate-600">Max Stay</span>
+                  <span className="font-semibold text-content-2">Max Stay</span>
                   <span>Maximum nights a guest can book. Required by Channex — cannot be empty or null.</span>
-                  <span className="font-semibold text-slate-600">Stop Sell</span>
+                  <span className="font-semibold text-content-2">Stop Sell</span>
                   <span>Closes all inventory — no new bookings accepted. Usually false for go-live.</span>
-                  <span className="font-semibold text-slate-600">Closed to Arrival</span>
+                  <span className="font-semibold text-content-2">Closed to Arrival</span>
                   <span>Blocks guests from checking in on any synced date (CTA). Usually false.</span>
-                  <span className="font-semibold text-slate-600">Closed to Departure</span>
+                  <span className="font-semibold text-content-2">Closed to Departure</span>
                   <span>Blocks guests from checking out on any synced date (CTD). Usually false.</span>
-                  <span className="font-semibold text-slate-600">Days</span>
+                  <span className="font-semibold text-content-2">Days</span>
                   <span>How many days forward from today to sync. 500 is required for certification.</span>
                 </div>
               </div>
@@ -776,54 +778,49 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
             {/* Numeric fields */}
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Availability</label>
-                <input
+                <label className="mb-1 block text-xs font-semibold text-content-2">Availability</label>
+                <Input
                   type="number" min={0}
                   value={syncAvailability}
                   onChange={(e) => setSyncAvailability(Number(e.target.value))}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Rate ({currency})</label>
-                <input
+                <label className="mb-1 block text-xs font-semibold text-content-2">Rate ({currency})</label>
+                <Input
                   value={syncRate}
                   onChange={(e) => setSyncRate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Min Stay (nights)</label>
-                <input
+                <label className="mb-1 block text-xs font-semibold text-content-2">Min Stay (nights)</label>
+                <Input
                   type="number" min={1}
                   value={syncMinStay}
                   onChange={(e) => setSyncMinStay(Number(e.target.value))}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Max Stay (nights)</label>
-                <input
+                <label className="mb-1 block text-xs font-semibold text-content-2">Max Stay (nights)</label>
+                <Input
                   type="number" min={1}
                   value={syncMaxStay}
                   onChange={(e) => setSyncMaxStay(Number(e.target.value))}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
               <div className="col-span-2">
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Days forward</label>
-                <input
+                <label className="mb-1 block text-xs font-semibold text-content-2">Days forward</label>
+                <Input
                   type="number" min={1}
                   value={syncDays}
                   onChange={(e) => setSyncDays(Number(e.target.value))}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
               </div>
             </div>
 
             {/* Boolean toggles */}
             <div className="mt-4 space-y-2">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Restrictions</p>
+              <p className="text-xs font-semibold text-content-2 uppercase tracking-wide">Restrictions</p>
               {(
                 [
                   { label: 'Stop Sell', desc: 'Close all inventory', value: syncStopSell, set: setSyncStopSell },
@@ -831,17 +828,17 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
                   { label: 'Closed to Departure', desc: 'Block check-out on all dates', value: syncClosedToDeparture, set: setSyncClosedToDeparture },
                 ] as const
               ).map(({ label, desc, value, set }) => (
-                <label key={label} className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 hover:bg-slate-100">
+                <label key={label} className="flex cursor-pointer items-center justify-between rounded-xl border border-edge bg-surface-subtle px-4 py-2.5 hover:bg-surface-raised">
                   <div>
-                    <span className="text-sm font-medium text-slate-700">{label}</span>
-                    <span className="ml-2 text-xs text-slate-400">{desc}</span>
+                    <span className="text-sm font-medium text-content">{label}</span>
+                    <span className="ml-2 text-xs text-content-3">{desc}</span>
                   </div>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={value}
                     onClick={() => (set as (v: boolean) => void)(!value)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${value ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${value ? 'bg-brand' : 'bg-edge'}`}
                   >
                     <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4' : 'translate-x-0'}`} />
                   </button>
@@ -850,26 +847,27 @@ export default function ARICalendarFull({ propertyId, currency, tenantId }: Prop
             </div>
 
             {syncError && (
-              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{syncError}</div>
+              <div className="mt-3 rounded-xl border border-danger-bg bg-danger-bg px-3 py-2 text-sm text-danger-text">{syncError}</div>
             )}
             {syncResult && (
-              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-emerald-700">Task IDs</p>
-                <p className="font-mono text-xs text-emerald-800">Availability: {syncResult.availabilityTaskId || '—'}</p>
-                <p className="font-mono text-xs text-emerald-800">Restrictions: {syncResult.restrictionsTaskId || '—'}</p>
+              <div className="mt-3 rounded-xl border border-ok-bg bg-ok-bg px-4 py-3 space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ok-text">Task IDs</p>
+                <p className="font-mono text-xs text-ok-text">Availability: {syncResult.availabilityTaskId || '—'}</p>
+                <p className="font-mono text-xs text-ok-text">Restrictions: {syncResult.restrictionsTaskId || '—'}</p>
               </div>
             )}
 
             <div className="mt-5 flex justify-end gap-3">
-              <button type="button" onClick={() => { setShowSyncModal(false); setShowSyncInfo(false); }} disabled={syncing} className="text-sm text-slate-500">Cancel</button>
-              <button
+              <Button type="button" onClick={() => { setShowSyncModal(false); setShowSyncInfo(false); }} disabled={syncing} variant="ghost" size="sm">Cancel</Button>
+              <Button
                 type="button"
                 onClick={() => void handleFullSync()}
                 disabled={syncing}
-                className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                variant="primary"
+                size="sm"
               >
                 {syncing ? 'Syncing…' : 'Run Full Sync'}
-              </button>
+              </Button>
             </div>
           </div>
         </>

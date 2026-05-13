@@ -24,13 +24,13 @@ export default function ExistingPropertyCard({ property, onContinue }: Props) {
   const statusLabel = STATUS_LABELS[property.connection_status] ?? property.connection_status;
 
   return (
-    <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
+    <div className="rounded-2xl border border-emerald-100 bg-surface-raised shadow-sm overflow-hidden">
       <div className="border-b border-emerald-50 bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-5">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">
           Step 1
         </p>
-        <h2 className="mt-1 text-xl font-semibold text-slate-900">Property Setup</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="mt-1 text-xl font-semibold text-content">Property Setup</h2>
+        <p className="mt-1 text-sm text-content-2">
           Your business already has a Channex property registered.
         </p>
       </div>
@@ -39,8 +39,8 @@ export default function ExistingPropertyCard({ property, onContinue }: Props) {
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-800">{property.title}</p>
-              <p className="text-xs font-mono text-slate-500 break-all">
+              <p className="text-sm font-semibold text-content">{property.title}</p>
+              <p className="text-xs font-mono text-content-2 break-all">
                 {property.channex_property_id}
               </p>
             </div>
@@ -54,7 +54,7 @@ export default function ExistingPropertyCard({ property, onContinue }: Props) {
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-4 text-xs text-slate-600">
+          <div className="flex flex-wrap gap-4 text-xs text-content-2">
             <span>
               <span className="font-medium">Currency:</span> {property.currency}
             </span>

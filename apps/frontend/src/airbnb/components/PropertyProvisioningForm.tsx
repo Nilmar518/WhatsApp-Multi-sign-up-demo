@@ -93,35 +93,35 @@ export default function PropertyProvisioningForm({ tenantId: tenantIdProp, onPro
   };
 
   return (
-    <div className="rounded-2xl border border-rose-100 bg-white shadow-sm overflow-hidden">
+    <div className="rounded-2xl border border-rose-100 bg-surface-raised shadow-sm overflow-hidden">
       <div className="border-b border-rose-50 bg-gradient-to-r from-rose-50 to-orange-50 px-6 py-5">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-600">Step 1</p>
-        <h2 className="mt-1 text-xl font-semibold text-slate-900">Property Provisioning</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="mt-1 text-xl font-semibold text-content">Property Provisioning</h2>
+        <p className="mt-1 text-sm text-content-2">
           Create the Channex property that will host the Airbnb connection flow.
         </p>
       </div>
 
       <form className="space-y-5 px-6 py-6" onSubmit={handleSubmit}>
         <div className="space-y-2">
-          <label htmlFor="airbnb-title" className="text-sm font-medium text-slate-700">Title</label>
+          <label htmlFor="airbnb-title" className="text-sm font-medium text-content">Title</label>
           <input
             id="airbnb-title"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+            className="w-full rounded-xl border border-edge bg-surface-raised px-4 py-3 text-sm text-content outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
             placeholder="Oceanview Apartment"
           />
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
-            <label htmlFor="airbnb-currency" className="text-sm font-medium text-slate-700">Currency</label>
+            <label htmlFor="airbnb-currency" className="text-sm font-medium text-content">Currency</label>
             <select
               id="airbnb-currency"
               value={currency}
               onChange={(event) => setCurrency(event.target.value as (typeof CURRENCIES)[number])}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+              className="w-full rounded-xl border border-edge bg-surface-raised px-4 py-3 text-sm text-content outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
             >
               {CURRENCIES.map((option) => (
                 <option key={option} value={option}>{option}</option>
@@ -130,12 +130,12 @@ export default function PropertyProvisioningForm({ tenantId: tenantIdProp, onPro
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="airbnb-timezone" className="text-sm font-medium text-slate-700">Timezone</label>
+            <label htmlFor="airbnb-timezone" className="text-sm font-medium text-content">Timezone</label>
             <select
               id="airbnb-timezone"
               value={timezone}
               onChange={(event) => setTimezone(event.target.value as (typeof TIMEZONES)[number])}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+              className="w-full rounded-xl border border-edge bg-surface-raised px-4 py-3 text-sm text-content outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
             >
               {TIMEZONES.map((option) => (
                 <option key={option} value={option}>{option}</option>
@@ -144,12 +144,12 @@ export default function PropertyProvisioningForm({ tenantId: tenantIdProp, onPro
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="airbnb-type" className="text-sm font-medium text-slate-700">Property Type</label>
+            <label htmlFor="airbnb-type" className="text-sm font-medium text-content">Property Type</label>
             <select
               id="airbnb-type"
               value={propertyType}
               onChange={(event) => setPropertyType(event.target.value as (typeof PROPERTY_TYPES)[number])}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+              className="w-full rounded-xl border border-edge bg-surface-raised px-4 py-3 text-sm text-content outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
             >
               {PROPERTY_TYPES.map((option) => (
                 <option key={option} value={option}>{option}</option>
@@ -159,7 +159,7 @@ export default function PropertyProvisioningForm({ tenantId: tenantIdProp, onPro
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
             {error}
           </div>
         )}

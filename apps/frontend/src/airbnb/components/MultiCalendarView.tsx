@@ -455,7 +455,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
 
   if (integrationLoading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+      <div className="rounded-2xl border border-edge bg-surface-raised p-8 text-center text-sm text-content-2">
         Loading rooms and availability…
       </div>
     );
@@ -463,7 +463,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
 
   if (integrationError) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+      <div className="rounded-2xl border border-danger-text/20 bg-danger-bg p-6 text-sm text-danger-text">
         <span className="font-semibold">Error: </span>{integrationError}
       </div>
     );
@@ -471,7 +471,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
 
   if (!rooms.length) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+      <div className="rounded-2xl border border-caution-text/20 bg-caution-bg p-6 text-sm text-caution-text">
         No synced rooms found. Complete the mapping step first.
       </div>
     );
@@ -489,8 +489,8 @@ export default function MultiCalendarView({ propertyId }: Props) {
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Availability &amp; Rates</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="text-lg font-semibold text-content">Availability &amp; Rates</h2>
+          <p className="text-sm text-content-2">
             {selectionStart && !selectionEnd
               ? 'Click a second date to set the end of your selection.'
               : 'Tick rooms in the left column, then click two dates to select a range.'}
@@ -498,19 +498,19 @@ export default function MultiCalendarView({ propertyId }: Props) {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {calendarLoading && (
-            <span className="inline-flex items-center gap-1.5 text-slate-400">
-              <span className="h-3 w-3 rounded-full border-2 border-slate-300 border-t-slate-500 animate-spin" />
+            <span className="inline-flex items-center gap-1.5 text-content-3">
+              <span className="h-3 w-3 rounded-full border-2 border-edge border-t-content-2 animate-spin" />
               Refreshing…
             </span>
           )}
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700 border border-emerald-200">
             <span className="h-2 w-2 rounded-full bg-emerald-500" /> Available
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 border border-slate-200">
-            <span className="h-2 w-2 rounded-full bg-slate-400" /> Blocked
+          <span className="inline-flex items-center gap-1 rounded-full bg-surface-subtle px-2.5 py-1 text-content-2 border border-edge">
+            <span className="h-2 w-2 rounded-full bg-content-3" /> Blocked
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-sky-700 border border-sky-200">
-            <span className="h-2 w-2 rounded-full bg-sky-500" /> Reservation
+          <span className="inline-flex items-center gap-1 rounded-full bg-notice-bg px-2.5 py-1 text-notice-text border border-notice-text/20">
+            <span className="h-2 w-2 rounded-full bg-notice-text" /> Reservation
           </span>
         </div>
       </div>
@@ -518,8 +518,8 @@ export default function MultiCalendarView({ propertyId }: Props) {
       {/* ── Live selection hint ────────────────────────────────────────────── */}
       {selectionStart && !selectionEnd && (
         <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-1.5 text-sm text-orange-700">
-            <span className="h-2 w-2 rounded-full bg-orange-400 animate-pulse" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-caution-text/30 bg-caution-bg px-4 py-1.5 text-sm text-caution-text">
+            <span className="h-2 w-2 rounded-full bg-caution-text animate-pulse" />
             Start: <strong>{fmtDate(selectionStart)}</strong>
             <span className="text-orange-500 text-xs">Click another date to finish the range.</span>
           </div>
@@ -531,17 +531,17 @@ export default function MultiCalendarView({ propertyId }: Props) {
 
         {/* ── Calendar grid ─────────────────────────────────────────────────── */}
         <div
-          className="flex-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm select-none cursor-pointer"
+          className="flex-1 overflow-x-auto rounded-2xl border border-edge bg-surface-raised shadow-sm select-none cursor-pointer"
           onMouseDown={(e) => e.preventDefault()}
         >
           <div style={{ minWidth: calendarWidth }}>
 
             {/* ── Header row ──────────────────────────────────────────────── */}
-            <div className="flex border-b border-slate-200 bg-slate-50" style={{ height: 48 }}>
+            <div className="flex border-b border-edge bg-surface-subtle" style={{ height: 48 }}>
 
               {/* Room column header with select-all checkbox */}
               <div
-                className="flex-shrink-0 sticky left-0 z-20 flex items-center gap-2 bg-slate-50 px-3 border-r border-slate-200"
+                className="flex-shrink-0 sticky left-0 z-20 flex items-center gap-2 bg-surface-subtle px-3 border-r border-edge"
                 style={{ width: ROOM_COL_W }}
               >
                 <input
@@ -557,7 +557,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
                   }
                   className="h-3.5 w-3.5 rounded accent-rose-600 cursor-pointer flex-shrink-0"
                 />
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
+                <span className="text-xs font-semibold uppercase tracking-wider text-content-2 truncate">
                   Rooms
                 </span>
               </div>
@@ -569,18 +569,18 @@ export default function MultiCalendarView({ propertyId }: Props) {
                   <div
                     key={date}
                     className={[
-                      'flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-200 last:border-r-0',
-                      isToday ? 'bg-indigo-50' : '',
+                      'flex-shrink-0 flex flex-col items-center justify-center border-r border-edge last:border-r-0',
+                      isToday ? 'bg-brand-subtle' : '',
                     ].join(' ')}
                     style={{ width: COL_W }}
                   >
-                    <span className={`text-[10px] font-medium ${isToday ? 'text-indigo-600' : 'text-slate-400'}`}>
+                    <span className={`text-[10px] font-medium ${isToday ? 'text-brand' : 'text-content-3'}`}>
                       {fmtWeekday(date)}
                     </span>
-                    <span className={`text-[11px] font-bold leading-tight ${isToday ? 'text-indigo-700' : 'text-slate-700'}`}>
+                    <span className={`text-[11px] font-bold leading-tight ${isToday ? 'text-brand' : 'text-content'}`}>
                       {new Date(`${date}T00:00:00Z`).getUTCDate()}
                     </span>
-                    {isToday && <span className="mt-0.5 h-1 w-1 rounded-full bg-indigo-500" />}
+                    {isToday && <span className="mt-0.5 h-1 w-1 rounded-full bg-brand" />}
                   </div>
                 );
               })}
@@ -594,14 +594,14 @@ export default function MultiCalendarView({ propertyId }: Props) {
               return (
                 <div
                   key={room.roomTypeId}
-                  className="flex border-b border-slate-100 last:border-b-0 relative"
+                  className="flex border-b border-edge last:border-b-0 relative"
                   style={{ height: ROW_H }}
                 >
                   {/* ── Sticky room name cell with checkbox ─────────────── */}
                   <div
                     className={[
-                      'flex-shrink-0 sticky left-0 z-10 flex items-center gap-2.5 border-r border-slate-200 px-3 transition-colors',
-                      isChecked ? 'bg-white' : 'bg-slate-50/80',
+                      'flex-shrink-0 sticky left-0 z-10 flex items-center gap-2.5 border-r border-edge px-3 transition-colors',
+                      isChecked ? 'bg-surface-raised' : 'bg-surface-subtle/80',
                     ].join(' ')}
                     style={{ width: ROOM_COL_W }}
                   >
@@ -613,12 +613,12 @@ export default function MultiCalendarView({ propertyId }: Props) {
                     />
                     <div className="min-w-0">
                       <p
-                        className={`text-xs font-semibold truncate leading-tight ${isChecked ? 'text-slate-900' : 'text-slate-500'}`}
+                        className={`text-xs font-semibold truncate leading-tight ${isChecked ? 'text-content' : 'text-content-2'}`}
                         title={room.title}
                       >
                         {room.title}
                       </p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      <p className="text-[10px] text-content-3 truncate mt-0.5">
                         {room.otaListingId}
                       </p>
                     </div>
@@ -637,12 +637,12 @@ export default function MultiCalendarView({ propertyId }: Props) {
                       <div
                         key={dateString}
                         className={[
-                          'relative flex flex-col p-2 border-r border-b border-slate-200 cursor-pointer select-none transition-colors h-24',
+                          'relative flex flex-col p-2 border-r border-b border-edge cursor-pointer select-none transition-colors h-24',
                           isSelected
-                            ? 'bg-blue-100 border-blue-500 ring-2 ring-inset ring-blue-500 z-10'
-                            : 'bg-white hover:bg-slate-50',
+                            ? 'bg-notice-bg border-notice-text ring-2 ring-inset ring-notice-text z-10'
+                            : 'bg-surface-raised hover:bg-surface-subtle',
                           panel.saving ? 'cursor-not-allowed' : '',
-                          unavail && !isSelected ? 'bg-slate-100' : '',
+                          unavail && !isSelected ? 'bg-surface-subtle' : '',
                           !isChecked ? 'opacity-50' : '',
                         ].join(' ')}
                         style={{ width: COL_W }}
@@ -652,10 +652,10 @@ export default function MultiCalendarView({ propertyId }: Props) {
                         <span
                           className={`h-1.5 w-1.5 rounded-full pointer-events-none ${unavail ? 'bg-slate-300' : 'bg-emerald-400'}`}
                         />
-                        <span className="pointer-events-none font-medium text-sm text-slate-700 leading-none mt-1">
+                        <span className="pointer-events-none font-medium text-sm text-content leading-none mt-1">
                           {dayNumber}
                         </span>
-                        <span className="pointer-events-none mt-1 text-xs text-slate-500">
+                        <span className="pointer-events-none mt-1 text-xs text-content-2">
                           {price ? `USD ${price}` : 'USD —'}
                         </span>
                       </div>
@@ -683,7 +683,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
                       <div
                         key={r.reservation_id}
                         title={`${fmtGuestName(r)} · ${r.check_in} – ${r.check_out}`}
-                        className="absolute flex items-center overflow-hidden rounded-md bg-sky-500 px-2 text-white shadow-sm pointer-events-none select-none"
+                        className="absolute flex items-center overflow-hidden rounded-md bg-notice-text px-2 text-white shadow-sm pointer-events-none select-none"
                         style={{ left: barLeft, width: barWidth, top: 9, height: ROW_H - 18, zIndex: 5 }}
                       >
                         <span className="truncate text-[11px] font-medium">{fmtGuestName(r)}</span>
@@ -698,13 +698,13 @@ export default function MultiCalendarView({ propertyId }: Props) {
 
         {/* ── ARI Control Panel ───────────────────────────────────────────── */}
         {panel.open && (
-          <div className="w-76 flex-shrink-0 rounded-2xl border border-slate-200 bg-white shadow-lg flex flex-col overflow-hidden" style={{ width: 296 }}>
+          <div className="w-76 flex-shrink-0 rounded-2xl border border-edge bg-surface-raised shadow-lg flex flex-col overflow-hidden" style={{ width: 296 }}>
 
             {/* Panel header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-edge">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Edit Availability</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h3 className="text-sm font-semibold text-content">Edit Availability</h3>
+                <p className="text-xs text-content-3 mt-0.5">
                   {panel.selectedRoomIds.size} listing{panel.selectedRoomIds.size !== 1 ? 's' : ''} selected
                 </p>
               </div>
@@ -712,7 +712,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
                 type="button"
                 onClick={closePanel}
                 disabled={panel.saving}
-                className="text-slate-400 hover:text-slate-600 transition-colors rounded-md p-0.5 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="text-content-3 hover:text-content-2 transition-colors rounded-md p-0.5 hover:bg-surface-subtle disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -724,11 +724,11 @@ export default function MultiCalendarView({ propertyId }: Props) {
             <fieldset disabled={panel.saving} className="flex-1 overflow-y-auto px-5 py-4 space-y-5 disabled:opacity-60">
 
               {/* ── Date range summary ──────────────────────────────────── */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-sm font-semibold text-slate-900">
+              <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-3">
+                <p className="text-sm font-semibold text-content">
                   {fmtDateRange(panel.dateFrom, panel.dateTo)}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-content-2 mt-0.5">
                   {nightCount(panel.dateFrom, panel.dateTo)} night
                   {nightCount(panel.dateFrom, panel.dateTo) !== 1 ? 's' : ''}
                   {' '}·{' '}
@@ -738,7 +738,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
 
               {/* ── Availability radio ───────────────────────────────────── */}
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-content-3 mb-2">
                   Availability
                 </p>
                 <div className="space-y-2">
@@ -762,7 +762,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
                       key={value}
                       className={[
                         'flex items-center gap-3 rounded-xl border px-3.5 py-3 cursor-pointer transition-colors',
-                        panel.availability === value ? active : 'border-slate-200 bg-white hover:bg-slate-50',
+                        panel.availability === value ? active : 'border-edge bg-surface-raised hover:bg-surface-subtle',
                       ].join(' ')}
                     >
                       <input
@@ -775,11 +775,11 @@ export default function MultiCalendarView({ propertyId }: Props) {
                       />
                       <span className={`h-3 w-3 rounded-full flex-shrink-0 ${panel.availability === value ? dot : 'bg-slate-200'}`} />
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">{label}</p>
-                        <p className="text-xs text-slate-500">{desc}</p>
+                        <p className="text-sm font-semibold text-content">{label}</p>
+                        <p className="text-xs text-content-2">{desc}</p>
                       </div>
                       {panel.availability === value && (
-                        <svg className="w-4 h-4 text-slate-600 ml-auto flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                        <svg className="w-4 h-4 text-content ml-auto flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
                       )}
@@ -790,11 +790,11 @@ export default function MultiCalendarView({ propertyId }: Props) {
 
               {/* ── Price input (optional) ───────────────────────────────── */}
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Daily price <span className="normal-case font-normal text-slate-400">(optional)</span>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-content-3 mb-2">
+                  Daily price <span className="normal-case font-normal text-content-3">(optional)</span>
                 </p>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-medium select-none">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-content-3 font-medium select-none">
                     $
                   </span>
                   <input
@@ -804,11 +804,11 @@ export default function MultiCalendarView({ propertyId }: Props) {
                     placeholder="Leave blank to keep current"
                     value={panel.price}
                     onChange={(e) => setPanel((p) => ({ ...p, price: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-200 bg-white pl-7 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition"
+                    className="w-full rounded-xl border border-edge bg-surface-raised pl-7 pr-4 py-2.5 text-sm text-content placeholder:text-content-3 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition"
                   />
                 </div>
                 {panel.price && (
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-content-2">
                     Updates nightly rate via the Channex restrictions API.
                   </p>
                 )}
@@ -817,7 +817,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
               {/* ── Room checkboxes ──────────────────────────────────────── */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-content-3">
                     Apply to rooms
                   </p>
                   <div className="flex items-center gap-2">
@@ -828,11 +828,11 @@ export default function MultiCalendarView({ propertyId }: Props) {
                     >
                       All
                     </button>
-                    <span className="text-slate-300">·</span>
+                    <span className="text-content-3">·</span>
                     <button
                       type="button"
                       onClick={() => setPanel((p) => ({ ...p, selectedRoomIds: new Set() }))}
-                      className="text-[11px] text-slate-500 hover:underline"
+                      className="text-[11px] text-content-2 hover:underline"
                     >
                       None
                     </button>
@@ -851,7 +851,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
                         key={room.roomTypeId}
                         className={[
                           'flex items-center gap-2.5 rounded-lg px-3 py-2 cursor-pointer transition-colors',
-                          sel ? 'bg-rose-50' : 'hover:bg-slate-50',
+                          sel ? 'bg-rose-50' : 'hover:bg-surface-subtle',
                         ].join(' ')}
                       >
                         <input
@@ -863,11 +863,11 @@ export default function MultiCalendarView({ propertyId }: Props) {
                         <span
                           className={`h-2 w-2 rounded-full flex-shrink-0 ${unavail ? 'bg-slate-300' : 'bg-emerald-400'}`}
                         />
-                        <span className="flex-1 text-xs font-medium text-slate-800 truncate" title={room.title}>
+                        <span className="flex-1 text-xs font-medium text-content truncate" title={room.title}>
                           {room.title}
                         </span>
                         {price && (
-                          <span className="text-[10px] text-slate-400 flex-shrink-0">${price}</span>
+                          <span className="text-[10px] text-content-3 flex-shrink-0">${price}</span>
                         )}
                       </label>
                     );
@@ -877,7 +877,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
 
               {/* ── Inline error (persistent, complements the toast) ─────── */}
               {panel.error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-xs text-red-700 flex gap-2">
+                <div className="rounded-xl border border-danger-text/20 bg-danger-bg px-3.5 py-3 text-xs text-danger-text flex gap-2">
                   <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                   </svg>
@@ -887,7 +887,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
             </fieldset>
 
             {/* ── Panel footer ────────────────────────────────────────────── */}
-            <div className="px-5 py-4 border-t border-slate-100">
+            <div className="px-5 py-4 border-t border-edge">
               <button
                 type="button"
                 disabled={panel.saving || !panel.selectedRoomIds.size}
@@ -895,7 +895,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
                 className={[
                   'w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors',
                   panel.saving || !panel.selectedRoomIds.size
-                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    ? 'bg-surface-subtle text-content-3 cursor-not-allowed'
                     : 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white',
                 ].join(' ')}
               >
@@ -909,7 +909,7 @@ export default function MultiCalendarView({ propertyId }: Props) {
                 )}
               </button>
               {panel.saving && (
-                <p className="text-center text-[11px] text-slate-400 mt-2">
+                <p className="text-center text-[11px] text-content-3 mt-2">
                   Sending to Channex, please wait…
                 </p>
               )}
@@ -925,8 +925,8 @@ export default function MultiCalendarView({ propertyId }: Props) {
             'fixed bottom-6 right-6 z-50 flex items-start gap-3 rounded-2xl px-5 py-3.5 shadow-xl max-w-sm',
             'animate-[fadeInUp_0.2s_ease-out]',
             toast.ok
-              ? 'bg-emerald-600 text-white'
-              : 'bg-red-600 text-white',
+              ? 'bg-ok-bg text-ok-text'
+              : 'bg-danger-bg text-danger-text',
           ].join(' ')}
           role="status"
           aria-live="polite"

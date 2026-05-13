@@ -76,13 +76,13 @@ function ProductThumbnail({ imageUrl, name }: { imageUrl?: string; name: string 
   if (showPlaceholder) {
     return (
       <div
-        className="w-14 h-14 rounded-md border border-gray-200 bg-gray-50
+        className="w-14 h-14 rounded-md border border-edge bg-surface-subtle
                    flex items-center justify-center flex-shrink-0"
         aria-hidden
       >
         {/* Heroicons: shopping-bag outline */}
         <svg
-          className="w-6 h-6 text-gray-300"
+          className="w-6 h-6 text-content-3"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -107,7 +107,7 @@ function ProductThumbnail({ imageUrl, name }: { imageUrl?: string; name: string 
       src={imageUrl}
       alt={name}
       onError={() => setImgError(true)}
-      className="w-14 h-14 object-cover rounded-md border border-gray-200 flex-shrink-0"
+      className="w-14 h-14 object-cover rounded-md border border-edge flex-shrink-0"
     />
   );
 }
@@ -118,18 +118,18 @@ function CartItemRow({ item }: { item: CartItem }) {
   const subtotal = item.unitPrice * item.quantity;
 
   return (
-    <li className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+    <li className="flex items-center gap-3 py-3 border-b border-edge last:border-0">
 
       {/* Left — product thumbnail (56×56, rounded, with fallback) */}
       <ProductThumbnail imageUrl={item.imageUrl} name={item.name} />
 
       {/* Middle — name + unit price */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-800 truncate leading-tight">
+        <p className="text-sm font-semibold text-content truncate leading-tight">
           {item.name}
         </p>
         {item.unitPrice > 0 && (
-          <p className="text-xs text-gray-400 mt-0.5 tabular-nums">
+          <p className="text-xs text-content-3 mt-0.5 tabular-nums">
             {formatPrice(item.unitPrice, item.currency)}
           </p>
         )}
@@ -137,10 +137,10 @@ function CartItemRow({ item }: { item: CartItem }) {
 
       {/* Right — quantity label + bold subtotal */}
       <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-        <span className="text-xs text-gray-400 tabular-nums">
+        <span className="text-xs text-content-3 tabular-nums">
           Qty: {item.quantity}
         </span>
-        <span className="text-sm font-bold text-gray-700 tabular-nums">
+        <span className="text-sm font-bold text-content tabular-nums">
           {item.unitPrice > 0 ? formatPrice(subtotal, item.currency) : '—'}
         </span>
       </div>
@@ -158,21 +158,21 @@ function CartSkeleton() {
         // same dimensions as a real row — no layout shift when data arrives.
         <div
           key={n}
-          className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0"
+          className="flex items-center gap-3 py-3 border-b border-edge last:border-0"
         >
           {/* Image placeholder */}
-          <div className="w-14 h-14 rounded-md bg-gray-100 flex-shrink-0" />
+          <div className="w-14 h-14 rounded-md bg-surface-subtle flex-shrink-0" />
 
           {/* Name + price placeholder */}
           <div className="flex-1 space-y-2">
-            <div className="h-3 bg-gray-100 rounded w-3/4" />
-            <div className="h-2.5 bg-gray-100 rounded w-1/3" />
+            <div className="h-3 bg-surface-subtle rounded w-3/4" />
+            <div className="h-2.5 bg-surface-subtle rounded w-1/3" />
           </div>
 
           {/* Qty + subtotal placeholder */}
           <div className="flex flex-col items-end gap-1.5">
-            <div className="h-2.5 bg-gray-100 rounded w-10" />
-            <div className="h-3 bg-gray-100 rounded w-14" />
+            <div className="h-2.5 bg-surface-subtle rounded w-10" />
+            <div className="h-3 bg-surface-subtle rounded w-14" />
           </div>
         </div>
       ))}
@@ -202,7 +202,7 @@ function ArchiveButton({ isArchiving, onArchive }: ArchiveButtonProps) {
   return (
     <div className="space-y-2">
       {error && (
-        <p className="text-xs text-red-500 text-center">{error}</p>
+        <p className="text-xs text-danger-text text-center">{error}</p>
       )}
       <button
         onClick={handleClick}
@@ -210,7 +210,7 @@ function ArchiveButton({ isArchiving, onArchive }: ArchiveButtonProps) {
         className="
           w-full flex items-center justify-center gap-2
           px-4 py-2.5 rounded-lg text-sm font-semibold
-          border border-red-200 text-red-600 bg-red-50
+          border border-red-200 text-danger-text bg-danger-bg
           hover:bg-red-100 hover:border-red-300
           active:scale-[0.98]
           disabled:opacity-50 disabled:cursor-not-allowed
@@ -278,19 +278,19 @@ export function CartViewer({
      * h-[500px] — fixed height as specified in the wireframe.
      * overflow-hidden on the shell prevents the card itself from growing.
      */
-    <div className="flex flex-col h-full bg-white overflow-hidden">
+    <div className="flex flex-col h-full bg-surface-raised overflow-hidden">
 
       {/* ── Sticky header ─────────────────────────────────────────────────── */}
       {/*
        * flex-shrink-0 keeps the header from being compressed by the scrollable
        * region. "Sticky" in UX terms — it stays visible while items scroll.
        */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-edge bg-surface-subtle flex-shrink-0">
         <div className="flex items-center gap-2">
           <span role="img" aria-label="carrito" className="text-base leading-none">
             🛒
           </span>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
+          <h2 className="text-xs font-semibold text-content-2 uppercase tracking-widest">
             Carrito Actual
           </h2>
         </div>
@@ -348,11 +348,11 @@ export function CartViewer({
        * Only rendered when a real cart exists (non-empty).
        */}
       {cart && cart.items.length > 0 && (
-        <div className="flex-shrink-0 border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-3">
+        <div className="flex-shrink-0 border-t border-edge px-4 py-3 bg-surface-subtle space-y-3">
           {/* Running total */}
           {total && (
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+              <span className="text-xs font-semibold text-content-2 uppercase tracking-widest">
                 Total estimado
               </span>
               <span className="text-base font-bold text-emerald-600 tabular-nums">
@@ -365,7 +365,7 @@ export function CartViewer({
           <ArchiveButton isArchiving={isArchiving} onArchive={onArchive} />
 
           {/* Last-updated timestamp */}
-          <p className="text-[11px] text-gray-300 text-center">
+          <p className="text-[11px] text-content-3 text-center">
             Actualizado{' '}
             {new Date(cart.updatedAt).toLocaleString('es-AR', {
               day: '2-digit',
@@ -396,8 +396,8 @@ function EmptyState({
       <span className="text-4xl leading-none mb-1" role="img" aria-hidden>
         {icon}
       </span>
-      <p className="text-sm font-medium text-gray-400 leading-snug">{title}</p>
-      <p className="text-xs text-gray-300 leading-snug max-w-[200px]">{subtitle}</p>
+      <p className="text-sm font-medium text-content-2 leading-snug">{title}</p>
+      <p className="text-xs text-content-3 leading-snug max-w-[200px]">{subtitle}</p>
     </div>
   );
 }

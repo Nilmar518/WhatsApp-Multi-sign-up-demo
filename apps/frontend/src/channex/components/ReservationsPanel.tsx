@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getPropertyBookings, pullPropertyBookings, type Reservation } from '../api/channexHubApi';
+import Button from '../../components/ui/Button';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -10,17 +11,17 @@ const CHANNEL_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  new: 'bg-emerald-100 text-emerald-700',
-  booking_new: 'bg-emerald-100 text-emerald-700',
-  confirmed: 'bg-emerald-100 text-emerald-700',
-  modified: 'bg-amber-100 text-amber-700',
-  booking_modification: 'bg-amber-100 text-amber-700',
-  cancelled: 'bg-red-100 text-red-600',
-  booking_cancellation: 'bg-red-100 text-red-600',
+  new: 'bg-ok-bg text-ok-text',
+  booking_new: 'bg-ok-bg text-ok-text',
+  confirmed: 'bg-ok-bg text-ok-text',
+  modified: 'bg-caution-bg text-caution-text',
+  booking_modification: 'bg-caution-bg text-caution-text',
+  cancelled: 'bg-danger-bg text-danger-text',
+  booking_cancellation: 'bg-danger-bg text-danger-text',
 };
 
 function statusStyle(status: string): string {
-  return STATUS_STYLES[status] ?? 'bg-slate-100 text-slate-600';
+  return STATUS_STYLES[status] ?? 'bg-surface-subtle text-content-2';
 }
 
 function statusLabel(status: string): string {
@@ -59,10 +60,10 @@ function ReservationCard({ r }: { r: Reservation }) {
   const nightCount = r.count_of_nights ?? nights(r.check_in, r.check_out);
 
   return (
-    <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-xl border border-edge bg-surface-raised px-4 py-3 shadow-sm transition-shadow hover:shadow-md">
       {/* Top row: guest + status + channel */}
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-slate-800 leading-tight">{guestName}</p>
+        <p className="text-sm font-semibold text-content leading-tight">{guestName}</p>
         <div className="flex shrink-0 items-center gap-1.5">
           <span
             className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase ${channelStyle(r.channel)}`}
@@ -78,21 +79,21 @@ function ReservationCard({ r }: { r: Reservation }) {
       </div>
 
       {/* Dates */}
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-content-2">
         {r.check_in || '—'} → {r.check_out || '—'}
         {nightCount !== null && (
-          <span className="ml-1 text-slate-400">({nightCount}n)</span>
+          <span className="ml-1 text-content-3">({nightCount}n)</span>
         )}
       </p>
 
       {/* Financial */}
-      <div className="mt-2 flex items-center gap-3 text-xs text-slate-600">
+      <div className="mt-2 flex items-center gap-3 text-xs text-content-2">
         <span>
-          <span className="font-medium text-slate-800">{fmt(r.net_payout, r.currency)}</span>
-          <span className="ml-1 text-slate-400">net</span>
+          <span className="font-medium text-content">{fmt(r.net_payout, r.currency)}</span>
+          <span className="ml-1 text-content-3">net</span>
         </span>
         {r.ota_fee > 0 && (
-          <span className="text-slate-400">
+          <span className="text-content-3">
             OTA fee {fmt(r.ota_fee, r.currency)}
           </span>
         )}
@@ -100,7 +101,7 @@ function ReservationCard({ r }: { r: Reservation }) {
 
       {/* Reservation code */}
       {r.reservation_id && (
-        <p className="mt-1.5 font-mono text-[10px] text-slate-400 truncate">
+        <p className="mt-1.5 font-mono text-[10px] text-content-3 truncate">
           {r.reservation_id}
         </p>
       )}
@@ -109,12 +110,12 @@ function ReservationCard({ r }: { r: Reservation }) {
 }
 
 const CHANNEL_BADGE_STYLES: Record<string, string> = {
-  airbnb: 'bg-rose-100 text-rose-700',
-  booking_com: 'bg-blue-100 text-blue-700',
+  airbnb: 'bg-danger-bg text-danger-text',
+  booking_com: 'bg-notice-bg text-notice-text',
 };
 
 function channelStyle(channel: string): string {
-  return CHANNEL_BADGE_STYLES[channel] ?? 'bg-slate-100 text-slate-600';
+  return CHANNEL_BADGE_STYLES[channel] ?? 'bg-surface-subtle text-content-2';
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -195,7 +196,7 @@ export default function ReservationsPanel({
     return (
       <div className="space-y-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-20 animate-pulse rounded-xl bg-slate-100" />
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-surface-subtle" />
         ))}
       </div>
     );
@@ -205,54 +206,57 @@ export default function ReservationsPanel({
     <div>
       {/* Header row */}
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-700">
+        <p className="text-sm font-medium text-content">
           {visible.length} reservation{visible.length !== 1 ? 's' : ''}
         </p>
         <div className="flex items-center gap-2">
           {lastUpdated && (
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-content-3">
               Updated {lastUpdated.toLocaleTimeString()}
             </span>
           )}
-          <button
+          <Button
             type="button"
             onClick={() => load()}
             disabled={loading || syncing}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+            variant="secondary"
+            size="sm"
           >
             ↻
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={handleSync}
             disabled={syncing || loading}
-            className="flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
           >
             <span className={syncing ? 'animate-spin inline-block' : ''}>↻</span>
             {syncing ? 'Syncing…' : 'Sync from Channex'}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Sync result toast */}
       {syncResult && (
-        <div className="mb-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-700">
+        <div className="mb-3 rounded-lg bg-ok-bg border border-ok-bg px-3 py-2 text-sm text-ok-text">
           ✓ Sync complete — {syncResult.synced} booking{syncResult.synced !== 1 ? 's' : ''} imported from Channex
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+        <div className="mb-3 rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger-text">
           {error}
         </div>
       )}
 
       {/* Empty state */}
       {!error && visible.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-12 text-center">
-          <p className="text-sm text-slate-500">No reservations yet</p>
-          <p className="mt-1 text-xs text-slate-400">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-edge py-12 text-center">
+          <p className="text-sm text-content-2">No reservations yet</p>
+          <p className="mt-1 text-xs text-content-3">
             Bookings from Airbnb and Booking.com will appear here automatically.
           </p>
         </div>

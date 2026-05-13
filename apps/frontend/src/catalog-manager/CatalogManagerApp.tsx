@@ -3,6 +3,7 @@ import type { MetaCatalog, MetaProduct } from './api/catalogManagerApi';
 import { listCatalogs, listProducts } from './api/catalogManagerApi';
 import CatalogList from './components/CatalogList';
 import ProductList from './components/ProductList';
+import Button from '../components/ui/Button';
 
 const BUSINESS_OPTIONS = [
   { label: 'Real Business', value: '787167007221172' },
@@ -105,32 +106,32 @@ export default function CatalogManagerApp() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-subtle">
       {/* Top bar */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <header className="bg-surface-raised border-b border-edge px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <a
             href="/"
-            className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-sm font-medium text-content-2 hover:text-content transition-colors"
           >
             ← Main App
           </a>
-          <span className="text-gray-300">|</span>
-          <h1 className="text-base font-bold text-gray-900">
+          <span className="text-content-3">|</span>
+          <h1 className="text-base font-bold text-content">
             Catalog Manager
           </h1>
-          <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+          <span className="text-xs font-medium bg-notice-bg text-notice-text px-2 py-0.5 rounded-full">
             Admin
           </span>
         </div>
 
         {/* Business selector */}
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-500">Business</label>
+          <label className="text-xs font-medium text-content-2">Business</label>
           <select
             value={businessId}
             onChange={(e) => handleBusinessChange(e.target.value)}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+            className="text-sm border border-edge rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand/20 bg-surface-raised"
           >
             {BUSINESS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -145,34 +146,38 @@ export default function CatalogManagerApp() {
       <main className="max-w-4xl mx-auto px-6 py-8">
         {/* Catalog-level error banner */}
         {view === 'catalogs' && catalogsError && (
-          <div className="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <div className="mb-6 text-sm text-danger-text bg-danger-bg border border-danger-bg rounded-xl px-4 py-3">
             <span className="font-semibold">Error loading catalogs: </span>
             {catalogsError}
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => void fetchCatalogs()}
               className="ml-3 text-xs underline hover:no-underline"
             >
               Retry
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Product-level error banner */}
         {view === 'products' && productsError && (
-          <div className="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <div className="mb-6 text-sm text-danger-text bg-danger-bg border border-danger-bg rounded-xl px-4 py-3">
             <span className="font-semibold">Error loading products: </span>
             {productsError}
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => void fetchProducts()}
               className="ml-3 text-xs underline hover:no-underline"
             >
               Retry
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Card container */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+        <div className="bg-surface-raised border border-edge rounded-2xl p-6 shadow-sm">
           {view === 'catalogs' && (
             <CatalogList
               businessId={businessId}
@@ -197,7 +202,7 @@ export default function CatalogManagerApp() {
         </div>
 
         {/* Roadmap note */}
-        <p className="mt-6 text-xs text-gray-400 text-center">
+        <p className="mt-6 text-xs text-content-3 text-center">
           Objective 1 of 2 — Catalog CRUD &nbsp;·&nbsp; Objective 2 coming soon: Messaging Automation
         </p>
       </main>

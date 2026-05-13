@@ -53,11 +53,11 @@ const STATUS_CONFIG: Record<
   MetaVariant['status'],
   { label: string; cls: string; dot: string }
 > = {
-  SYNCING_WITH_META:   { label: 'Syncing',    cls: 'bg-amber-50 text-amber-700 border border-amber-200',   dot: 'bg-amber-400' },
-  ACTIVE:              { label: 'Active',      cls: 'bg-green-50 text-green-700 border border-green-200',   dot: 'bg-green-500' },
-  FAILED_INTEGRATION:  { label: 'Error',       cls: 'bg-red-50 text-red-600 border border-red-200',         dot: 'bg-red-500' },
-  ARCHIVED:            { label: 'Archived',    cls: 'bg-gray-100 text-gray-500 border border-gray-200',     dot: 'bg-gray-400' },
-  SUSPENDED_BY_POLICY: { label: 'Suspended',   cls: 'bg-orange-50 text-orange-700 border border-orange-200', dot: 'bg-orange-500' },
+  SYNCING_WITH_META:   { label: 'Syncing',    cls: 'bg-caution-bg text-caution-text border border-amber-200',   dot: 'bg-amber-400' },
+  ACTIVE:              { label: 'Active',      cls: 'bg-ok-bg text-ok-text border border-green-200',            dot: 'bg-green-500' },
+  FAILED_INTEGRATION:  { label: 'Error',       cls: 'bg-danger-bg text-danger-text border border-red-200',      dot: 'bg-red-500' },
+  ARCHIVED:            { label: 'Archived',    cls: 'bg-surface-subtle text-content-2 border border-edge',      dot: 'bg-gray-400' },
+  SUSPENDED_BY_POLICY: { label: 'Suspended',   cls: 'bg-orange-50 text-orange-700 border border-orange-200',    dot: 'bg-orange-500' },
 };
 
 function StatusBadge({ status }: { status: MetaVariant['status'] }) {
@@ -291,14 +291,14 @@ export default function VariantManager({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={onBack}
-            className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-sm font-medium text-content-2 hover:text-content transition-colors"
           >
             ← Products
           </button>
-          <span className="text-gray-300">|</span>
-          <span className="text-sm text-gray-500 truncate max-w-[140px]">{catalog.name}</span>
-          <span className="text-gray-300">|</span>
-          <h2 className="text-sm font-semibold text-gray-800 truncate max-w-[180px]">
+          <span className="text-content-3">|</span>
+          <span className="text-sm text-content-2 truncate max-w-[140px]">{catalog.name}</span>
+          <span className="text-content-3">|</span>
+          <h2 className="text-sm font-semibold text-content truncate max-w-[180px]">
             {product.name}
           </h2>
           <span className="text-xs font-semibold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
@@ -316,28 +316,28 @@ export default function VariantManager({
       </div>
 
       {/* Parent product info strip */}
-      <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+      <div className="flex items-center gap-3 bg-surface-subtle border border-edge rounded-xl px-4 py-3">
         {product.image_url && (
           <img
             src={product.image_url}
             alt={product.name}
-            className="w-10 h-10 rounded-lg object-cover shrink-0 border border-gray-200"
+            className="w-10 h-10 rounded-lg object-cover shrink-0 border border-edge"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         )}
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-gray-800 truncate">{product.name}</p>
+          <p className="text-sm font-semibold text-content truncate">{product.name}</p>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-xs text-gray-400 font-mono">{product.retailer_id}</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-content-3 font-mono">{product.retailer_id}</span>
+            <span className="text-content-3">·</span>
+            <span className="text-xs text-content-2">
               {formatPrice(product.price, product.currency)}
             </span>
           </div>
         </div>
         <div className="ml-auto text-right shrink-0">
-          <p className="text-xs text-gray-400">item_group_id</p>
-          <p className="text-xs font-mono text-gray-600">{product.retailer_id ?? product.id}</p>
+          <p className="text-xs text-content-3">item_group_id</p>
+          <p className="text-xs font-mono text-content-2">{product.retailer_id ?? product.id}</p>
         </div>
       </div>
 
@@ -354,7 +354,7 @@ export default function VariantManager({
             <button
               type="button"
               onClick={cancelForm}
-              className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              className="text-xs text-content-2 hover:text-content transition-colors"
             >
               Cancel
             </button>
@@ -373,13 +373,13 @@ export default function VariantManager({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Attribute key */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Attribute <span className="text-red-400">*</span>
               </label>
               <select
                 value={form.attributeKey}
                 onChange={(e) => updateField('attributeKey', e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               >
                 {ATTRIBUTE_PRESETS.map((k) => (
                   <option key={k} value={k}>{k}</option>
@@ -393,14 +393,14 @@ export default function VariantManager({
                   onChange={(e) => updateField('customAttributeKey', e.target.value)}
                   placeholder="e.g. material"
                   required
-                  className="w-full mt-1.5 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  className="w-full mt-1.5 text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
                 />
               )}
             </div>
 
             {/* Attribute value */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Value <span className="text-red-400">*</span>
               </label>
               <input
@@ -409,13 +409,13 @@ export default function VariantManager({
                 onChange={(e) => updateField('attributeValue', e.target.value)}
                 placeholder="e.g. Red, XL, Cotton"
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               />
             </div>
 
             {/* SKU */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 SKU / Retailer ID <span className="text-red-400">*</span>
               </label>
               <input
@@ -425,41 +425,41 @@ export default function VariantManager({
                 placeholder="e.g. SHIRT-RED-XL"
                 disabled={!!editingVariant}
                 required={!editingVariant}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:bg-gray-100 disabled:text-gray-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:bg-surface-subtle disabled:text-content-3"
               />
             </div>
 
             {/* Name — locked to parent (Meta grouping rule) */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1.5">
+              <label className="block text-xs font-medium text-content-2 mb-1 flex items-center gap-1.5">
                 Name
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
                   <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
                   Inherited
                 </span>
               </label>
-              <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-500 cursor-not-allowed">
+              <div className="w-full text-sm border border-edge bg-surface-subtle rounded-lg px-3 py-2 text-content-2 cursor-not-allowed">
                 {product.name}
               </div>
             </div>
 
             {/* Description — locked to parent (Meta grouping rule) */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1.5">
+              <label className="block text-xs font-medium text-content-2 mb-1 flex items-center gap-1.5">
                 Description
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
                   <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
                   Inherited
                 </span>
               </label>
-              <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-500 min-h-[52px] cursor-not-allowed">
-                {product.description || <em className="text-gray-400">No description on parent</em>}
+              <div className="w-full text-sm border border-edge bg-surface-subtle rounded-lg px-3 py-2 text-content-2 min-h-[52px] cursor-not-allowed">
+                {product.description || <em className="text-content-3">No description on parent</em>}
               </div>
             </div>
 
             {/* Price */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Price <span className="text-red-400">*</span>
               </label>
               <input
@@ -470,13 +470,13 @@ export default function VariantManager({
                 onChange={(e) => updateField('priceDecimal', e.target.value)}
                 placeholder="10.00"
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               />
             </div>
 
             {/* Currency */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Currency <span className="text-red-400">*</span>
               </label>
               <input
@@ -486,17 +486,17 @@ export default function VariantManager({
                 placeholder="USD"
                 maxLength={3}
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400 uppercase"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400 uppercase"
               />
             </div>
 
             {/* Availability */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Availability</label>
+              <label className="block text-xs font-medium text-content-2 mb-1">Availability</label>
               <select
                 value={form.availability}
                 onChange={(e) => updateField('availability', e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               >
                 {AVAILABILITY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -504,11 +504,11 @@ export default function VariantManager({
 
             {/* Condition */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Condition</label>
+              <label className="block text-xs font-medium text-content-2 mb-1">Condition</label>
               <select
                 value={form.condition}
                 onChange={(e) => updateField('condition', e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               >
                 {CONDITION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -516,7 +516,7 @@ export default function VariantManager({
 
             {/* Image URL */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Image URL {!editingVariant && <span className="text-red-400">*</span>}
               </label>
               <input
@@ -525,13 +525,13 @@ export default function VariantManager({
                 onChange={(e) => updateField('imageUrl', e.target.value)}
                 placeholder="https://example.com/variant-image.jpg"
                 required={!editingVariant}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               />
             </div>
 
             {/* Product URL */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Product URL {!editingVariant && <span className="text-red-400">*</span>}
               </label>
               <input
@@ -540,7 +540,7 @@ export default function VariantManager({
                 onChange={(e) => updateField('url', e.target.value)}
                 placeholder="https://example.com/products/shirt?color=red&size=xl"
                 required={!editingVariant}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               />
             </div>
           </div>
@@ -555,7 +555,7 @@ export default function VariantManager({
             <button
               type="button"
               onClick={cancelForm}
-              className="text-sm font-medium text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg transition-colors"
+              className="text-sm font-medium text-content-2 hover:text-content px-4 py-2 rounded-lg transition-colors"
             >
               Cancel
             </button>
@@ -576,12 +576,12 @@ export default function VariantManager({
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-14 bg-gray-100 animate-pulse rounded-xl" />
+            <div key={i} className="h-14 bg-surface-subtle animate-pulse rounded-xl" />
           ))}
         </div>
       ) : activeVariants.length === 0 && !showForm ? (
-        <div className="text-center py-10 text-gray-400">
-          <svg className="w-10 h-10 mx-auto mb-3 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <div className="text-center py-10 text-content-3">
+          <svg className="w-10 h-10 mx-auto mb-3 text-content-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
           </svg>
@@ -589,34 +589,34 @@ export default function VariantManager({
           <p className="text-xs mt-1">Click "+ New Variant" to add sizes, colors or materials.</p>
         </div>
       ) : (
-        <div className="overflow-hidden border border-gray-200 rounded-xl">
+        <div className="overflow-hidden border border-edge rounded-xl">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-surface-subtle border-b border-edge">
               <tr>
-                <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5">Attribute</th>
-                <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5">SKU</th>
-                <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5 hidden sm:table-cell">Price</th>
-                <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5 hidden md:table-cell">Stock</th>
-                <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5">Status</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">Attribute</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">SKU</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5 hidden sm:table-cell">Price</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5 hidden md:table-cell">Stock</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">Status</th>
                 <th className="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {activeVariants.map((v) => (
-                <tr key={v.retailerId} className="hover:bg-gray-50 transition-colors">
+                <tr key={v.retailerId} className="hover:bg-surface-subtle transition-colors">
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="text-xs font-medium bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded capitalize">
                         {v.attributeKey}
                       </span>
-                      <span className="text-sm text-gray-700">{v.attributeValue}</span>
+                      <span className="text-sm text-content-2">{v.attributeValue}</span>
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs font-mono text-gray-500">{v.retailerId}</span>
+                    <span className="text-xs font-mono text-content-2">{v.retailerId}</span>
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm text-content-2">
                       {v.price
                         ? new Intl.NumberFormat('en-US', {
                             style: 'currency',
@@ -626,7 +626,7 @@ export default function VariantManager({
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <span className="text-xs text-gray-500 capitalize">
+                    <span className="text-xs text-content-2 capitalize">
                       {v.availability ?? '—'}
                     </span>
                   </td>
@@ -649,7 +649,7 @@ export default function VariantManager({
                     <div className="flex items-center gap-2 justify-end">
                       <button
                         onClick={() => openEdit(v)}
-                        className="text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                        className="text-xs font-medium text-content-2 hover:text-content transition-colors"
                       >
                         Edit
                       </button>
@@ -672,22 +672,22 @@ export default function VariantManager({
       {/* Archived section — collapsed by default */}
       {archivedVariants.length > 0 && (
         <details className="group">
-          <summary className="cursor-pointer text-xs text-gray-400 hover:text-gray-600 transition-colors list-none flex items-center gap-1">
+          <summary className="cursor-pointer text-xs text-content-3 hover:text-content-2 transition-colors list-none flex items-center gap-1">
             <svg className="w-3 h-3 transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5l8 7-8 7V5z" />
             </svg>
             {archivedVariants.length} archived variant{archivedVariants.length !== 1 ? 's' : ''}
           </summary>
-          <div className="mt-2 overflow-hidden border border-gray-200 rounded-xl opacity-60">
+          <div className="mt-2 overflow-hidden border border-edge rounded-xl opacity-60">
             <table className="w-full text-sm">
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-edge">
                 {archivedVariants.map((v) => (
-                  <tr key={v.retailerId} className="bg-gray-50">
+                  <tr key={v.retailerId} className="bg-surface-subtle">
                     <td className="px-4 py-2.5">
-                      <span className="text-xs text-gray-400 capitalize">{v.attributeKey}: {v.attributeValue}</span>
+                      <span className="text-xs text-content-3 capitalize">{v.attributeKey}: {v.attributeValue}</span>
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className="text-xs font-mono text-gray-400">{v.retailerId}</span>
+                      <span className="text-xs font-mono text-content-3">{v.retailerId}</span>
                     </td>
                     <td className="px-4 py-2.5">
                       <StatusBadge status="ARCHIVED" />
@@ -703,12 +703,12 @@ export default function VariantManager({
       {/* Footer */}
       {!loading && (
         <div className="flex justify-between items-center pt-1">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-content-3">
             {activeVariants.length} active variant{activeVariants.length !== 1 ? 's' : ''}
           </p>
           <button
             onClick={() => void fetchVariants()}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-xs text-content-3 hover:text-content-2 transition-colors"
           >
             ↻ Refresh
           </button>

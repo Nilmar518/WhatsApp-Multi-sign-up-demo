@@ -277,12 +277,12 @@ export default function ReservationInbox({
 
   return (
     <>
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
+      <div className="rounded-2xl border border-edge bg-surface-raised shadow-sm overflow-hidden">
+      <div className="border-b border-edge bg-surface-subtle px-6 py-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">Airbnb Reservations</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <h2 className="text-xl font-semibold text-content">Airbnb Reservations</h2>
+            <p className="mt-1 text-sm text-content-2">
               Live reservation feed from the Firestore sub-collection.
             </p>
           </div>
@@ -291,7 +291,7 @@ export default function ReservationInbox({
             <button
               type="button"
               onClick={onExpandClick}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-edge bg-surface-raised text-content-2 transition hover:bg-surface-subtle hover:text-content"
               title="Expand reservations"
               aria-label="Expand reservations"
             >
@@ -305,20 +305,20 @@ export default function ReservationInbox({
 
       <div className="px-6 py-6">
         {loading && (
-          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-rose-500" />
+          <div className="flex items-center gap-3 rounded-xl border border-edge bg-surface-subtle px-4 py-4 text-sm text-content-2">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-rose-500" />
             Loading reservations...
           </div>
         )}
 
         {error && !loading && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
             <div className="flex items-start justify-between gap-3">
               <p>{error}</p>
               <button
                 type="button"
                 onClick={() => setReloadKey((value) => value + 1)}
-                className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 transition hover:bg-red-100"
+                className="shrink-0 rounded-lg bg-surface-raised px-3 py-1.5 text-xs font-semibold text-danger-text ring-1 ring-danger-text/20 transition hover:opacity-80"
               >
                 Retry
               </button>
@@ -327,16 +327,16 @@ export default function ReservationInbox({
         )}
 
         {!loading && !error && reservations.length === 0 && (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+          <div className="rounded-xl border border-dashed border-edge bg-surface-subtle px-4 py-10 text-center text-sm text-content-2">
             No reservations yet.
           </div>
         )}
 
         {!loading && !error && reservations.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200">
+          <div className="overflow-hidden rounded-2xl border border-edge">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-[0.16em] text-slate-500">
+                <thead className="bg-surface-subtle text-xs uppercase tracking-[0.16em] text-content-2">
                   <tr>
                     <th className="px-4 py-3">Reservation ID</th>
                     <th className="px-4 py-3">Guest</th>
@@ -347,7 +347,7 @@ export default function ReservationInbox({
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-edge bg-surface-raised">
                   {reservations.map((reservation) => {
                     const status = getStatus(reservation);
                     const cancelled = isInactiveStatus(status);
@@ -357,10 +357,10 @@ export default function ReservationInbox({
 
                     return (
                       <tr key={displayReservationId} className={cancelled ? 'bg-rose-50/40' : ''}>
-                        <td className={`px-4 py-4 font-mono text-xs text-slate-700 ${cancelled ? 'line-through text-slate-400' : ''}`}>
+                        <td className={`px-4 py-4 font-mono text-xs text-content ${cancelled ? 'line-through text-content-3' : ''}`}>
                           {displayReservationId}
                         </td>
-                        <td className={`px-4 py-4 text-slate-700 ${cancelled ? 'line-through text-slate-400' : ''}`}>
+                        <td className={`px-4 py-4 text-content ${cancelled ? 'line-through text-content-3' : ''}`}>
                           <div className="flex flex-col gap-1">
                             <span className="font-medium">{buildGuestName(reservation)}</span>
                             <span className="inline-flex w-fit rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
@@ -368,13 +368,13 @@ export default function ReservationInbox({
                             </span>
                           </div>
                         </td>
-                        <td className={`px-4 py-4 text-slate-700 ${cancelled ? 'line-through text-slate-400' : ''}`}>
+                        <td className={`px-4 py-4 text-content ${cancelled ? 'line-through text-content-3' : ''}`}>
                           {getCheckIn(reservation)}
                         </td>
-                        <td className={`px-4 py-4 text-slate-700 ${cancelled ? 'line-through text-slate-400' : ''}`}>
+                        <td className={`px-4 py-4 text-content ${cancelled ? 'line-through text-content-3' : ''}`}>
                           {getCheckOut(reservation)}
                         </td>
-                        <td className={`px-4 py-4 font-medium text-slate-900 ${cancelled ? 'line-through text-slate-400' : ''}`}>
+                        <td className={`px-4 py-4 font-medium text-content ${cancelled ? 'line-through text-content-3' : ''}`}>
                           {formatMoney(getPayoutAmount(reservation), reservation.currency)}
                         </td>
                         <td className="px-4 py-4">
@@ -387,7 +387,7 @@ export default function ReservationInbox({
                             >
                               {statusDisplay.label}
                             </span>
-                            <span className="text-[11px] text-slate-500">{status}</span>
+                            <span className="text-[11px] text-content-2">{status}</span>
                           </div>
                         </td>
                         <td className="px-4 py-4 text-right">
@@ -396,7 +396,7 @@ export default function ReservationInbox({
                               <button
                                 type="button"
                                 onClick={() => handleMessageGuest(linkedPhone)}
-                                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                className="inline-flex items-center justify-center rounded-xl border border-edge bg-surface-raised px-4 py-2 text-xs font-semibold text-content transition hover:bg-surface-subtle"
                               >
                                 Message Guest
                               </button>
@@ -413,13 +413,13 @@ export default function ReservationInbox({
                                       [reservation.reservation_id]: event.target.value,
                                     }))
                                   }
-                                  className="w-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+                                  className="w-40 rounded-lg border border-edge bg-surface-raised px-3 py-2 text-xs outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
                                 />
                                 <button
                                   type="button"
                                   disabled={linking === reservation.reservation_id}
                                   onClick={() => void handleAddPhone(reservation.reservation_id)}
-                                  className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                  className="inline-flex items-center justify-center rounded-xl bg-content px-3 py-2 text-xs font-semibold text-surface-raised transition hover:bg-content-2 disabled:cursor-not-allowed disabled:bg-content-3"
                                 >
                                   {linking === reservation.reservation_id ? 'Linking...' : 'Add Phone'}
                                 </button>
@@ -427,7 +427,7 @@ export default function ReservationInbox({
                             )}
 
                             {linkedPhone && (
-                              <span className="text-[11px] text-slate-500">{linkedPhone}</span>
+                              <span className="text-[11px] text-content-2">{linkedPhone}</span>
                             )}
                           </div>
                         </td>
@@ -445,26 +445,26 @@ export default function ReservationInbox({
       {activeChatPhone && (
         <div className="fixed inset-0 z-50">
           <div
-            className="absolute inset-0 bg-slate-900/30"
+            className="absolute inset-0 bg-content/30"
             onClick={() => setActiveChatPhone(null)}
             aria-hidden="true"
           />
 
           <aside
-            className="absolute inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl border-l border-slate-200 flex flex-col"
+            className="absolute inset-y-0 right-0 w-full max-w-xl bg-surface-raised shadow-2xl border-l border-edge flex flex-col"
             role="dialog"
             aria-modal="true"
             aria-label="Guest chat panel"
           >
-            <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <header className="flex items-center justify-between border-b border-edge px-5 py-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Guest Chat</p>
-                <p className="text-sm font-medium text-slate-700 mt-1">{activeChatPhone}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-content-2">Guest Chat</p>
+                <p className="text-sm font-medium text-content mt-1">{activeChatPhone}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveChatPhone(null)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-slate-600 transition hover:bg-slate-100"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-edge text-content-2 transition hover:bg-surface-subtle"
                 aria-label="Close chat"
               >
                 X
