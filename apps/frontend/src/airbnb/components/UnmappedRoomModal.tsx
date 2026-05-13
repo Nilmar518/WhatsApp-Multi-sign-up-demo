@@ -58,7 +58,7 @@ export default function UnmappedRoomModal({ event, onFix }: Props) {
       aria-labelledby="unmapped-room-title"
       aria-describedby="unmapped-room-description"
     >
-      <div className="relative w-full max-w-lg mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg mx-4 bg-surface-raised rounded-2xl shadow-2xl overflow-hidden">
 
         {/* ── Critical warning header ─────────────────────────────────────── */}
         <div className="bg-red-600 px-6 py-5 flex items-start gap-3">
@@ -97,32 +97,32 @@ export default function UnmappedRoomModal({ event, onFix }: Props) {
         <div className="px-6 py-5 space-y-4">
           <p
             id="unmapped-room-description"
-            className="text-sm text-gray-700 leading-relaxed"
+            className="text-sm text-content leading-relaxed"
           >
             Airbnb sent a confirmed booking at{' '}
             <span className="font-semibold">{formattedTime}</span>, but the
-            listing has no Room Type mapping in Channex. Migo UIT could not
+            listing has no Room Type mapping in Channex. Migo App could not
             decrement availability — <span className="font-semibold text-red-700">
               this property may now be double-booked
             </span>.
           </p>
 
           {/* ── Event metadata ──────────────────────────────────────────── */}
-          <div className="rounded-lg bg-gray-50 border border-gray-200 divide-y divide-gray-100 text-xs font-mono">
+          <div className="rounded-lg bg-surface-subtle border border-edge divide-y divide-edge text-xs font-mono">
             <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-gray-500 font-sans">Property ID</span>
-              <span className="text-gray-800 truncate max-w-[200px]">{event.propertyId}</span>
+              <span className="text-content-2 font-sans">Property ID</span>
+              <span className="text-content truncate max-w-[200px]">{event.propertyId}</span>
             </div>
             <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-gray-500 font-sans">Revision ID</span>
-              <span className="text-gray-800 truncate max-w-[200px]">{event.revisionId}</span>
+              <span className="text-content-2 font-sans">Revision ID</span>
+              <span className="text-content truncate max-w-[200px]">{event.revisionId}</span>
             </div>
           </div>
 
           {/* ── Resolution instructions ─────────────────────────────────── */}
-          <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          <div className="rounded-lg bg-caution-bg border border-caution-text/20 px-4 py-3 text-sm text-caution-text">
             <p className="font-semibold mb-1">How to fix this</p>
-            <ol className="list-decimal list-inside space-y-1 text-amber-700">
+            <ol className="list-decimal list-inside space-y-1 text-caution-text">
               <li>Click <strong>Fix Mapping</strong> to open the channel settings</li>
               <li>Locate the Airbnb listing and assign a Room Type</li>
               <li>Save — Channex will re-sync availability within 60 seconds</li>
@@ -143,7 +143,7 @@ export default function UnmappedRoomModal({ event, onFix }: Props) {
           {/* Secondary: contact support link — does NOT dismiss the modal */}
           <a
             href="mailto:support@migo.com?subject=Unmapped+Room+Alert"
-            className="flex-shrink-0 px-4 py-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
+            className="flex-shrink-0 px-4 py-3 bg-surface-raised border border-edge hover:bg-surface-subtle text-content text-sm font-medium rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-edge focus-visible:ring-offset-2"
           >
             Contact Support
           </a>

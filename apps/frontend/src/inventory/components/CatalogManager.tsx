@@ -121,7 +121,7 @@ export default function CatalogManager({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-800">
+        <h2 className="text-base font-semibold text-content">
           Product Catalogs
         </h2>
         <button
@@ -139,7 +139,7 @@ export default function CatalogManager({
           className="flex gap-2 items-end bg-emerald-50 border border-emerald-200 rounded-xl p-3"
         >
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+            <label className="block text-xs font-medium text-content-2 mb-1">
               Catalog Name
             </label>
             <input
@@ -148,7 +148,7 @@ export default function CatalogManager({
               onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. Summer Collection"
               autoFocus
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
             />
           </div>
           <button
@@ -165,14 +165,14 @@ export default function CatalogManager({
       {isLoading && (
         <div className="space-y-2">
           {[1, 2].map((i) => (
-            <div key={i} className="h-14 bg-gray-100 animate-pulse rounded-xl" />
+            <div key={i} className="h-14 bg-surface-subtle animate-pulse rounded-xl" />
           ))}
         </div>
       )}
 
       {/* Empty state */}
       {!isLoading && catalogs.length === 0 && (
-        <div className="text-center py-10 text-gray-400">
+        <div className="text-center py-10 text-content-3">
           <p className="text-sm">No catalogs found in your Business account.</p>
           <p className="text-xs mt-1">Click "+ New Catalog" to create one.</p>
         </div>
@@ -184,7 +184,7 @@ export default function CatalogManager({
           {catalogs.map((catalog) => (
             <li
               key={catalog.id}
-              className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
+              className="flex items-center gap-3 bg-surface-subtle border border-edge rounded-xl px-4 py-3"
             >
               {/* Name / rename input */}
               <div className="min-w-0 flex-1">
@@ -202,10 +202,10 @@ export default function CatalogManager({
                   />
                 ) : (
                   <>
-                    <p className="text-sm font-semibold text-gray-800 truncate">
+                    <p className="text-sm font-semibold text-content truncate">
                       {catalog.name}
                     </p>
-                    <p className="text-xs text-gray-400 font-mono truncate">
+                    <p className="text-xs text-content-3 font-mono truncate">
                       {catalog.id}
                     </p>
                   </>
@@ -225,7 +225,7 @@ export default function CatalogManager({
                     </button>
                     <button
                       onClick={cancelRename}
-                      className="text-xs font-medium text-gray-500 hover:text-gray-700 px-2.5 py-1.5 rounded-lg transition-colors"
+                      className="text-xs font-medium text-content-2 hover:text-content px-2.5 py-1.5 rounded-lg transition-colors"
                     >
                       Cancel
                     </button>
@@ -241,7 +241,7 @@ export default function CatalogManager({
                     <button
                       onClick={() => openRename(catalog)}
                       title="Rename"
-                      className="text-xs font-medium text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                      className="text-xs font-medium text-content-2 hover:text-content bg-surface-subtle hover:bg-surface-subtle px-2.5 py-1.5 rounded-lg transition-colors"
                     >
                       Rename
                     </button>
@@ -265,7 +265,7 @@ export default function CatalogManager({
         <div className="flex justify-end">
           <button
             onClick={onRefresh}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-xs text-content-3 hover:text-content-2 transition-colors"
           >
             ↻ Refresh
           </button>

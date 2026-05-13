@@ -1,4 +1,5 @@
 import { useMessengerConnect } from '../../hooks/useMessengerConnect';
+import Button from '../ui/Button';
 
 interface Props {
   businessId: string;
@@ -28,31 +29,31 @@ export default function MessengerConnect({ businessId }: Props) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[380px] gap-6 text-center px-6">
       {/* Icon */}
-      <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center text-4xl shadow-sm">
+      <div className="w-20 h-20 rounded-full bg-notice-bg flex items-center justify-center text-4xl shadow-sm">
         💙
       </div>
 
       {/* Copy */}
       <div className="space-y-2 max-w-sm">
-        <h2 className="text-xl font-bold text-gray-900">Connect Facebook Messenger</h2>
-        <p className="text-sm text-gray-500 leading-relaxed">
+        <h2 className="text-xl font-bold text-content">Connect Facebook Messenger</h2>
+        <p className="text-sm text-content-2 leading-relaxed">
           Link a Facebook Page to receive and reply to Messenger conversations from
           this dashboard. You&apos;ll need to be an admin of the Page.
         </p>
       </div>
 
       {/* Scope list */}
-      <ul className="text-left text-xs text-gray-500 space-y-1.5 bg-gray-50 rounded-xl px-5 py-4 w-full max-w-sm">
+      <ul className="text-left text-xs text-content-2 space-y-1.5 bg-surface-subtle rounded-xl px-5 py-4 w-full max-w-sm">
         <li className="flex items-center gap-2">
-          <span className="text-green-500 font-bold">✓</span>
+          <span className="text-ok-text font-bold">✓</span>
           <span><strong>pages_show_list</strong> — list your managed Pages</span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="text-green-500 font-bold">✓</span>
+          <span className="text-ok-text font-bold">✓</span>
           <span><strong>pages_messaging</strong> — send &amp; receive Messenger messages</span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="text-green-500 font-bold">✓</span>
+          <span className="text-ok-text font-bold">✓</span>
           <span><strong>pages_manage_metadata</strong> — subscribe to Page webhooks</span>
         </li>
       </ul>
@@ -60,16 +61,17 @@ export default function MessengerConnect({ businessId }: Props) {
       {/* Action */}
       {hasError ? (
         <div className="w-full max-w-sm space-y-3">
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700 text-left">
+          <div className="bg-danger-bg border border-danger/40 rounded-xl px-4 py-3 text-xs text-danger-text text-left">
             <strong className="font-semibold">Connection failed:</strong>{' '}
             {error}
           </div>
-          <button
+          <Button
+            variant="secondary"
+            className="w-full"
             onClick={reset}
-            className="w-full py-2.5 px-6 rounded-xl font-semibold text-sm text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
           >
             Try Again
-          </button>
+          </Button>
         </div>
       ) : (
         <button

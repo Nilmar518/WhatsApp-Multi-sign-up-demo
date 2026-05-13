@@ -6,6 +6,8 @@ import {
   type StoredRoomType,
   type StoredRatePlan,
 } from '../api/channexHubApi';
+import Button from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 
 interface Props {
   propertyId: string;
@@ -83,41 +85,41 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
     }
   }
 
-  if (loading) return <p className="text-sm text-slate-500">Loading room types…</p>;
+  if (loading) return <p className="text-sm text-content-2">Loading room types…</p>;
 
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-danger-bg bg-danger-bg px-4 py-3 text-sm text-danger-text">
           {error}
         </div>
       )}
 
       {roomTypes.map((rt) => (
-        <div key={rt.room_type_id} className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div key={rt.room_type_id} className="rounded-2xl border border-edge bg-surface-raised p-4">
           {/* Room type header */}
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-semibold text-slate-900">{rt.title}</p>
-              <p className="text-xs font-mono text-slate-400 mt-0.5">{rt.room_type_id}</p>
+              <p className="font-semibold text-content">{rt.title}</p>
+              <p className="text-xs font-mono text-content-3 mt-0.5">{rt.room_type_id}</p>
             </div>
             <div className="flex flex-wrap gap-1.5 justify-end">
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+              <span className="rounded-full bg-surface-subtle px-2.5 py-1 text-xs font-medium text-content-2">
                 {rt.count_of_rooms} room{rt.count_of_rooms !== 1 ? 's' : ''}
               </span>
-              <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">
+              <span className="rounded-full bg-brand-subtle px-2.5 py-1 text-xs font-medium text-brand">
                 Occ {rt.default_occupancy}
               </span>
             </div>
           </div>
 
           {/* Occupancy breakdown */}
-          <div className="mt-2 flex gap-3 text-xs text-slate-500">
-            <span>Adults: <span className="font-medium text-slate-700">{rt.occ_adults}</span></span>
-            <span>Children: <span className="font-medium text-slate-700">{rt.occ_children}</span></span>
-            <span>Infants: <span className="font-medium text-slate-700">{rt.occ_infants}</span></span>
+          <div className="mt-2 flex gap-3 text-xs text-content-2">
+            <span>Adults: <span className="font-medium text-content">{rt.occ_adults}</span></span>
+            <span>Children: <span className="font-medium text-content">{rt.occ_children}</span></span>
+            <span>Infants: <span className="font-medium text-content">{rt.occ_infants}</span></span>
             {rt.source && (
-              <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <span className="ml-auto rounded-full bg-surface-subtle px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-content-2">
                 {rt.source}
               </span>
             )}
@@ -125,68 +127,69 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
 
           {/* Rate plans */}
           <div className="mt-4 space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-content-2">
               Rate Plans ({rt.rate_plans.length})
             </p>
 
             {rt.rate_plans.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No rate plans yet.</p>
+              <p className="text-xs text-content-3 italic">No rate plans yet.</p>
             ) : (
               rt.rate_plans.map((rp: StoredRatePlan) => (
                 <div
                   key={rp.rate_plan_id}
-                  className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 gap-3"
+                  className="flex items-center justify-between rounded-xl bg-surface-subtle px-3 py-2 gap-3"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{rp.title}</p>
-                    <p className="text-[11px] font-mono text-slate-400 truncate">{rp.rate_plan_id}</p>
+                    <p className="text-sm font-medium text-content truncate">{rp.title}</p>
+                    <p className="text-[11px] font-mono text-content-3 truncate">{rp.rate_plan_id}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {rp.is_primary && (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                      <span className="rounded-full bg-ok-bg px-2 py-0.5 text-[11px] font-semibold text-ok-text">
                         Primary
                       </span>
                     )}
-                    <span className="rounded-full bg-white border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    <span className="rounded-full bg-surface-raised border border-edge px-2.5 py-1 text-xs font-semibold text-content">
                       {rp.currency} {rp.rate}
                     </span>
-                    <span className="text-xs text-slate-400">occ {rp.occupancy}</span>
+                    <span className="text-xs text-content-3">occ {rp.occupancy}</span>
                   </div>
                 </div>
               ))
             )}
 
             {showRateForm === rt.room_type_id ? (
-              <div className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2">
-                <input
+              <div className="flex items-center gap-2 rounded-xl border border-brand-light bg-brand-subtle px-3 py-2">
+                <Input
                   value={newRateTitle}
                   onChange={(e) => setNewRateTitle(e.target.value)}
                   placeholder="Rate plan name"
-                  className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                  className="flex-1 text-xs"
                 />
-                <input
+                <Input
                   type="number"
                   min={0}
                   value={newRateAmount}
                   onChange={(e) => setNewRateAmount(Number(e.target.value))}
                   placeholder="Base rate"
-                  className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                  className="w-20 text-xs"
                 />
-                <button
+                <Button
                   type="button"
                   onClick={() => void handleAddRate(rt.room_type_id)}
                   disabled={savingRate || !newRateTitle}
-                  className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                  variant="primary"
+                  size="sm"
                 >
                   {savingRate ? '…' : 'Add'}
-                </button>
-                <button type="button" onClick={() => setShowRateForm(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+                </Button>
+                <button type="button" onClick={() => setShowRateForm(null)} className="text-content-3 hover:text-content-2">✕</button>
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => { setShowRateForm(rt.room_type_id); setNewRateTitle(''); setNewRateAmount(100); }}
-                className="text-xs text-indigo-600 hover:text-indigo-800"
+                className="text-xs text-brand hover:text-brand"
               >
                 + Add rate plan
               </button>
@@ -196,40 +199,41 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
       ))}
 
       {showRoomForm ? (
-        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 space-y-3">
-          <p className="text-sm font-semibold text-slate-900">New room type</p>
+        <div className="rounded-2xl border border-brand-light bg-brand-subtle p-4 space-y-3">
+          <p className="text-sm font-semibold text-content">New room type</p>
           <div className="flex items-center gap-3">
-            <input
+            <Input
               value={newRoomTitle}
               onChange={(e) => setNewRoomTitle(e.target.value)}
               placeholder="Room name"
-              className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              className="flex-1"
             />
-            <input
+            <Input
               type="number"
               min={1}
               value={newRoomOccupancy}
               onChange={(e) => setNewRoomOccupancy(Number(e.target.value))}
-              className="w-24 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              className="w-24"
             />
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               onClick={() => void handleAddRoom()}
               disabled={savingRoom || !newRoomTitle}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              variant="primary"
+              size="sm"
             >
               {savingRoom ? 'Creating…' : 'Create Room Type'}
-            </button>
-            <button type="button" onClick={() => setShowRoomForm(false)} className="text-sm text-slate-500">Cancel</button>
+            </Button>
+            <Button type="button" onClick={() => setShowRoomForm(false)} variant="ghost" size="sm">Cancel</Button>
           </div>
         </div>
       ) : (
         <button
           type="button"
           onClick={() => setShowRoomForm(true)}
-          className="rounded-xl border-2 border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-600 w-full"
+          className="rounded-xl border-2 border-dashed border-edge px-4 py-3 text-sm text-content-2 hover:border-brand-light hover:text-brand w-full"
         >
           + Add room type
         </button>

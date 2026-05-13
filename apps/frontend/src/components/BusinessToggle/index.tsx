@@ -1,31 +1,30 @@
+import { useLanguage } from '../../context/LanguageContext';
+
 interface Props {
   businessIds: readonly string[];
   selected: string;
   onChange: (id: string) => void;
 }
 
-const LABELS: Record<string, string> = {
-  '787167007221172': 'Number 1',
-  'demo-business-002': 'Number 2',
-};
-
 export default function BusinessToggle({ businessIds, selected, onChange }: Props) {
+  const { t } = useLanguage();
+  const labels = [t('toggle.number1'), t('toggle.number2')];
   return (
     <div className="flex flex-col items-end gap-1">
-      <span className="text-xs text-gray-400">Integration</span>
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-        {businessIds.map((id) => (
+      <span className="text-xs text-content-3 font-medium">{t('toggle.label')}</span>
+      <div className="flex gap-1 bg-surface-subtle rounded-lg p-1 border border-edge">
+        {businessIds.map((id, i) => (
           <button
             key={id}
             onClick={() => onChange(id)}
             className={[
-              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+              'px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-150',
               selected === id
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-400 hover:text-gray-600',
+                ? 'bg-surface-raised text-content shadow-sm border border-edge'
+                : 'text-content-3 hover:text-content-2',
             ].join(' ')}
           >
-            {LABELS[id] ?? id}
+            {labels[i] ?? id}
           </button>
         ))}
       </div>

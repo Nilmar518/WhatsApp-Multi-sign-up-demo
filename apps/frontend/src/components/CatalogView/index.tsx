@@ -8,6 +8,9 @@ import {
 } from '../../catalog-manager/api/catalogManagerApi';
 import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
+import Button from '../ui/Button';
+import Badge from '../ui/Badge';
+import { Input } from '../ui/Input';
 
 interface Props {
   businessId: string;
@@ -38,12 +41,9 @@ function HealthBadge({
   // health endpoint still reports a transient token warning.
   if (status === 'WEBHOOKS_SUBSCRIBED' && missingTokenWarning) {
     return (
-      <span
-        className="text-xs font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full cursor-default"
-        title="Connected (WEBHOOKS_SUBSCRIBED)"
-      >
+      <Badge variant="ok" title="Connected (WEBHOOKS_SUBSCRIBED)">
         ● Connected
-      </span>
+      </Badge>
     );
   }
 
@@ -57,17 +57,13 @@ function HealthBadge({
 
   if (allOk) {
     return (
-      <span
-        className="text-xs font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full cursor-default"
-        title="Meta permissions OK · Commerce Account active"
-      >
+      <Badge variant="ok" title="Meta permissions OK · Commerce Account active">
         ● OK
-      </span>
+      </Badge>
     );
   }
 
   const label = hasCritical ? '● Attention' : '● Commerce';
-  const cls   = hasCritical ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50';
 
   const tooltipLines = [
     ...missingScopes.map((s) => `Missing scope: ${s}`),
@@ -81,12 +77,12 @@ function HealthBadge({
     <div className="relative inline-block">
       <button
         onClick={() => setShowTooltip((v) => !v)}
-        className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${cls}`}
+        className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${hasCritical ? 'text-danger-text bg-danger-bg' : 'text-caution-text bg-caution-bg'}`}
       >
         {label}
       </button>
       {showTooltip && (
-        <div className="absolute left-0 top-6 z-10 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-64 space-y-1 text-xs text-gray-600">
+        <div className="absolute left-0 top-6 z-10 bg-surface-raised border border-edge rounded-xl shadow-lg p-3 w-64 space-y-1 text-xs text-content-2">
           {tooltipLines.length === 0 ? (
             <p>Token valid — waiting on Commerce Account setup.</p>
           ) : (
@@ -98,7 +94,7 @@ function HealthBadge({
             href="https://business.facebook.com/commerce"
             target="_blank"
             rel="noopener noreferrer"
-            className="block pt-1 text-blue-600 underline"
+            className="block pt-1 text-notice-text underline"
           >
             Open Commerce Manager →
           </a>
@@ -302,12 +298,12 @@ export default function CatalogView({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="border-t border-gray-200 pt-6 space-y-3">
+    <div className="border-t border-edge pt-6 space-y-3">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-content-2 uppercase tracking-wide">
             Product Catalog
           </h2>
           <HealthBadge health={health} status={status} />
@@ -316,24 +312,25 @@ export default function CatalogView({
           {hasCatalog && (
             <a
               href="/inventory"
-              className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+              className="text-xs font-medium text-brand hover:text-brand-hover transition-colors"
             >
               Manage Inventory →
             </a>
           )}
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => void syncFromMeta()}
             disabled={isSyncing}
-            className="text-xs font-medium text-green-600 hover:text-green-700 disabled:opacity-40 transition-colors"
           >
             {isSyncing ? 'Syncing…' : hasCatalog ? 'Refresh' : 'Load Catalog'}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* ── Sync error ──────────────────────────────────────────────────── */}
       {syncError && (
-        <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <p className="text-xs text-danger-text bg-danger-bg border border-danger/40 rounded-lg px-3 py-2">
           {syncError}
         </p>
       )}
@@ -341,33 +338,34 @@ export default function CatalogView({
       {/* ── Catalog linked ──────────────────────────────────────────────── */}
       {hasCatalog && (
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 gap-3">
+          <div className="flex items-center justify-between bg-ok-bg border border-ok/40 rounded-xl px-4 py-3 gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">
+              <p className="text-sm font-semibold text-content truncate">
                 {linkedCatalog?.name ?? 'Linked Catalog'}
               </p>
-              <p className="text-xs text-gray-400 font-mono truncate">
+              <p className="text-xs text-content-3 font-mono truncate">
                 {linkedCatalog?.id ?? activeCatalogId}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <a
                 href="/inventory"
-                className="text-xs font-medium text-emerald-600 hover:text-emerald-700 bg-white border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors"
+                className="text-xs font-medium text-ok-text hover:text-ok-text bg-surface-raised border border-ok/40 px-3 py-1.5 rounded-lg transition-colors"
               >
                 Manage →
               </a>
-              <button
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => void handleUnlinkCatalog()}
                 disabled={isUnlinking}
-                className="text-xs font-medium text-red-500 hover:text-red-600 bg-white border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
               >
                 {isUnlinking ? 'Unlinking…' : 'Unlink'}
-              </button>
+              </Button>
             </div>
           </div>
           {unlinkError && (
-            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="text-xs text-danger-text bg-danger-bg border border-danger/40 rounded-lg px-3 py-2">
               {unlinkError}
             </p>
           )}
@@ -377,7 +375,7 @@ export default function CatalogView({
       {/* ── No catalog linked: selector + create ────────────────────────── */}
       {!hasCatalog && !isSyncing && (
         <div className="space-y-3">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-content-3">
             {linkedCatalog
               ? 'No catalog linked to this integration.'
               : 'No catalog loaded yet. Click "Load Catalog" to sync from Meta.'}
@@ -385,42 +383,44 @@ export default function CatalogView({
 
           {/* Selector skeleton */}
           {catalogsLoading && (
-            <div className="h-8 bg-gray-100 animate-pulse rounded-xl" />
+            <div className="h-8 bg-surface-subtle animate-pulse rounded-xl" />
           )}
 
           {/* Existing catalogs */}
           {!catalogsLoading && selectableCatalogs.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-500">
+              <p className="text-xs font-medium text-content-2">
                 Select an existing catalog to link:
               </p>
               {selectableCatalogs.map((cat) => (
                 <div
                   key={cat.id}
-                  className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 gap-2"
+                  className="flex items-center justify-between bg-surface-subtle border border-edge rounded-xl px-3 py-2 gap-2"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">
+                    <p className="text-sm font-medium text-content truncate">
                       {cat.name}
                     </p>
-                    <p className="text-xs text-gray-400 font-mono truncate">
+                    <p className="text-xs text-content-3 font-mono truncate">
                       {cat.id}
                     </p>
                   </div>
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => void handleLinkCatalog(cat.id)}
                     disabled={linkingId === cat.id}
-                    className="shrink-0 text-xs font-medium text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-lg disabled:opacity-40 transition-colors"
+                    className="shrink-0"
                   >
                     {linkingId === cat.id ? 'Linking…' : 'Link'}
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
           )}
 
           {catalogError && (
-            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="text-xs text-danger-text bg-danger-bg border border-danger/40 rounded-lg px-3 py-2">
               {catalogError}
             </p>
           )}
@@ -428,24 +428,25 @@ export default function CatalogView({
           {/* Divider */}
           {selectableCatalogs.length > 0 && (
             <div className="flex items-center gap-2">
-              <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-xs text-gray-400">or</span>
-              <div className="flex-1 h-px bg-gray-200" />
+              <div className="flex-1 h-px bg-edge" />
+              <span className="text-xs text-content-3">or</span>
+              <div className="flex-1 h-px bg-edge" />
             </div>
           )}
 
           {/* Create catalog */}
           {!showCatalogForm && (
             <div className="flex items-center justify-between">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => { setShowCatalogForm(true); setCatalogError(null); }}
-                className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
               >
                 + Create New Catalog
-              </button>
+              </Button>
               <a
                 href="/inventory"
-                className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                className="text-xs font-medium text-brand hover:text-brand-hover transition-colors"
               >
                 Manage Inventory →
               </a>
@@ -455,39 +456,40 @@ export default function CatalogView({
           {showCatalogForm && (
             <form
               onSubmit={(e) => void handleCreateCatalog(e)}
-              className="flex gap-2 items-end bg-blue-50 border border-blue-200 rounded-xl p-3"
+              className="flex gap-2 items-end bg-notice-bg border border-notice/40 rounded-xl p-3"
             >
               <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-600 mb-1">
+                <label className="block text-xs font-medium text-content-2 mb-1">
                   Catalog name
                 </label>
-                <input
+                <Input
                   type="text"
                   value={newCatalogName}
                   onChange={(e) => setNewCatalogName(e.target.value)}
                   placeholder="e.g. Summer Collection"
                   autoFocus
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
                 {catalogError && (
-                  <p className="text-xs text-red-500 mt-1">{catalogError}</p>
+                  <p className="text-xs text-danger-text mt-1">{catalogError}</p>
                 )}
               </div>
               <div className="flex gap-1.5 shrink-0">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setShowCatalogForm(false)}
-                  className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg transition-colors"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="sm"
                   disabled={catalogCreating || !newCatalogName.trim()}
-                  className="text-xs font-medium bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
                 >
                   {catalogCreating ? 'Creating…' : 'Create'}
-                </button>
+                </Button>
               </div>
             </form>
           )}

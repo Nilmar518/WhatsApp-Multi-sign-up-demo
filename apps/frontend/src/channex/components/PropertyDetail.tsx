@@ -4,6 +4,7 @@ import RoomRateManager from './RoomRateManager';
 import ARICalendarFull from './ARICalendarFull';
 import ReservationsPanel from './ReservationsPanel';
 import { checkConnectionHealth, type ConnectionHealthResult } from '../api/channexHubApi';
+import Button from '../../components/ui/Button';
 
 type InnerTab = 'rooms' | 'ari' | 'reservations';
 
@@ -15,11 +16,11 @@ interface Props {
 function HealthRow({ label, ok, detail }: { label: string; ok: boolean; detail?: string }) {
   return (
     <div className="flex items-center gap-2 py-1">
-      <span className={`text-sm ${ok ? 'text-emerald-600' : 'text-red-500'}`}>
+      <span className={`text-sm ${ok ? 'text-ok-text' : 'text-danger-text'}`}>
         {ok ? '✓' : '✗'}
       </span>
-      <span className="text-sm text-slate-700">{label}</span>
-      {detail && <span className="ml-auto font-mono text-xs text-slate-400">{detail}</span>}
+      <span className="text-sm text-content">{label}</span>
+      {detail && <span className="ml-auto font-mono text-xs text-content-3">{detail}</span>}
     </div>
   );
 }
@@ -47,42 +48,44 @@ export default function PropertyDetail({ property, tenantId }: Props) {
   return (
     <div>
       {/* Property header */}
-      <div className="mb-5 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+      <div className="mb-5 rounded-2xl border border-edge bg-surface-raised px-5 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">{property.title}</h2>
-            <p className="mt-0.5 font-mono text-xs text-slate-500">{property.channex_property_id}</p>
+            <h2 className="text-lg font-semibold text-content">{property.title}</h2>
+            <p className="mt-0.5 font-mono text-xs text-content-2">{property.channex_property_id}</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-xs text-slate-500">{property.currency} · {property.timezone}</p>
+              <p className="text-xs text-content-2">{property.currency} · {property.timezone}</p>
               <span
                 className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase ${
                   property.connection_status === 'active'
-                    ? 'bg-emerald-100 text-emerald-700'
+                    ? 'bg-ok-bg text-ok-text'
                     : property.connection_status === 'pending'
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-red-100 text-red-700'
+                      ? 'bg-caution-bg text-caution-text'
+                      : 'bg-danger-bg text-danger-text'
                 }`}
               >
                 {property.connection_status}
               </span>
             </div>
-            <button
+            <Button
               type="button"
               onClick={handleSync}
               disabled={syncing}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-60"
+              variant="secondary"
+              size="sm"
+              className="flex items-center gap-1.5"
             >
               <span className={syncing ? 'animate-spin inline-block' : ''}>↻</span>
               {syncing ? 'Syncing…' : 'Sync'}
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Health result panel */}
         {healthResult && (
-          <div className="mt-4 animate-fade-in rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+          <div className="mt-4 animate-fade-in rounded-xl border border-edge bg-surface-subtle px-4 py-3">
             <HealthRow label="Property exists in Channex" ok={healthResult.propertyExists} />
             <HealthRow
               label="Rooms configured"
@@ -97,9 +100,9 @@ export default function PropertyDetail({ property, tenantId }: Props) {
             />
             <HealthRow label="Messages App installed" ok={healthResult.messagesAppInstalled} />
             {healthResult.errors.length > 0 && (
-              <div className="mt-2 rounded-lg bg-red-50 px-3 py-2">
+              <div className="mt-2 rounded-lg bg-danger-bg px-3 py-2">
                 {healthResult.errors.map((e, i) => (
-                  <p key={i} className="text-xs text-red-600">{e}</p>
+                  <p key={i} className="text-xs text-danger-text">{e}</p>
                 ))}
               </div>
             )}
@@ -107,14 +110,14 @@ export default function PropertyDetail({ property, tenantId }: Props) {
         )}
 
         {syncError && (
-          <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 animate-fade-in">
+          <div className="mt-3 rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger-text animate-fade-in">
             {syncError}
           </div>
         )}
       </div>
 
       {/* Inner tabs */}
-      <div className="mb-4 flex gap-0 border-b border-slate-200">
+      <div className="mb-4 flex gap-0 border-b border-edge">
         {([
           { id: 'rooms' as InnerTab, label: 'Rooms & Rates' },
           { id: 'ari' as InnerTab, label: 'ARI Calendar' },
@@ -127,8 +130,8 @@ export default function PropertyDetail({ property, tenantId }: Props) {
             className={[
               'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
               innerTab === tab.id
-                ? 'border-indigo-500 text-indigo-700'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300',
+                ? 'border-brand-light text-brand'
+                : 'border-transparent text-content-2 hover:text-content hover:border-edge',
             ].join(' ')}
           >
             {tab.label}

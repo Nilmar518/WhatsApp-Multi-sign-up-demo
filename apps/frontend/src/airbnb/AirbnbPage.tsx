@@ -263,22 +263,22 @@ export default function AirbnbPage() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-surface-subtle flex flex-col">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <header className="bg-surface-raised border-b border-edge px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-rose-500 rounded-lg flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xs font-bold">A</span>
           </div>
           <div>
-            <h1 className="text-base font-semibold text-gray-900 leading-tight">
+            <h1 className="text-base font-semibold text-content leading-tight">
               Airbnb Integration
             </h1>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-content-3">
               Tenant: {tenantId}
               {channexPropertyId && (
-                <span className="ml-2 text-gray-300">
+                <span className="ml-2 text-content-3">
                   · Property: {channexPropertyId.slice(0, 8)}…
                 </span>
               )}
@@ -289,16 +289,16 @@ export default function AirbnbPage() {
         {/* SSE connection indicator */}
         <div className="flex items-center gap-1.5">
           <div
-            className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-400' : 'bg-gray-300'}`}
+            className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-ok-bg' : 'bg-surface-subtle'}`}
           />
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-content-3">
             {sseConnected ? 'Live' : 'Connecting…'}
           </span>
         </div>
       </header>
 
       {/* ── Wizard step bar ─────────────────────────────────────────────────── */}
-      <nav className="bg-white border-b border-gray-100 px-6 py-3">
+      <nav className="bg-surface-raised border-b border-edge px-6 py-3">
         <ol className="flex items-center gap-0">
           {(Object.keys(STEP_LABELS) as WizardStep[]).map((s, idx) => {
             const steps = Object.keys(STEP_LABELS) as WizardStep[];
@@ -317,14 +317,14 @@ export default function AirbnbPage() {
                     isActive
                       ? 'bg-rose-50 text-rose-600'
                       : isPast
-                        ? 'text-gray-500 hover:text-gray-700 cursor-pointer'
-                        : 'text-gray-300 cursor-default',
+                        ? 'text-content-2 hover:text-content cursor-pointer'
+                        : 'text-content-3 cursor-default',
                   ].join(' ')}
                 >
                   {STEP_LABELS[s]}
                 </button>
                 {idx < steps.length - 1 && (
-                  <span className="text-gray-200 px-1">›</span>
+                  <span className="text-content-3 px-1">›</span>
                 )}
               </li>
             );
@@ -338,7 +338,7 @@ export default function AirbnbPage() {
         {/* STEP 1: PROVISION */}
         {step === 'PROVISION' && (
           propertiesLoading ? (
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-8 text-sm text-slate-500">
+            <div className="flex items-center gap-3 rounded-2xl border border-edge bg-surface-raised px-6 py-8 text-sm text-content-2">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-rose-500" />
               Loading property information…
             </div>
@@ -354,8 +354,8 @@ export default function AirbnbPage() {
 
         {/* STEP 2: CONNECT — Channex IFrame for Airbnb OAuth + Sync trigger */}
         {step === 'CONNECT' && channexPropertyId && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="bg-surface-raised rounded-2xl border border-edge p-6 space-y-5">
+            <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-3">
               <ConnectionStatusBadge
                 propertyId={channexPropertyId}
                 onReconnect={handleReconnect}
@@ -363,10 +363,10 @@ export default function AirbnbPage() {
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">
+              <h2 className="text-lg font-semibold text-content mb-1">
                 Connect Airbnb Account
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-content-2">
                 Authorize Channex to manage your Airbnb listing in the secure panel
                 below. When the connection is confirmed, click
                 {' '}<strong>Sync Listings</strong> to continue.
@@ -381,13 +381,13 @@ export default function AirbnbPage() {
 
             {/* Staging error */}
             {stagingError && (
-              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              <div className="rounded-xl bg-danger-bg border border-danger-text/20 px-4 py-3 text-sm text-danger-text">
                 <span className="font-semibold">Error: </span>{stagingError}
               </div>
             )}
 
             {/* Sync Listings CTA */}
-            <div className="flex items-center justify-end pt-2 border-t border-gray-100">
+            <div className="flex items-center justify-end pt-2 border-t border-edge">
               <button
                 type="button"
                 disabled={stagingLoading}
@@ -395,7 +395,7 @@ export default function AirbnbPage() {
                 className={[
                   'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors',
                   stagingLoading
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    ? 'bg-surface-subtle text-content-3 cursor-not-allowed'
                     : 'bg-rose-600 hover:bg-rose-700 text-white',
                 ].join(' ')}
               >
@@ -428,7 +428,7 @@ export default function AirbnbPage() {
               <button
                 type="button"
                 onClick={handleReconnect}
-                className="text-sm text-gray-400 hover:text-gray-600 underline hover:no-underline transition-colors"
+                className="text-sm text-content-3 hover:text-content-2 underline hover:no-underline transition-colors"
               >
                 ← Back to Airbnb connection
               </button>
@@ -451,7 +451,7 @@ export default function AirbnbPage() {
       {/* ── booking_new toast ─────────────────────────────────────────────────── */}
       {newBookingCode && (
         <div
-          className="fixed bottom-6 right-6 z-40 bg-green-600 text-white text-sm font-medium px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in"
+          className="fixed bottom-6 right-6 z-40 bg-ok-bg text-ok-text text-sm font-medium px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in"
           role="status"
           aria-live="polite"
         >

@@ -180,9 +180,9 @@ export default function ChannexIFrame({ propertyId, onConnected }: Props) {
 
       {/* ── Loading state ────────────────────────────────────────────────── */}
       {(status === 'IDLE' || status === 'FETCHING') && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-16 text-gray-400">
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-16 text-content-3">
           <div
-            className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin"
+            className="w-8 h-8 border-2 border-edge border-t-notice-text rounded-full animate-spin"
             aria-label="Loading"
           />
           <p className="text-sm">Preparing secure connection panel...</p>
@@ -192,23 +192,23 @@ export default function ChannexIFrame({ propertyId, onConnected }: Props) {
       {/* ── Error state ──────────────────────────────────────────────────── */}
       {status === 'ERROR' && !showFallback && (
         <div className="flex flex-col items-center justify-center flex-1 gap-4 py-12 px-6">
-          <div className="max-w-md w-full bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-sm text-red-700">
+          <div className="max-w-md w-full bg-danger-bg border border-danger-text/20 rounded-xl px-5 py-4 text-sm text-danger-text">
             <p className="font-semibold mb-1">Connection panel unavailable</p>
-            <p className="text-red-600">{error ?? 'An unexpected error occurred.'}</p>
+            <p className="text-danger-text">{error ?? 'An unexpected error occurred.'}</p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleRetry}
-              className="text-sm font-medium px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="text-sm font-medium px-4 py-2 bg-notice-bg text-notice-text rounded-lg hover:opacity-80 transition-colors"
             >
               Try again
             </button>
             <button
               type="button"
               onClick={() => void handleManualFallback()}
-              className="text-sm font-medium px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="text-sm font-medium px-4 py-2 bg-surface-raised border border-edge text-content rounded-lg hover:bg-surface-subtle transition-colors"
             >
               Open in new tab instead
             </button>
@@ -219,7 +219,7 @@ export default function ChannexIFrame({ propertyId, onConnected }: Props) {
       {/* ── CSP fallback: copy-link "Open in New Tab" ─────────────────────── */}
       {showFallback && (
         <div className="flex flex-col items-center justify-center flex-1 gap-4 py-12 px-6">
-          <div className="max-w-md w-full bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800">
+          <div className="max-w-md w-full bg-caution-bg border border-caution-text/20 rounded-xl px-5 py-4 text-sm text-caution-text">
             <p className="font-semibold mb-1">Open in a new tab</p>
             <p>
               Your browser's security settings are blocking the embedded Airbnb
@@ -238,8 +238,8 @@ export default function ChannexIFrame({ propertyId, onConnected }: Props) {
               Connect Airbnb account →
             </a>
           ) : (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-400 rounded-full animate-spin" />
+            <div className="flex items-center gap-2 text-sm text-content-3">
+              <div className="w-4 h-4 border-2 border-edge border-t-content-3 rounded-full animate-spin" />
               Generating link...
             </div>
           )}
@@ -247,7 +247,7 @@ export default function ChannexIFrame({ propertyId, onConnected }: Props) {
           <button
             type="button"
             onClick={handleRetry}
-            className="text-xs text-gray-400 underline hover:no-underline"
+            className="text-xs text-content-3 underline hover:no-underline"
           >
             Try the embedded panel again
           </button>
@@ -259,20 +259,20 @@ export default function ChannexIFrame({ propertyId, onConnected }: Props) {
         <div className="relative flex-1 flex flex-col">
           {/* Thin loading bar while iframe is painting */}
           {status === 'RENDERING' && (
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-100 overflow-hidden z-10">
-              <div className="h-full bg-blue-500 animate-pulse w-2/3" />
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-notice-bg overflow-hidden z-10">
+              <div className="h-full bg-notice-text animate-pulse w-2/3" />
             </div>
           )}
 
           {status === 'RENDERING' && (
-            <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="flex items-center justify-between gap-3 border-b border-edge bg-caution-bg px-4 py-3 text-sm text-caution-text">
               <p className="font-medium">
                 Having trouble loading? Open in a new tab instead.
               </p>
               <button
                 type="button"
                 onClick={() => void handleManualFallback()}
-                className="shrink-0 rounded-lg border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-900 transition hover:bg-amber-100"
+                className="shrink-0 rounded-lg border border-caution-text/30 bg-surface-raised px-4 py-2 text-xs font-semibold text-caution-text transition hover:bg-caution-bg/80"
               >
                 Open in new tab
               </button>
@@ -301,7 +301,7 @@ export default function ChannexIFrame({ propertyId, onConnected }: Props) {
               <button
                 type="button"
                 onClick={() => void handleManualFallback()}
-                className="text-xs text-gray-400 hover:text-gray-600 underline hover:no-underline transition-colors"
+                className="text-xs text-content-3 hover:text-content-2 underline hover:no-underline transition-colors"
               >
                 Having trouble? Open in new tab instead
               </button>

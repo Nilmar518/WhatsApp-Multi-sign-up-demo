@@ -1,8 +1,11 @@
 import type { IntegrationStatus } from '../../types/integration';
 import type { SetupStep } from '../../hooks/useWhatsAppConnect';
+import type { TranslationKey } from '../../i18n/es';
+import Badge from '../ui/Badge';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface StatusConfig {
-  label: string;
+  labelKey: TranslationKey;
   textColor: string;
   dotClass: string;
 }
@@ -15,39 +18,39 @@ interface StatusConfig {
 const STATUS_CONFIG: Record<IntegrationStatus, StatusConfig> = {
   // ── Lifecycle states ────────────────────────────────────────────────────────
   IDLE: {
-    label: 'Not Connected',
-    textColor: 'text-gray-500',
-    dotClass: 'bg-gray-400',
+    labelKey:  'status.idle',
+    textColor: 'text-content-2',
+    dotClass:  'bg-content-3',
   },
   CONNECTING: {
-    label: 'Connecting...',
-    textColor: 'text-yellow-600',
-    dotClass: 'bg-yellow-400 animate-pulse',
+    labelKey:  'status.connecting',
+    textColor: 'text-caution-text',
+    dotClass:  'bg-caution animate-pulse',
   },
   PENDING_TOKEN: {
-    label: 'Awaiting Token...',
-    textColor: 'text-blue-600',
-    dotClass: 'bg-blue-400 animate-pulse',
+    labelKey:  'status.pendingToken',
+    textColor: 'text-notice-text',
+    dotClass:  'bg-notice animate-pulse',
   },
   ACTIVE: {
-    label: 'Connected',
-    textColor: 'text-green-600',
-    dotClass: 'bg-green-500',
+    labelKey:  'status.active',
+    textColor: 'text-ok-text',
+    dotClass:  'bg-ok-text',
   },
   ACCOUNT_RESOLVED: {
-    label: 'Account Resolved',
-    textColor: 'text-green-600',
-    dotClass: 'bg-green-500',
+    labelKey:  'status.accountResolved',
+    textColor: 'text-ok-text',
+    dotClass:  'bg-ok-text',
   },
   ERROR: {
-    label: 'Connection Error',
-    textColor: 'text-red-600',
-    dotClass: 'bg-red-500',
+    labelKey:  'status.error',
+    textColor: 'text-danger-text',
+    dotClass:  'bg-danger',
   },
   MIGRATING: {
-    label: 'Migrating...',
-    textColor: 'text-purple-600',
-    dotClass: 'bg-purple-400 animate-pulse',
+    labelKey:  'status.migrating',
+    textColor: 'text-brand-dim',
+    dotClass:  'bg-brand animate-pulse',
   },
   // ── Setup state machine — Firestore-side labels ─────────────────────────────
   // Shown when the Firestore status field reflects a granular setup step.
@@ -55,40 +58,40 @@ const STATUS_CONFIG: Record<IntegrationStatus, StatusConfig> = {
   // the final ACTIVE write. In the per-step flow (useWhatsAppConnect) the hook's
   // SetupStep display takes precedence (see STEP_CONFIG below).
   TOKEN_EXCHANGED: {
-    label: 'Verifying your Facebook account...',
-    textColor: 'text-yellow-600',
-    dotClass: 'bg-yellow-400 animate-pulse',
+    labelKey:  'status.verifyingAccount',
+    textColor: 'text-caution-text',
+    dotClass:  'bg-caution animate-pulse',
   },
   PHONE_REGISTERED: {
-    label: 'Activating WhatsApp number...',
-    textColor: 'text-yellow-600',
-    dotClass: 'bg-yellow-400 animate-pulse',
+    labelKey:  'status.activatingNumber',
+    textColor: 'text-caution-text',
+    dotClass:  'bg-caution animate-pulse',
   },
   STATUS_VERIFIED: {
-    label: 'Confirming number status...',
-    textColor: 'text-blue-600',
-    dotClass: 'bg-blue-400 animate-pulse',
+    labelKey:  'status.confirmingStatus',
+    textColor: 'text-notice-text',
+    dotClass:  'bg-notice animate-pulse',
   },
   CATALOG_SELECTED: {
-    label: 'Catalog linked — finalizing...',
-    textColor: 'text-blue-600',
-    dotClass: 'bg-blue-400 animate-pulse',
+    labelKey:  'status.catalogLinked',
+    textColor: 'text-notice-text',
+    dotClass:  'bg-notice animate-pulse',
   },
   WEBHOOKS_SUBSCRIBED: {
-    label: 'Finalizing connection...',
-    textColor: 'text-yellow-600',
-    dotClass: 'bg-yellow-400 animate-pulse',
+    labelKey:  'status.finalizingConn',
+    textColor: 'text-caution-text',
+    dotClass:  'bg-caution animate-pulse',
   },
   // ── Messenger setup state machine ─────────────────────────────────────────
   PAGE_SELECTED: {
-    label: 'Page linked — subscribing webhooks...',
-    textColor: 'text-blue-600',
-    dotClass: 'bg-blue-400 animate-pulse',
+    labelKey:  'status.pageLinked',
+    textColor: 'text-notice-text',
+    dotClass:  'bg-notice animate-pulse',
   },
   PAGE_SUBSCRIBED: {
-    label: 'Messenger Connected',
-    textColor: 'text-blue-600',
-    dotClass: 'bg-[#1877F2]',
+    labelKey:  'status.messengerConnected',
+    textColor: 'text-notice-text',
+    dotClass:  'bg-channel-ms',
   },
 };
 
@@ -100,34 +103,34 @@ const STATUS_CONFIG: Record<IntegrationStatus, StatusConfig> = {
 
 const STEP_CONFIG: Partial<Record<SetupStep, StatusConfig>> = {
   exchanging_token: {
-    label: 'Verifying your Facebook account...',
-    textColor: 'text-yellow-600',
-    dotClass: 'bg-yellow-400 animate-pulse',
+    labelKey:  'status.verifyingAccount',
+    textColor: 'text-caution-text',
+    dotClass:  'bg-caution animate-pulse',
   },
   registering_phone: {
-    label: 'Activating WhatsApp number...',
-    textColor: 'text-yellow-600',
-    dotClass: 'bg-yellow-400 animate-pulse',
+    labelKey:  'status.activatingNumber',
+    textColor: 'text-caution-text',
+    dotClass:  'bg-caution animate-pulse',
   },
   verifying_status: {
-    label: 'Confirming number status...',
-    textColor: 'text-blue-600',
-    dotClass: 'bg-blue-400 animate-pulse',
+    labelKey:  'status.confirmingStatus',
+    textColor: 'text-notice-text',
+    dotClass:  'bg-notice animate-pulse',
   },
   subscribing_webhooks: {
-    label: 'Finalizing connection...',
-    textColor: 'text-yellow-600',
-    dotClass: 'bg-yellow-400 animate-pulse',
+    labelKey:  'status.finalizingConn',
+    textColor: 'text-caution-text',
+    dotClass:  'bg-caution animate-pulse',
   },
   complete: {
-    label: 'Connected ✓',
-    textColor: 'text-green-600',
-    dotClass: 'bg-green-500',
+    labelKey:  'status.connectedCheck',
+    textColor: 'text-ok-text',
+    dotClass:  'bg-ok-text',
   },
   error: {
-    label: 'Connection Error',
-    textColor: 'text-red-600',
-    dotClass: 'bg-red-500',
+    labelKey:  'status.error',
+    textColor: 'text-danger-text',
+    dotClass:  'bg-danger',
   },
 };
 
@@ -146,11 +149,13 @@ interface Props {
 }
 
 export default function StatusDisplay({ status, isLoading, setupStep }: Props) {
+  const { t } = useLanguage();
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2">
-        <div className="w-3 h-3 rounded-full bg-gray-300 animate-pulse" />
-        <span className="text-sm text-gray-400">Loading status...</span>
+        <div className="w-3 h-3 rounded-full bg-surface-subtle animate-pulse" />
+        <span className="text-sm text-content-3">{t('status.loading')}</span>
       </div>
     );
   }
@@ -160,12 +165,20 @@ export default function StatusDisplay({ status, isLoading, setupStep }: Props) {
     setupStep && setupStep !== 'idle' ? STEP_CONFIG[setupStep] : undefined;
 
   const config = stepConfig ?? STATUS_CONFIG[status] ?? STATUS_CONFIG.ERROR;
-  const { label, textColor, dotClass } = config;
+  const { labelKey, textColor, dotClass } = config;
+
+  // Render a Badge for terminal/prominent statuses
+  if (status === 'ACTIVE' && !stepConfig) {
+    return <Badge variant="ok">{t('status.active')}</Badge>;
+  }
+  if (status === 'ERROR' && !stepConfig) {
+    return <Badge variant="danger">{t('status.error')}</Badge>;
+  }
 
   return (
     <div className="flex items-center gap-2">
       <div className={`w-3 h-3 rounded-full ${dotClass}`} />
-      <span className={`text-sm font-medium ${textColor}`}>{label}</span>
+      <span className={`text-sm font-medium ${textColor}`}>{t(labelKey)}</span>
     </div>
   );
 }

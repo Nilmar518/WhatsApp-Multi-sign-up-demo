@@ -16,8 +16,8 @@ export default function InventoryView({ integrationDocId, activeProperty }: Prop
 
   if (!canRenderCalendar) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="px-6 py-10 text-center text-sm text-slate-600">
+      <div className="overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
+        <div className="px-6 py-10 text-center text-sm text-content-2">
           Select a synced listing from the sidebar to load the calendar view.
         </div>
       </div>

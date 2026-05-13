@@ -12,6 +12,7 @@ import {
 import BookingReservations from './components/BookingReservations';
 import BookingInbox from './components/BookingInbox';
 import { useChannexProperties } from '../../channex/hooks/useChannexProperties';
+import Button from '../../components/ui/Button';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -163,14 +164,14 @@ export default function BookingIntegrationView({ businessId }: Props) {
       <div className="flex items-center gap-3">
         <span className="text-2xl">🏨</span>
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Booking.com</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-content">Booking.com</h2>
+          <p className="text-sm text-content-2">
             Connect your Booking.com property via Channex.io
           </p>
         </div>
         {viewState === 'connected' && (
-          <span className="ml-auto flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span className="ml-auto flex items-center gap-1.5 rounded-full border border-ok-bg bg-ok-bg px-3 py-1 text-xs font-medium text-ok-text">
+            <span className="h-1.5 w-1.5 rounded-full bg-ok-text" />
             Connected
           </span>
         )}
@@ -178,56 +179,57 @@ export default function BookingIntegrationView({ businessId }: Props) {
 
       {/* Loading shimmer */}
       {viewState === 'loading' && (
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" />
+        <div className="flex items-center gap-3 rounded-xl border border-edge bg-surface-subtle px-4 py-4 text-sm text-content-2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-notice-text" />
           Loading integration status…
         </div>
       )}
 
       {/* Connection panel */}
       {(viewState === 'idle' || viewState === 'opening' || viewState === 'popup_open' || viewState === 'error') && (
-        <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+        <div className="mx-auto max-w-2xl rounded-2xl border border-edge bg-surface-raised p-8 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-notice-text">
             Booking.com Connection
           </p>
-          <h3 className="mt-2 text-xl font-semibold text-slate-900">
+          <h3 className="mt-2 text-xl font-semibold text-content">
             Connect your Booking.com account
           </h3>
 
           {baseProperty && (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm">
-              <p className="font-semibold text-emerald-800">
+            <div className="mt-4 rounded-xl border border-ok-bg bg-ok-bg px-4 py-3 text-sm">
+              <p className="font-semibold text-ok-text">
                 Existing property detected
               </p>
-              <p className="mt-0.5 text-emerald-700">
+              <p className="mt-0.5 text-ok-text">
                 We'll connect Booking.com to:{' '}
                 <span className="font-medium">{baseProperty.title}</span>
               </p>
-              <p className="mt-0.5 font-mono text-xs text-emerald-600 break-all">
+              <p className="mt-0.5 font-mono text-xs text-ok-text break-all">
                 {baseProperty.channex_property_id}
               </p>
             </div>
           )}
 
-          <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
+          <ol className="mt-4 space-y-2 text-sm leading-6 text-content-2">
             <li>
-              <span className="font-semibold text-slate-800">Step 1.</span> Click{' '}
-              <span className="font-medium text-blue-600">Connect via Channex</span> to open the
+              <span className="font-semibold text-content">Step 1.</span> Click{' '}
+              <span className="font-medium text-notice-text">Connect via Channex</span> to open the
               secure Channex authorization popup. Complete the Booking.com connection there.
             </li>
             <li>
-              <span className="font-semibold text-slate-800">Step 2.</span> Return here and click{' '}
-              <span className="font-medium text-emerald-600">Sync &amp; Complete</span> to import
+              <span className="font-semibold text-content">Step 2.</span> Return here and click{' '}
+              <span className="font-medium text-ok-text">Sync &amp; Complete</span> to import
               your rooms and rate plans.
             </li>
           </ol>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="lg"
               onClick={() => void handleOpenPopup()}
               disabled={isLocked}
-              className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {viewState === 'opening' ? (
                 <>
@@ -237,22 +239,24 @@ export default function BookingIntegrationView({ businessId }: Props) {
               ) : (
                 'Connect via Channex'
               )}
-            </button>
+            </Button>
 
             {(viewState === 'popup_open' || viewState === 'error') && (
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="lg"
                 onClick={() => void handleSync()}
                 disabled={isLocked}
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="bg-ok-text hover:bg-ok-text/90"
               >
                 Sync &amp; Complete
-              </button>
+              </Button>
             )}
           </div>
 
           {error && (
-            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-5 rounded-xl border border-danger-bg bg-danger-bg px-4 py-3 text-sm text-danger-text">
               {error}
             </div>
           )}
@@ -261,8 +265,8 @@ export default function BookingIntegrationView({ businessId }: Props) {
 
       {/* Syncing overlay */}
       {viewState === 'syncing' && (
-        <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-400">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
+        <div className="flex items-center justify-center gap-2 py-8 text-sm text-content-3">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-notice-text" />
           Fetching rooms and rates from Booking.com…
         </div>
       )}
@@ -271,7 +275,7 @@ export default function BookingIntegrationView({ businessId }: Props) {
       {viewState === 'connected' && (
         <div className="space-y-4">
           {/* Tab bar */}
-          <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+          <div className="flex gap-1 rounded-xl border border-edge bg-surface-subtle p-1">
             {(['inbox', 'reservations', 'settings'] as ActiveTab[]).map((tab) => (
               <button
                 key={tab}
@@ -280,8 +284,8 @@ export default function BookingIntegrationView({ businessId }: Props) {
                 className={[
                   'flex-1 rounded-lg px-4 py-2 text-sm font-medium capitalize transition',
                   activeTab === tab
-                    ? 'bg-white text-blue-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700',
+                    ? 'bg-surface-raised text-notice-text shadow-sm'
+                    : 'text-content-2 hover:text-content',
                 ].join(' ')}
               >
                 {tab === 'inbox' && 'Inbox'}
@@ -306,48 +310,48 @@ export default function BookingIntegrationView({ businessId }: Props) {
           )}
 
           {activeTab === 'settings' && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+            <div className="rounded-2xl border border-edge bg-surface-raised p-6 shadow-sm space-y-6">
 
               {/* Room & Rate Plans — hierarchical view */}
               <div>
                 <div className="flex items-baseline justify-between">
-                  <h3 className="text-base font-semibold text-slate-900">Rooms &amp; Rate Plans</h3>
+                  <h3 className="text-base font-semibold text-content">Rooms &amp; Rate Plans</h3>
                   {roomTypes.length > 0 && (
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-content-3">
                       {roomTypes.length} room{roomTypes.length !== 1 ? 's' : ''} &middot;{' '}
                       {roomTypes.reduce((n, rt) => n + rt.rate_plans.length, 0)} rate plan{roomTypes.reduce((n, rt) => n + rt.rate_plans.length, 0) !== 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-content-2">
                   Synced from Channex. Use these IDs to configure availability and pricing.
                 </p>
               </div>
 
               {/* Populated — nested room → rate plan tree */}
               {roomTypes.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border border-slate-200">
+                <div className="overflow-hidden rounded-xl border border-edge">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <thead className="bg-surface-subtle text-xs uppercase tracking-wide text-content-2">
                       <tr>
                         <th className="px-4 py-2.5 text-left font-medium">Title</th>
                         <th className="px-4 py-2.5 text-left font-medium">Channex ID</th>
                         <th className="px-4 py-2.5 text-left font-medium">Type</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
+                    <tbody className="divide-y divide-edge bg-surface-raised">
                       {roomTypes.map((room) => (
                         <React.Fragment key={room.id}>
                           {/* Room row */}
-                          <tr className="bg-slate-50/60">
-                            <td className="px-4 py-2.5 font-medium text-slate-800">
+                          <tr className="bg-surface-subtle/60">
+                            <td className="px-4 py-2.5 font-medium text-content">
                               {room.title}
                             </td>
-                            <td className="px-4 py-2.5 font-mono text-xs text-slate-400">
+                            <td className="px-4 py-2.5 font-mono text-xs text-content-3">
                               {room.id}
                             </td>
                             <td className="px-4 py-2.5">
-                              <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              <span className="inline-flex items-center rounded-md border border-notice/40 bg-notice-bg px-2 py-0.5 text-xs font-medium text-notice-text">
                                 Room Type
                               </span>
                             </td>
@@ -355,16 +359,16 @@ export default function BookingIntegrationView({ businessId }: Props) {
 
                           {/* Rate plan rows — indented under their room */}
                           {room.rate_plans.map((rp) => (
-                            <tr key={rp.id} className="bg-white">
-                              <td className="py-2.5 pl-10 pr-4 text-slate-600">
-                                <span className="mr-2 text-slate-300">↳</span>
+                            <tr key={rp.id} className="bg-surface-raised">
+                              <td className="py-2.5 pl-10 pr-4 text-content-2">
+                                <span className="mr-2 text-content-3">↳</span>
                                 {rp.title}
                               </td>
-                              <td className="px-4 py-2.5 font-mono text-xs text-slate-400">
+                              <td className="px-4 py-2.5 font-mono text-xs text-content-3">
                                 {rp.id}
                               </td>
                               <td className="px-4 py-2.5">
-                                <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                <span className="inline-flex items-center rounded-md border border-caution-bg bg-caution-bg px-2 py-0.5 text-xs font-medium text-caution-text">
                                   Rate Plan
                                 </span>
                               </td>
@@ -379,22 +383,22 @@ export default function BookingIntegrationView({ businessId }: Props) {
                 /* Legacy fallback — flat tables for integrations created before schema migration */
                 <div className="space-y-4">
                   <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-content-3">
                       Rooms ({otaRooms.length})
                     </p>
-                    <div className="overflow-hidden rounded-xl border border-slate-200">
+                    <div className="overflow-hidden rounded-xl border border-edge">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                        <thead className="bg-surface-subtle text-xs uppercase tracking-wide text-content-2">
                           <tr>
                             <th className="px-4 py-2 text-left font-medium">Room ID</th>
                             <th className="px-4 py-2 text-left font-medium">Title</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
+                        <tbody className="divide-y divide-edge bg-surface-raised">
                           {otaRooms.map((room) => (
                             <tr key={room.id}>
-                              <td className="px-4 py-2 font-mono text-xs text-slate-500">{room.id}</td>
-                              <td className="px-4 py-2 text-slate-800">{room.title}</td>
+                              <td className="px-4 py-2 font-mono text-xs text-content-2">{room.id}</td>
+                              <td className="px-4 py-2 text-content">{room.title}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -402,24 +406,24 @@ export default function BookingIntegrationView({ businessId }: Props) {
                     </div>
                   </div>
                   <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-content-3">
                       Rate Plans ({otaRates.length})
                     </p>
-                    <div className="overflow-hidden rounded-xl border border-slate-200">
+                    <div className="overflow-hidden rounded-xl border border-edge">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                        <thead className="bg-surface-subtle text-xs uppercase tracking-wide text-content-2">
                           <tr>
                             <th className="px-4 py-2 text-left font-medium">Rate ID</th>
                             <th className="px-4 py-2 text-left font-medium">Title</th>
                             <th className="px-4 py-2 text-left font-medium">Room</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
+                        <tbody className="divide-y divide-edge bg-surface-raised">
                           {otaRates.map((rate, i) => (
                             <tr key={`${rate.id}-${i}`}>
-                              <td className="px-4 py-2 font-mono text-xs text-slate-500">{rate.id}</td>
-                              <td className="px-4 py-2 text-slate-800">{rate.title}</td>
-                              <td className="px-4 py-2 font-mono text-xs text-slate-500">{rate.room_id}</td>
+                              <td className="px-4 py-2 font-mono text-xs text-content-2">{rate.id}</td>
+                              <td className="px-4 py-2 text-content">{rate.title}</td>
+                              <td className="px-4 py-2 font-mono text-xs text-content-2">{rate.room_id}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -428,35 +432,36 @@ export default function BookingIntegrationView({ businessId }: Props) {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" />
+                <div className="flex items-center gap-3 rounded-xl border border-edge bg-surface-subtle px-4 py-4 text-sm text-content-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-notice-text" />
                   Waiting for pipeline to complete…
                 </div>
               )}
 
               {/* Disconnect */}
-              <div className="border-t border-slate-100 pt-4">
+              <div className="border-t border-edge pt-4">
                 {error && (
-                  <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <div className="mb-4 rounded-xl border border-danger-bg bg-danger-bg px-4 py-3 text-sm text-danger-text">
                     {error}
                   </div>
                 )}
-                <button
+                <Button
                   type="button"
+                  variant="danger"
+                  size="md"
                   onClick={() => void handleDisconnect()}
                   disabled={isDisconnecting}
-                  className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isDisconnecting ? (
                     <>
-                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-500" />
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-danger-text/30 border-t-danger-text" />
                       Disconnecting…
                     </>
                   ) : (
                     'Disconnect Booking.com'
                   )}
-                </button>
-                <p className="mt-1.5 text-xs text-slate-500">
+                </Button>
+                <p className="mt-1.5 text-xs text-content-2">
                   Sends an XML drop signal to Booking.com, returning calendar control to your Extranet.
                 </p>
               </div>

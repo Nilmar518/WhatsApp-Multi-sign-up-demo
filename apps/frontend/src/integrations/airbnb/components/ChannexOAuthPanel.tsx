@@ -106,18 +106,18 @@ export default function ChannexOAuthPanel({ propertyId, tenantId, onConnected }:
 
   return (
     <div className="h-full w-full px-6 py-8">
-      <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+      <div className="mx-auto max-w-2xl rounded-2xl border border-edge bg-surface-raised p-8 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-600">Airbnb Connection</p>
-        <h2 className="mt-2 text-2xl font-semibold text-slate-900">Connect your Airbnb Account</h2>
+        <h2 className="mt-2 text-2xl font-semibold text-content">Connect your Airbnb Account</h2>
 
-        <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
+        <ol className="mt-4 space-y-2 text-sm leading-6 text-content-2">
           <li>
-            <span className="font-semibold text-slate-800">Step 1.</span> Click{' '}
+            <span className="font-semibold text-content">Step 1.</span> Click{' '}
             <span className="font-medium text-rose-600">Connect Airbnb Account</span> to open the
             secure Channex authorization popup. Complete the Airbnb login there.
           </li>
           <li>
-            <span className="font-semibold text-slate-800">Step 2.</span> Return here and click{' '}
+            <span className="font-semibold text-content">Step 2.</span> Return here and click{' '}
             <span className="font-medium text-emerald-600">Sync Listings &amp; Complete</span> to
             import your Airbnb listings and activate the integration.
           </li>
@@ -129,7 +129,7 @@ export default function ChannexOAuthPanel({ propertyId, tenantId, onConnected }:
             type="button"
             onClick={() => void handleConnect()}
             disabled={isLocked}
-            className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-content-3"
           >
             {isOpeningPopup ? 'Opening secure window…' : 'Connect Airbnb Account'}
           </button>
@@ -139,7 +139,7 @@ export default function ChannexOAuthPanel({ propertyId, tenantId, onConnected }:
             type="button"
             onClick={() => void handleSync()}
             disabled={isLocked}
-            className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="inline-flex items-center justify-center rounded-xl bg-ok-text px-5 py-3 text-sm font-semibold text-white transition hover:bg-ok-text/80 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-content-3"
           >
             {isSyncing ? (
               <>
@@ -161,13 +161,13 @@ export default function ChannexOAuthPanel({ propertyId, tenantId, onConnected }:
         </div>
 
         {error && (
-          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mt-5 rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <div className="mt-5 rounded-xl border border-ok-text/20 bg-ok-bg px-4 py-3 text-sm text-ok-text">
             {success}
           </div>
         )}

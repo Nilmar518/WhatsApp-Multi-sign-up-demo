@@ -1,16 +1,24 @@
 import { useEffect, useState } from 'react';
 import { getConnectionStatus, type ChannexConnectionStatus } from '../api/channexApi';
+import { Badge } from '../../components/ui';
 
 interface Props {
   propertyId: string;
   onReconnect: () => void;
 }
 
-const STATUS_STYLES: Record<ChannexConnectionStatus, { label: string; tone: string }> = {
-  pending: { label: 'Pending', tone: 'bg-slate-100 text-slate-700 ring-slate-200' },
-  active: { label: 'Active', tone: 'bg-emerald-100 text-emerald-700 ring-emerald-200' },
-  token_expired: { label: 'Token expired', tone: 'bg-amber-100 text-amber-800 ring-amber-200' },
-  error: { label: 'Error', tone: 'bg-red-100 text-red-700 ring-red-200' },
+const STATUS_BADGE_VARIANT: Record<ChannexConnectionStatus, 'ok' | 'danger' | 'caution' | 'neutral'> = {
+  pending: 'neutral',
+  active: 'ok',
+  token_expired: 'caution',
+  error: 'danger',
+};
+
+const STATUS_LABELS: Record<ChannexConnectionStatus, string> = {
+  pending: 'Pending',
+  active: 'Active',
+  token_expired: 'Token expired',
+  error: 'Error',
 };
 
 export default function ConnectionStatusBadge({ propertyId, onReconnect }: Props) {
@@ -50,16 +58,16 @@ export default function ConnectionStatusBadge({ propertyId, onReconnect }: Props
     };
   }, [propertyId]);
 
-  const style = STATUS_STYLES[status];
+  const badgeVariant = STATUS_BADGE_VARIANT[status];
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3">
-        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ${style.tone}`}>
-          {loading ? 'Checking...' : style.label}
-        </span>
+        <Badge variant={badgeVariant}>
+          {loading ? 'Checking...' : STATUS_LABELS[status]}
+        </Badge>
         {error && !loading && (
-          <span className="text-xs text-slate-500">{error}</span>
+          <span className="text-xs text-content-2">{error}</span>
         )}
       </div>
 
@@ -67,7 +75,7 @@ export default function ConnectionStatusBadge({ propertyId, onReconnect }: Props
         <button
           type="button"
           onClick={onReconnect}
-          className="inline-flex items-center justify-center rounded-full bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
+          className="inline-flex items-center justify-center rounded-full bg-caution-bg px-4 py-2 text-xs font-semibold text-caution-text transition hover:opacity-80"
         >
           Reconnect
         </button>

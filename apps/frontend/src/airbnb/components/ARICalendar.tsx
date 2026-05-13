@@ -439,59 +439,59 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
   );
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
+    <div className="overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
+      <div className="border-b border-edge bg-surface-subtle px-6 py-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-semibold text-slate-900">Inventory and Rates</h2>
+              <h2 className="text-xl font-semibold text-content">Inventory and Rates</h2>
               <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
                 Mapped to Airbnb
               </span>
             </div>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-content-2">
               Daily Channex ARI data with reservation overlays from Firestore.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 sm:grid-cols-4">
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Listing</p>
-              <p className="mt-1 truncate font-semibold text-slate-900">
+          <div className="grid grid-cols-2 gap-2 text-xs text-content-2 sm:grid-cols-4">
+            <div className="rounded-xl border border-edge bg-surface-raised px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-content-2">Listing</p>
+              <p className="mt-1 truncate font-semibold text-content">
                 {activeProperty?.title || 'Select listing'}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Capacity</p>
-              <p className="mt-1 font-semibold text-slate-900">
+            <div className="rounded-xl border border-edge bg-surface-raised px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-content-2">Capacity</p>
+              <p className="mt-1 font-semibold text-content">
                 {activeProperty?.capacity ?? '-'}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Default Price</p>
-              <p className="mt-1 font-semibold text-slate-900">
+            <div className="rounded-xl border border-edge bg-surface-raised px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-content-2">Default Price</p>
+              <p className="mt-1 font-semibold text-content">
                 {activeProperty?.default_price != null && activeProperty.currency
                   ? formatMoney(activeProperty.default_price, activeProperty.currency)
                   : '-'}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Booked Nights</p>
-              <p className="mt-1 font-semibold text-slate-900">{totalNightsBooked}</p>
+            <div className="rounded-xl border border-edge bg-surface-raised px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-content-2">Booked Nights</p>
+              <p className="mt-1 font-semibold text-content">{totalNightsBooked}</p>
             </div>
           </div>
         </div>
 
         {activeProperty && (
-          <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-semibold text-slate-900">{activeProperty.title}</p>
-            <p className="mt-1 text-xs text-slate-600">Room Type ID: {activeProperty.channex_room_type_id}</p>
+          <div className="mt-3 rounded-xl border border-edge bg-surface-raised px-4 py-3">
+            <p className="text-sm font-semibold text-content">{activeProperty.title}</p>
+            <p className="mt-1 text-xs text-content-2">Room Type ID: {activeProperty.channex_room_type_id}</p>
           </div>
         )}
       </div>
 
       {!canRenderCalendar && (
-        <div className="px-6 py-10 text-center text-sm text-slate-600">
+        <div className="px-6 py-10 text-center text-sm text-content-2">
           Select a synced listing from the sidebar to load the calendar view.
         </div>
       )}
@@ -499,21 +499,21 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
       {canRenderCalendar && (
         <div className="space-y-4 px-4 py-4 sm:px-6 sm:py-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-edge bg-surface-raised p-1">
               <button
                 type="button"
                 onClick={() => moveMonth(-1)}
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-content transition hover:bg-surface-subtle"
               >
                 Prev
               </button>
-              <div className="min-w-36 px-2 text-center text-sm font-semibold text-slate-900">
+              <div className="min-w-36 px-2 text-center text-sm font-semibold text-content">
                 {monthLabel}
               </div>
               <button
                 type="button"
                 onClick={() => moveMonth(1)}
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-content transition hover:bg-surface-subtle"
               >
                 Next
               </button>
@@ -526,32 +526,32 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
                 <span className="h-2 w-2 rounded-full bg-slate-400" /> Unavailable
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
-                <span className="h-2 w-2 rounded-full bg-sky-500" /> Reservation
+              <span className="inline-flex items-center gap-1 rounded-full bg-notice-bg px-2.5 py-1 text-notice-text">
+                <span className="h-2 w-2 rounded-full bg-notice-text" /> Reservation
               </span>
             </div>
           </div>
 
           {calendarError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
               {calendarError}
             </div>
           )}
 
           {reservationsError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
               {reservationsError}
             </div>
           )}
 
           {(calendarLoading || reservationsLoading) && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-3 text-sm text-content-2">
               Loading calendar and reservations...
             </div>
           )}
 
           {activeReservation && (
-            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+            <div className="rounded-xl border border-notice-text/20 bg-notice-bg px-4 py-3 text-sm text-notice-text">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold">{formatGuestName(activeReservation)}</p>
@@ -562,7 +562,7 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
                 <button
                   type="button"
                   onClick={() => setActiveReservationId(null)}
-                  className="rounded-md border border-sky-200 bg-white px-2 py-1 text-xs font-semibold text-sky-700"
+                  className="rounded-md border border-notice-text/20 bg-surface-raised px-2 py-1 text-xs font-semibold text-notice-text"
                 >
                   Close
                 </button>
@@ -571,21 +571,21 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
           )}
 
           <div
-            className="overflow-hidden rounded-2xl border border-slate-200 bg-white select-none"
+            className="overflow-hidden rounded-2xl border border-edge bg-surface-raised select-none"
             onMouseDown={(e) => e.preventDefault()}
           >
-            <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+            <div className="grid grid-cols-7 border-b border-edge bg-surface-subtle">
               {WEEKDAY_LABELS.map((weekday) => (
                 <div
                   key={weekday}
-                  className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500"
+                  className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-content-2"
                 >
                   {weekday}
                 </div>
               ))}
             </div>
 
-            <div className="divide-y divide-slate-200">
+            <div className="divide-y divide-edge">
               {weeks.map((weekDates) => {
                 const weekKey = isoDate(weekDates[0]);
                 const segments = getReservationSegmentsForWeek(reservations, weekDates);
@@ -615,18 +615,18 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
                           <div
                             key={dateString}
                             className={[
-                              'relative flex flex-col p-2 border border-slate-200 cursor-pointer select-none transition-all',
+                              'relative flex flex-col p-2 border border-edge cursor-pointer select-none transition-all',
                               isSelected
-                                ? 'bg-blue-100 border-blue-600 ring-2 ring-inset ring-blue-600 z-10'
-                                : 'bg-white hover:bg-slate-50',
-                              !inMonth ? 'bg-slate-50/80' : '',
-                              unavailable && !isSelected ? 'bg-slate-100/80' : '',
+                                ? 'bg-notice-bg border-notice-text ring-2 ring-inset ring-notice-text z-10'
+                                : 'bg-surface-raised hover:bg-surface-subtle',
+                              !inMonth ? 'bg-surface-subtle/80' : '',
+                              unavailable && !isSelected ? 'bg-surface-subtle/80' : '',
                             ].join(' ')}
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => handleCellClick(dateString)}
                           >
                             <div className="flex items-center justify-between">
-                              <span className="pointer-events-none font-medium text-sm text-slate-700">
+                              <span className="pointer-events-none font-medium text-sm text-content">
                                 {dayNumber}
                               </span>
                               <span
@@ -637,12 +637,12 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
                               />
                             </div>
 
-                            <div className="pointer-events-none mt-1 text-xs text-slate-500">
+                            <div className="pointer-events-none mt-1 text-xs text-content-2">
                               {displayPrice}
                             </div>
 
                             {day?.min_stay_arrival != null && (
-                              <div className="pointer-events-none mt-1 text-[11px] text-slate-500">
+                              <div className="pointer-events-none mt-1 text-[11px] text-content-2">
                                 Min stay: {day.min_stay_arrival}
                               </div>
                             )}
@@ -664,7 +664,7 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
                               gridColumn: `${segment.colStart} / ${segment.colEnd + 1}`,
                               gridRow: segment.lane + 1,
                             }}
-                            className="pointer-events-auto h-5 self-start truncate rounded-md bg-sky-500 px-2 text-left text-[11px] font-medium text-white shadow-sm ring-1 ring-sky-600/20"
+                            className="pointer-events-auto h-5 self-start truncate rounded-md bg-notice-text px-2 text-left text-[11px] font-medium text-white shadow-sm ring-1 ring-notice-text/20"
                           >
                             {title}
                           </button>
@@ -688,16 +688,16 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
               setShowARIControlPanel(false);
             }}
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-80 border-l border-gray-200 bg-white p-6 shadow-2xl">
+          <div className="fixed inset-y-0 right-0 z-50 w-80 border-l border-edge bg-surface-raised p-6 shadow-2xl">
             <div className="flex h-full flex-col">
               <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-lg font-bold">Update Availability</h2>
+                <h2 className="text-lg font-bold text-content">Update Availability</h2>
                 <button
                   onClick={() => {
                     if (isSaving) return;
                     setShowARIControlPanel(false);
                   }}
-                  className="text-gray-500 hover:text-black"
+                  className="text-content-2 hover:text-content"
                   disabled={isSaving}
                 >
                   ✕
@@ -705,8 +705,8 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
               </div>
 
               <div className="mb-6">
-                <p className="text-sm text-gray-500">Selected Dates</p>
-                <p className="font-medium">{selectionStart} to {selectionEnd}</p>
+                <p className="text-sm text-content-2">Selected Dates</p>
+                <p className="font-medium text-content">{selectionStart} to {selectionEnd}</p>
               </div>
 
               <div className="mb-8 flex flex-col gap-4">
@@ -717,7 +717,7 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
                     value="1"
                     checked={selectedAvailability === 1}
                     onChange={() => setSelectedAvailability(1)}
-                    className="form-radio text-blue-600"
+                    className="form-radio text-brand"
                   />
                   <span>Available (Open)</span>
                 </label>
@@ -728,14 +728,14 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
                     value="0"
                     checked={selectedAvailability === 0}
                     onChange={() => setSelectedAvailability(0)}
-                    className="form-radio text-blue-600"
+                    className="form-radio text-brand"
                   />
                   <span>Blocked (Closed)</span>
                 </label>
               </div>
 
               {saveError && (
-                <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <p className="mb-4 rounded-md border border-danger-text/20 bg-danger-bg px-3 py-2 text-sm text-danger-text">
                   {saveError}
                 </p>
               )}
@@ -743,7 +743,7 @@ export default function ARICalendar({ integrationDocId, activeProperty }: Props)
               <button
                 onClick={() => void handleSaveARI()}
                 disabled={isSaving}
-                className="w-full rounded-lg bg-black py-3 font-medium text-white hover:bg-gray-800 disabled:bg-gray-400"
+                className="w-full rounded-lg bg-content py-3 font-medium text-surface-raised hover:bg-content-2 disabled:bg-content-3"
               >
                 {isSaving ? 'Saving...' : 'Save Updates'}
               </button>

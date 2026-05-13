@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { auth } from '../firebase/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase/firebase';
 import LoginPage from './LoginPage';
+import ChangePasswordForm from './ChangePasswordForm';
 
 interface Props {
   children: React.ReactNode;
 }
 
 export default function AuthGate({ children }: Props) {
-  const [user, setUser]       = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser]                         = useState<User | null>(null);
+  const [loading, setLoading]                   = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
 
   useEffect(() => {
-    // Patch window.fetch once so every /api/* call carries the Firebase ID token.
-    // This avoids modifying each of the existing API files individually.
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (input, init) => {
       const url = typeof input === 'string' ? input : (input as Request).url;
@@ -26,8 +27,22 @@ export default function AuthGate({ children }: Props) {
       return originalFetch(input, init as RequestInit);
     };
 
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      if (u) {
+        try {
+          const snap = await getDoc(doc(db, 'users', u.uid));
+          if (snap.exists() && snap.data()?.mustChangePassword === true) {
+            setMustChangePassword(true);
+          } else {
+            setMustChangePassword(false);
+          }
+        } catch {
+          setMustChangePassword(false);
+        }
+      } else {
+        setMustChangePassword(false);
+      }
       setLoading(false);
     });
 
@@ -39,13 +54,17 @@ export default function AuthGate({ children }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <span className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-edge border-t-brand animate-spin" />
       </div>
     );
   }
 
   if (!user) return <LoginPage />;
+
+  if (mustChangePassword) {
+    return <ChangePasswordForm onDone={() => setMustChangePassword(false)} />;
+  }
 
   return <>{children}</>;
 }

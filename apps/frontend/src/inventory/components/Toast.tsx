@@ -1,4 +1,8 @@
-import { useEffect } from 'react';
+import UIToast from '../../components/ui/Toast';
+import { ToastContainer as UIToastContainer } from '../../components/ui/Toast';
+import type { ComponentProps } from 'react';
+
+// ─── Re-export types used by callers ─────────────────────────────────────────
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -8,56 +12,35 @@ export interface ToastItem {
   type: ToastType;
 }
 
-const ICONS: Record<ToastType, string> = {
-  success: '✓',
-  error: '✕',
-  info: 'i',
+// ─── Type → Variant mapping ───────────────────────────────────────────────────
+
+const TYPE_TO_VARIANT: Record<ToastType, ComponentProps<typeof UIToast>['variant']> = {
+  success: 'ok',
+  error:   'danger',
+  info:    'notice',
 };
 
-const STYLES: Record<ToastType, string> = {
-  success: 'bg-green-50 border-green-200 text-green-800',
-  error:   'bg-red-50 border-red-200 text-red-800',
-  info:    'bg-blue-50 border-blue-200 text-blue-800',
-};
+// ─── Legacy Toast shim ────────────────────────────────────────────────────────
+// Callers pass { toast: ToastItem, onDismiss: () => void }
 
-const ICON_STYLES: Record<ToastType, string> = {
-  success: 'bg-green-100 text-green-700',
-  error:   'bg-red-100 text-red-600',
-  info:    'bg-blue-100 text-blue-600',
-};
-
-function Toast({
+export function Toast({
   toast,
   onDismiss,
 }: {
   toast: ToastItem;
   onDismiss: () => void;
 }) {
-  useEffect(() => {
-    const timer = setTimeout(onDismiss, 4000);
-    return () => clearTimeout(timer);
-  }, [onDismiss]);
-
   return (
-    <div
-      className={`flex items-start gap-3 border rounded-xl px-4 py-3 shadow-md min-w-[280px] max-w-sm ${STYLES[toast.type]}`}
-    >
-      <span
-        className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${ICON_STYLES[toast.type]}`}
-      >
-        {ICONS[toast.type]}
-      </span>
-      <p className="text-sm flex-1 leading-snug">{toast.message}</p>
-      <button
-        onClick={onDismiss}
-        aria-label="Dismiss"
-        className="shrink-0 opacity-40 hover:opacity-80 transition-opacity text-sm leading-none mt-0.5"
-      >
-        ✕
-      </button>
-    </div>
+    <UIToast
+      message={toast.message}
+      variant={TYPE_TO_VARIANT[toast.type] ?? 'notice'}
+      onDismiss={onDismiss}
+    />
   );
 }
+
+// ─── Legacy ToastContainer shim ───────────────────────────────────────────────
+// Callers pass { toasts: ToastItem[], onDismiss: (id: string) => void }
 
 export function ToastContainer({
   toasts,
@@ -69,12 +52,10 @@ export function ToastContainer({
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none">
+    <UIToastContainer>
       {toasts.map((t) => (
-        <div key={t.id} className="pointer-events-auto">
-          <Toast toast={t} onDismiss={() => onDismiss(t.id)} />
-        </div>
+        <Toast key={t.id} toast={t} onDismiss={() => onDismiss(t.id)} />
       ))}
-    </div>
+    </UIToastContainer>
   );
 }
