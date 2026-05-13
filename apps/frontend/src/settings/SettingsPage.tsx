@@ -3,6 +3,7 @@ import type { User } from './api/usersApi';
 import UserTable from './components/UserTable';
 import CreateUserModal from './components/CreateUserModal';
 import EditUserModal from './components/EditUserModal';
+import { useLanguage } from '../context/LanguageContext';
 
 type Tab = 'usuarios';
 
@@ -11,6 +12,7 @@ export default function SettingsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { t } = useLanguage();
 
   const refresh = () => setRefreshTrigger((n) => n + 1);
 
@@ -21,13 +23,13 @@ export default function SettingsPage() {
   };
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'usuarios', label: 'Usuarios' },
+    { id: 'usuarios', label: t('settings.tab.users') },
   ];
 
   return (
     <div className="h-screen flex flex-col bg-surface-subtle overflow-hidden">
       <header className="bg-surface-raised border-b border-edge px-6 py-4 shrink-0">
-        <h1 className="text-2xl font-bold text-content">Configuración del Sistema</h1>
+        <h1 className="text-2xl font-bold text-content">{t('settings.title')}</h1>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">

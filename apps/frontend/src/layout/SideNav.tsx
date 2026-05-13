@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/firebase';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   LayoutDashboard, MessageSquare, Package, Smartphone,
   Hotel, Globe, Settings, Moon, Sun, User, LogOut,
-  ChevronLeft, ChevronRight, MessageCircle, Camera, Home,
+  ChevronLeft, ChevronRight, MessageCircle, Camera, Home, Languages,
 } from 'lucide-react';
 
 const LS_KEY = 'sidenav_collapsed';
@@ -79,6 +80,7 @@ export default function SideNav() {
     () => localStorage.getItem(LS_KEY) === 'true',
   );
   const { theme, toggleTheme } = useTheme();
+  const { lang, toggleLanguage, t } = useLanguage();
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [currentSearch, setCurrentSearch] = useState(window.location.search);
@@ -130,50 +132,50 @@ export default function SideNav() {
       <div className="flex-1 flex flex-col gap-0.5 p-2 mt-1">
         {!collapsed && (
           <p className="text-content-sidebar-muted text-[10px] font-semibold uppercase tracking-widest px-2.5 py-2">
-            Principal
+            {t('nav.principal')}
           </p>
         )}
-        <NavRow icon={<LayoutDashboard size={16} />} label="Dashboard"  href="/"         collapsed={collapsed} currentPath={currentPath} />
-        <NavRow icon={<MessageSquare size={16} />}   label="Mensajes"   href="/mensajes"  collapsed={collapsed} currentPath={currentPath} />
-        <NavRow icon={<Package size={16} />}         label="Inventario" href="/inventory" collapsed={collapsed} currentPath={currentPath} />
+        <NavRow icon={<LayoutDashboard size={16} />} label={t('nav.dashboard')}  href="/"         collapsed={collapsed} currentPath={currentPath} />
+        <NavRow icon={<MessageSquare size={16} />}   label={t('nav.messages')}   href="/mensajes"  collapsed={collapsed} currentPath={currentPath} />
+        <NavRow icon={<Package size={16} />}         label={t('nav.inventory')} href="/inventory" collapsed={collapsed} currentPath={currentPath} />
 
         {!collapsed && (
           <p className="text-content-sidebar-muted text-[10px] font-semibold uppercase tracking-widest px-2.5 pt-4 pb-2">
-            Integraciones
+            {t('nav.integrations')}
           </p>
         )}
         {collapsed && <div className="my-1 mx-2 border-t border-white/5" />}
 
         {/* Messaging channels — all at the same level */}
         <NavRow
-          icon={<MessageCircle size={16} />} label="WhatsApp" href="/mensajes?channel=whatsapp" collapsed={collapsed} currentPath={currentPath}
+          icon={<MessageCircle size={16} />} label={t('nav.whatsapp')} href="/mensajes?channel=whatsapp" collapsed={collapsed} currentPath={currentPath}
           activeOverride={currentPath.startsWith('/mensajes') && (!channelParam || channelParam === 'whatsapp')}
         />
         <NavRow
-          icon={<MessageSquare size={16} />} label="Messenger" href="/mensajes?channel=messenger" collapsed={collapsed} currentPath={currentPath}
+          icon={<MessageSquare size={16} />} label={t('nav.messenger')} href="/mensajes?channel=messenger" collapsed={collapsed} currentPath={currentPath}
           activeOverride={isChannelActive('messenger')}
         />
         <NavRow
-          icon={<Camera size={16} />} label="Instagram" href="/mensajes?channel=instagram" collapsed={collapsed} currentPath={currentPath}
+          icon={<Camera size={16} />} label={t('nav.instagram')} href="/mensajes?channel=instagram" collapsed={collapsed} currentPath={currentPath}
           activeOverride={isChannelActive('instagram')}
         />
 
         {/* Channex with sub-items */}
-        <NavRow icon={<Hotel size={16} />} label="Channex" href="/channex" collapsed={collapsed} currentPath={currentPath} />
+        <NavRow icon={<Hotel size={16} />} label={t('nav.channex')} href="/channex" collapsed={collapsed} currentPath={currentPath} />
         {(channexOpen || !collapsed) && (
           <>
-            <SubNavRow icon={<Home size={12} />}  label="Airbnb"      href="/channex/airbnb"   collapsed={collapsed} currentPath={currentPath} />
-            <SubNavRow icon={<Globe size={12} />} label="Booking.com" href="/channex/booking"  collapsed={collapsed} currentPath={currentPath} />
+            <SubNavRow icon={<Home size={12} />}  label={t('nav.airbnb')}  href="/channex/airbnb"  collapsed={collapsed} currentPath={currentPath} />
+            <SubNavRow icon={<Globe size={12} />} label={t('nav.booking')} href="/channex/booking" collapsed={collapsed} currentPath={currentPath} />
           </>
         )}
 
         {!collapsed && (
           <p className="text-content-sidebar-muted text-[10px] font-semibold uppercase tracking-widest px-2.5 pt-4 pb-2">
-            Sistema
+            {t('nav.system')}
           </p>
         )}
         {collapsed && <div className="my-1 mx-2 border-t border-white/5" />}
-        <NavRow icon={<Settings size={16} />} label="Configuración" href="/configuracion" collapsed={collapsed} currentPath={currentPath} />
+        <NavRow icon={<Settings size={16} />} label={t('nav.settings')} href="/configuracion" collapsed={collapsed} currentPath={currentPath} />
       </div>
 
       {/* Bottom controls */}
@@ -181,7 +183,7 @@ export default function SideNav() {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+          title={theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
           className={[
             'flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md',
             'text-content-sidebar text-sm font-medium',
@@ -192,31 +194,47 @@ export default function SideNav() {
             ? <Sun size={16} className="shrink-0" />
             : <Moon size={16} className="shrink-0" />}
           {!collapsed && (
-            <span>{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
+            <span>{theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}</span>
+          )}
+        </button>
+
+        {/* Language toggle */}
+        <button
+          onClick={toggleLanguage}
+          title={t('nav.changeLang')}
+          className={[
+            'flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md',
+            'text-content-sidebar text-sm font-medium',
+            'hover:bg-surface-sidebar-hover hover:text-content-inv transition-colors duration-150',
+          ].join(' ')}
+        >
+          <Languages size={16} className="shrink-0" />
+          {!collapsed && (
+            <span>{lang.toUpperCase()}</span>
           )}
         </button>
 
         {/* User */}
         <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-content-sidebar text-sm font-medium hover:bg-surface-sidebar-hover hover:text-content-inv transition-colors duration-150 cursor-pointer">
           <User size={16} className="shrink-0" />
-          {!collapsed && <span className="truncate">Mi cuenta</span>}
+          {!collapsed && <span className="truncate">{t('nav.myAccount')}</span>}
         </div>
 
         {/* Logout */}
         <button
           onClick={handleLogout}
-          title="Cerrar sesión"
+          title={t('nav.logout')}
           className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-danger text-sm font-medium hover:bg-danger-bg transition-colors duration-150"
         >
           <LogOut size={16} className="shrink-0" />
-          {!collapsed && <span>Cerrar sesión</span>}
+          {!collapsed && <span>{t('nav.logout')}</span>}
         </button>
 
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed((c) => !c)}
           className="flex items-center justify-center w-full mt-1 py-1.5 rounded-md text-content-sidebar-muted hover:text-content-sidebar hover:bg-surface-sidebar-hover transition-colors duration-150"
-          title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+          title={collapsed ? t('nav.expandMenu') : t('nav.collapseMenu')}
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>

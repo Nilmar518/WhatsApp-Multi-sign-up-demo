@@ -3,6 +3,7 @@ import { Pencil, Trash2, Plus, RefreshCw } from 'lucide-react';
 import { getUsers, deleteUser, type User } from '../api/usersApi';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface UserTableProps {
   onEdit: (user: User) => void;
@@ -17,18 +18,19 @@ const roleVariant: Record<User['role'], 'brand' | 'caution' | 'neutral'> = {
   customer: 'neutral',
 };
 
-const roleLabel: Record<User['role'], string> = {
-  owner: 'Owner',
-  admin: 'Admin',
-  customer: 'Customer',
-};
-
 export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }: UserTableProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
   const [confirmingUid, setConfirmingUid] = useState<string | null>(null);
+  const { t } = useLanguage();
+
+  const roleLabel: Record<User['role'], string> = {
+    owner: t('users.role.owner'),
+    admin: t('users.role.admin'),
+    customer: t('users.role.customer'),
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -37,7 +39,7 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
       const data = await getUsers();
       setUsers(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al cargar usuarios');
+      setError(err instanceof Error ? err.message : t('users.loadError'));
     } finally {
       setLoading(false);
     }
@@ -77,7 +79,7 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
         <p className="text-sm text-danger-text">{error}</p>
         <Button variant="outline" size="sm" onClick={() => void fetchUsers()}>
           <RefreshCw className="w-3.5 h-3.5" />
-          Reintentar
+          {t('common.retry')}
         </Button>
       </div>
     );
@@ -87,17 +89,17 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-content-2 font-medium">
-          {users.length} {users.length === 1 ? 'usuario' : 'usuarios'}
+          {users.length} {t('users.count')}
         </p>
         <Button variant="primary" size="sm" onClick={onAddNew}>
           <Plus className="w-3.5 h-3.5" />
-          Agregar usuario
+          {t('users.addUser')}
         </Button>
       </div>
 
       {users.length === 0 ? (
         <div className="py-16 text-center">
-          <p className="text-sm text-content-2">No hay usuarios registrados.</p>
+          <p className="text-sm text-content-2">{t('users.empty')}</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-edge">
@@ -105,22 +107,22 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
             <thead>
               <tr className="bg-surface-subtle border-b border-edge">
                 <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
-                  Nombre
+                  {t('users.col.name')}
                 </th>
                 <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
-                  Email
+                  {t('users.col.email')}
                 </th>
                 <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
-                  Teléfono
+                  {t('users.col.phone')}
                 </th>
                 <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
-                  País
+                  {t('users.col.country')}
                 </th>
                 <th className="text-left px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
-                  Rol
+                  {t('users.col.role')}
                 </th>
                 <th className="text-right px-4 py-3 font-semibold text-content-2 text-xs uppercase tracking-wide">
-                  Acciones
+                  {t('users.col.actions')}
                 </th>
               </tr>
             </thead>
@@ -140,14 +142,14 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
                     <div className="flex items-center justify-end gap-2">
                       {confirmingUid === user.uid ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-content-2">¿Confirmar?</span>
+                          <span className="text-xs text-content-2">{t('users.confirmDelete')}</span>
                           <Button
                             variant="danger"
                             size="sm"
                             disabled={deletingUid === user.uid}
                             onClick={() => void handleDeleteConfirm(user.uid)}
                           >
-                            Sí
+                            {t('common.yes')}
                           </Button>
                           <Button
                             variant="ghost"
@@ -155,7 +157,7 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
                             disabled={deletingUid === user.uid}
                             onClick={() => setConfirmingUid(null)}
                           >
-                            No
+                            {t('common.no')}
                           </Button>
                         </div>
                       ) : (
@@ -164,7 +166,7 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
                             variant="ghost"
                             size="sm"
                             onClick={() => onEdit(user)}
-                            title="Editar usuario"
+                            title={t('common.editUser')}
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
@@ -172,7 +174,7 @@ export default function UserTable({ onEdit, onDelete, onAddNew, refreshTrigger }
                             variant="ghost"
                             size="sm"
                             onClick={() => setConfirmingUid(user.uid)}
-                            title="Eliminar usuario"
+                            title={t('common.deleteUser')}
                             className="hover:text-danger-text"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

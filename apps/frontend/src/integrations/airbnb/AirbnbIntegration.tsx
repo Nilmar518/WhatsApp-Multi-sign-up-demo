@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   AirbnbSidebar,
   ChannexOAuthPanel,
@@ -48,6 +49,7 @@ function PlaceholderPanel({ title, description }: { title: string; description: 
 }
 
 export default function AirbnbIntegration({ businessId }: { businessId: string }) {
+  const { t } = useLanguage();
   const [integrationState, setIntegrationState] = useState<IntegrationState>('loading');
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [propertyId, setPropertyId] = useState<string | null>(null);
@@ -321,8 +323,8 @@ export default function AirbnbIntegration({ businessId }: { businessId: string }
       <main className="flex-1 min-w-0 bg-white">
         <div className="flex items-center justify-between border-b border-edge px-6 py-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-2">Airbnb Integration</p>
-            <h1 className="text-lg font-semibold text-content">Migo App · Airbnb</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-2">{t('airbnb.integration')}</p>
+            <h1 className="text-lg font-semibold text-content">{t('airbnb.shell')}</h1>
           </div>
 
           <div className="flex items-center gap-2 rounded-full border border-edge bg-surface-subtle p-1 text-xs font-medium text-content-2">

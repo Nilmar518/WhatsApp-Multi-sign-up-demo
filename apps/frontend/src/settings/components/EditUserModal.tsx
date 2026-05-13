@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Input, Select } from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { updateUser, type User } from '../api/usersApi';
+import { useLanguage } from '../../context/LanguageContext';
 
 const COUNTRY_OPTIONS = [
   { code: 'AR', name: 'Argentina' }, { code: 'BO', name: 'Bolivia' },
@@ -11,12 +12,6 @@ const COUNTRY_OPTIONS = [
   { code: 'PE', name: 'Perú' }, { code: 'PY', name: 'Paraguay' },
   { code: 'UY', name: 'Uruguay' }, { code: 'VE', name: 'Venezuela' },
   { code: 'US', name: 'Estados Unidos' }, { code: 'ES', name: 'España' },
-];
-
-const ROLE_OPTIONS = [
-  { value: 'customer', label: 'Cliente' },
-  { value: 'admin', label: 'Administrador' },
-  { value: 'owner', label: 'Propietario' },
 ];
 
 interface Props {
@@ -47,14 +42,21 @@ export default function EditUserModal({ user, onClose, onSuccess }: Props) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const { t } = useLanguage();
+
+  const ROLE_OPTIONS = [
+    { value: 'customer', label: t('users.role.customer') },
+    { value: 'admin', label: t('users.role.admin') },
+    { value: 'owner', label: t('users.role.owner') },
+  ];
 
   function validate(): boolean {
     const next: FormErrors = {};
-    if (!form.name.trim()) next.name = 'El nombre es requerido';
+    if (!form.name.trim()) next.name = t('users.val.nameRequired');
     if (!form.phone.trim()) {
-      next.phone = 'El teléfono es requerido';
+      next.phone = t('users.val.phoneRequired');
     } else if (!/^\d+$/.test(form.phone)) {
-      next.phone = 'Solo se permiten dígitos';
+      next.phone = t('users.val.phoneInvalid');
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -74,7 +76,7 @@ export default function EditUserModal({ user, onClose, onSuccess }: Props) {
       });
       onSuccess();
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Error al actualizar el usuario');
+      setServerError(err instanceof Error ? err.message : t('users.edit.error'));
     } finally {
       setSubmitting(false);
     }
@@ -99,12 +101,12 @@ export default function EditUserModal({ user, onClose, onSuccess }: Props) {
       onClick={handleBackdropClick}
     >
       <div className="bg-surface-raised rounded-xl shadow-2xl p-6 w-full max-w-md">
-        <h2 className="text-lg font-semibold text-content mb-5">Editar usuario</h2>
+        <h2 className="text-lg font-semibold text-content mb-5">{t('users.edit.title')}</h2>
         <form onSubmit={handleSubmit} noValidate>
           <div className="flex flex-col gap-4">
             <div>
               <label className="block text-sm font-medium text-content-2 mb-1">
-                Email
+                {t('users.field.email')}
               </label>
               <Input
                 type="email"
@@ -116,13 +118,13 @@ export default function EditUserModal({ user, onClose, onSuccess }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-content-2 mb-1">
-                Nombre
+                {t('users.field.name')}
               </label>
               <Input
                 type="text"
                 value={form.name}
                 onChange={e => handleChange('name', e.target.value)}
-                placeholder="Nombre completo"
+                placeholder={t('users.ph.name')}
               />
               {errors.name && (
                 <p className="mt-1 text-xs text-danger-text">{errors.name}</p>
@@ -130,14 +132,14 @@ export default function EditUserModal({ user, onClose, onSuccess }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-content-2 mb-1">
-                Teléfono
+                {t('users.field.phone')}
               </label>
               <Input
                 type="text"
                 inputMode="numeric"
                 value={form.phone}
                 onChange={e => handleChange('phone', e.target.value)}
-                placeholder="Solo dígitos"
+                placeholder={t('users.ph.phone')}
               />
               {errors.phone && (
                 <p className="mt-1 text-xs text-danger-text">{errors.phone}</p>
@@ -145,7 +147,7 @@ export default function EditUserModal({ user, onClose, onSuccess }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-content-2 mb-1">
-                País
+                {t('users.field.country')}
               </label>
               <Select
                 value={form.country}
@@ -158,7 +160,7 @@ export default function EditUserModal({ user, onClose, onSuccess }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-content-2 mb-1">
-                Rol
+                {t('users.field.role')}
               </label>
               <Select
                 value={form.role}
@@ -177,10 +179,10 @@ export default function EditUserModal({ user, onClose, onSuccess }: Props) {
           </div>
           <div className="flex justify-end gap-2 mt-6">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button type="submit" variant="primary" disabled={submitting}>
-              {submitting ? 'Guardando...' : 'Guardar cambios'}
+              {submitting ? t('users.edit.saving') : t('users.edit.submit')}
             </Button>
           </div>
         </form>

@@ -3,6 +3,7 @@ import { updatePassword } from 'firebase/auth';
 import { auth } from '../firebase/firebase';
 import { Input } from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import { useLanguage } from '../context/LanguageContext';
 
 interface Props {
   onDone: () => void;
@@ -13,25 +14,26 @@ export default function ChangePasswordForm({ onDone }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError]                     = useState('');
   const [loading, setLoading]                 = useState(false);
+  const { t } = useLanguage();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
     if (newPassword.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
+      setError(t('auth.pwMinLength'));
       return;
     }
     if (!/[A-Z]/.test(newPassword)) {
-      setError('La contraseña debe contener al menos una letra mayúscula.');
+      setError(t('auth.pwUppercase'));
       return;
     }
     if (!/[0-9]/.test(newPassword)) {
-      setError('La contraseña debe contener al menos un número.');
+      setError(t('auth.pwNumber'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Las contraseñas no coinciden.');
+      setError(t('auth.pwMismatch'));
       return;
     }
 
@@ -49,7 +51,7 @@ export default function ChangePasswordForm({ onDone }: Props) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Ocurrió un error. Intenta de nuevo.');
+        setError(t('auth.pwError'));
       }
     } finally {
       setLoading(false);
@@ -59,15 +61,13 @@ export default function ChangePasswordForm({ onDone }: Props) {
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-surface-raised border border-edge rounded-2xl p-8 shadow-md">
-        <h1 className="text-xl font-semibold text-content mb-2">Cambiar contraseña</h1>
-        <p className="text-sm text-content-2 mb-6">
-          Esta es tu primera sesión. Por seguridad, debes establecer una nueva contraseña.
-        </p>
+        <h1 className="text-xl font-semibold text-content mb-2">{t('auth.changePassword')}</h1>
+        <p className="text-sm text-content-2 mb-6">{t('auth.firstSession')}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-content mb-1">
-              Nueva contraseña
+              {t('auth.newPassword')}
             </label>
             <Input
               type="password"
@@ -80,7 +80,7 @@ export default function ChangePasswordForm({ onDone }: Props) {
 
           <div>
             <label className="block text-sm font-medium text-content mb-1">
-              Confirmar contraseña
+              {t('auth.confirmPassword')}
             </label>
             <Input
               type="password"
@@ -98,7 +98,7 @@ export default function ChangePasswordForm({ onDone }: Props) {
           )}
 
           <Button type="submit" disabled={loading} className="w-full justify-center">
-            {loading ? 'Guardando…' : 'Cambiar contraseña'}
+            {loading ? t('auth.saving') : t('auth.changePassword')}
           </Button>
         </form>
       </div>

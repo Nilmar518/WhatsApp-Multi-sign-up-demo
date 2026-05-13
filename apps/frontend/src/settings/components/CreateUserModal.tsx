@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Input, Select } from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { createUser, type CreateUserResponse } from '../api/usersApi';
+import { useLanguage } from '../../context/LanguageContext';
 
 const COUNTRY_OPTIONS = [
   { code: 'AR', name: 'Argentina' }, { code: 'BO', name: 'Bolivia' },
@@ -11,12 +12,6 @@ const COUNTRY_OPTIONS = [
   { code: 'PE', name: 'Perú' }, { code: 'PY', name: 'Paraguay' },
   { code: 'UY', name: 'Uruguay' }, { code: 'VE', name: 'Venezuela' },
   { code: 'US', name: 'Estados Unidos' }, { code: 'ES', name: 'España' },
-];
-
-const ROLE_OPTIONS = [
-  { value: 'customer', label: 'Cliente' },
-  { value: 'admin', label: 'Administrador' },
-  { value: 'owner', label: 'Propietario' },
 ];
 
 interface Props {
@@ -54,19 +49,26 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [createdUser, setCreatedUser] = useState<CreateUserResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const { t } = useLanguage();
+
+  const ROLE_OPTIONS = [
+    { value: 'customer', label: t('users.role.customer') },
+    { value: 'admin', label: t('users.role.admin') },
+    { value: 'owner', label: t('users.role.owner') },
+  ];
 
   function validate(): boolean {
     const next: FormErrors = {};
-    if (!form.name.trim()) next.name = 'El nombre es requerido';
+    if (!form.name.trim()) next.name = t('users.val.nameRequired');
     if (!form.email.trim()) {
-      next.email = 'El email es requerido';
+      next.email = t('users.val.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      next.email = 'Ingresa un email válido';
+      next.email = t('users.val.emailInvalid');
     }
     if (!form.phone.trim()) {
-      next.phone = 'El teléfono es requerido';
+      next.phone = t('users.val.phoneRequired');
     } else if (!/^\d+$/.test(form.phone)) {
-      next.phone = 'Solo se permiten dígitos';
+      next.phone = t('users.val.phoneInvalid');
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -88,7 +90,7 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
       setCreatedUser(result);
       setPhase('password');
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Error al crear el usuario');
+      setServerError(err instanceof Error ? err.message : t('users.create.error'));
     } finally {
       setSubmitting(false);
     }
@@ -126,18 +128,18 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
       <div className="bg-surface-raised rounded-xl shadow-2xl p-6 w-full max-w-md">
         {phase === 'form' && (
           <>
-            <h2 className="text-lg font-semibold text-content mb-5">Agregar usuario</h2>
+            <h2 className="text-lg font-semibold text-content mb-5">{t('users.create.title')}</h2>
             <form onSubmit={handleSubmit} noValidate>
               <div className="flex flex-col gap-4">
                 <div>
                   <label className="block text-sm font-medium text-content-2 mb-1">
-                    Nombre
+                    {t('users.field.name')}
                   </label>
                   <Input
                     type="text"
                     value={form.name}
                     onChange={e => handleChange('name', e.target.value)}
-                    placeholder="Nombre completo"
+                    placeholder={t('users.ph.name')}
                   />
                   {errors.name && (
                     <p className="mt-1 text-xs text-danger-text">{errors.name}</p>
@@ -145,13 +147,13 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-content-2 mb-1">
-                    Email
+                    {t('users.field.email')}
                   </label>
                   <Input
                     type="email"
                     value={form.email}
                     onChange={e => handleChange('email', e.target.value)}
-                    placeholder="correo@ejemplo.com"
+                    placeholder={t('users.ph.email')}
                   />
                   {errors.email && (
                     <p className="mt-1 text-xs text-danger-text">{errors.email}</p>
@@ -159,14 +161,14 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-content-2 mb-1">
-                    Teléfono
+                    {t('users.field.phone')}
                   </label>
                   <Input
                     type="text"
                     inputMode="numeric"
                     value={form.phone}
                     onChange={e => handleChange('phone', e.target.value)}
-                    placeholder="Solo dígitos"
+                    placeholder={t('users.ph.phone')}
                   />
                   {errors.phone && (
                     <p className="mt-1 text-xs text-danger-text">{errors.phone}</p>
@@ -174,7 +176,7 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-content-2 mb-1">
-                    País
+                    {t('users.field.country')}
                   </label>
                   <Select
                     value={form.country}
@@ -187,7 +189,7 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-content-2 mb-1">
-                    Rol
+                    {t('users.field.role')}
                   </label>
                   <Select
                     value={form.role}
@@ -206,10 +208,10 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
               </div>
               <div className="flex justify-end gap-2 mt-6">
                 <Button type="button" variant="secondary" onClick={onClose}>
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" variant="primary" disabled={submitting}>
-                  {submitting ? 'Creando...' : 'Crear usuario'}
+                  {submitting ? t('users.create.creating') : t('users.create.submit')}
                 </Button>
               </div>
             </form>
@@ -219,14 +221,14 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
         {phase === 'password' && createdUser && (
           <>
             <h2 className="text-lg font-semibold text-content mb-1">
-              Usuario creado exitosamente
+              {t('users.create.success')}
             </h2>
             <p className="text-sm text-content-2 mb-4">
               {createdUser.name} — {createdUser.email}
             </p>
             <div className="rounded-lg border border-caution/30 bg-caution-bg px-4 py-3 mb-4">
               <p className="text-sm font-medium text-caution-text">
-                Esta contraseña se muestra una sola vez. Cópiala antes de cerrar.
+                {t('users.create.oneTime')}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -234,12 +236,12 @@ export default function CreateUserModal({ onClose, onSuccess }: Props) {
                 {createdUser.temporaryPassword}
               </span>
               <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
-                {copied ? 'Copiado' : 'Copiar'}
+                {copied ? t('common.copied') : t('common.copy')}
               </Button>
             </div>
             <div className="flex justify-end mt-6">
               <Button type="button" variant="primary" onClick={onSuccess}>
-                Cerrar
+                {t('common.close')}
               </Button>
             </div>
           </>

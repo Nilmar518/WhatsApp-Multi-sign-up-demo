@@ -7,6 +7,7 @@ import PropertyDetail from './components/PropertyDetail';
 import PropertySetupWizard from './components/PropertySetupWizard';
 import type { ChannexProperty } from './hooks/useChannexProperties';
 import Button from '../components/ui/Button';
+import { useLanguage } from '../context/LanguageContext';
 
 type SubTab = 'properties' | 'airbnb' | 'booking';
 
@@ -15,16 +16,17 @@ interface Props {
   initialTab?: SubTab;
 }
 
-const SUB_TABS: { id: SubTab; label: string }[] = [
-  { id: 'properties', label: 'Properties' },
-  { id: 'airbnb',     label: 'Airbnb' },
-  { id: 'booking',    label: 'Booking.com' },
-];
-
 export default function ChannexHub({ businessId, initialTab = 'properties' }: Props) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>(initialTab);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<ChannexProperty | null>(null);
+  const { t } = useLanguage();
+
+  const SUB_TABS: { id: SubTab; label: string }[] = [
+    { id: 'properties', label: t('channex.tab.properties') },
+    { id: 'airbnb',     label: t('channex.tab.airbnb') },
+    { id: 'booking',    label: t('channex.tab.booking') },
+  ];
 
   // Sync active tab when the parent navigates to a different channex sub-route
   useEffect(() => {
@@ -38,9 +40,9 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
       {/* Header */}
       <div className="border-b border-edge px-6 py-4">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-2">
-          Channex Channel Manager
+          {t('channex.manager')}
         </p>
-        <h1 className="text-lg font-semibold text-content">Migo App · Property Hub</h1>
+        <h1 className="text-lg font-semibold text-content">{t('channex.propertyHub')}</h1>
       </div>
 
       {/* Sub-tab bar */}

@@ -1,0 +1,123 @@
+export const es = {
+  // Navigation
+  'nav.principal':          'Principal',
+  'nav.integrations':       'Integraciones',
+  'nav.system':             'Sistema',
+  'nav.dashboard':          'Dashboard',
+  'nav.messages':           'Mensajes',
+  'nav.inventory':          'Inventario',
+  'nav.whatsapp':           'WhatsApp',
+  'nav.messenger':          'Messenger',
+  'nav.instagram':          'Instagram',
+  'nav.channex':            'Channex',
+  'nav.airbnb':             'Airbnb',
+  'nav.booking':            'Booking.com',
+  'nav.settings':           'Configuración',
+  'nav.myAccount':          'Mi cuenta',
+  'nav.logout':             'Cerrar sesión',
+  'nav.lightMode':          'Modo claro',
+  'nav.darkMode':           'Modo oscuro',
+  'nav.expandMenu':         'Expandir menú',
+  'nav.collapseMenu':       'Colapsar menú',
+  'nav.changeLang':         'Cambiar idioma',
+
+  // Common
+  'common.save':            'Guardar cambios',
+  'common.cancel':          'Cancelar',
+  'common.yes':             'Sí',
+  'common.no':              'No',
+  'common.edit':            'Editar',
+  'common.retry':           'Reintentar',
+  'common.copy':            'Copiar',
+  'common.copied':          'Copiado',
+  'common.close':           'Cerrar',
+  'common.editUser':        'Editar usuario',
+  'common.deleteUser':      'Eliminar usuario',
+
+  // Auth — LoginPage
+  'auth.appSubtitle':       'Ingresa a tu cuenta',
+  'auth.email':             'Correo electrónico',
+  'auth.emailPlaceholder':  'tu@correo.com',
+  'auth.password':          'Contraseña',
+  'auth.login':             'Ingresar',
+  'auth.loggingIn':         'Ingresando…',
+  'auth.invalidCreds':      'Credenciales inválidas. Verifica tu correo y contraseña.',
+
+  // Auth — ChangePasswordForm
+  'auth.changePassword':    'Cambiar contraseña',
+  'auth.firstSession':      'Esta es tu primera sesión. Por seguridad, debes establecer una nueva contraseña.',
+  'auth.newPassword':       'Nueva contraseña',
+  'auth.confirmPassword':   'Confirmar contraseña',
+  'auth.saving':            'Guardando…',
+  'auth.pwMinLength':       'La contraseña debe tener al menos 8 caracteres.',
+  'auth.pwUppercase':       'La contraseña debe contener al menos una letra mayúscula.',
+  'auth.pwNumber':          'La contraseña debe contener al menos un número.',
+  'auth.pwMismatch':        'Las contraseñas no coinciden.',
+  'auth.pwError':           'Ocurrió un error. Intenta de nuevo.',
+
+  // Settings
+  'settings.title':         'Configuración del Sistema',
+  'settings.tab.users':     'Usuarios',
+
+  // Users — table
+  'users.addUser':          'Agregar usuario',
+  'users.count':            'usuarios',
+  'users.col.name':         'Nombre',
+  'users.col.email':        'Email',
+  'users.col.phone':        'Teléfono',
+  'users.col.country':      'País',
+  'users.col.role':         'Rol',
+  'users.col.actions':      'Acciones',
+  'users.empty':            'No hay usuarios registrados.',
+  'users.loadError':        'Error al cargar usuarios',
+  'users.confirmDelete':    '¿Confirmar?',
+  'users.role.owner':       'Propietario',
+  'users.role.admin':       'Administrador',
+  'users.role.customer':    'Cliente',
+
+  // Users — CreateUserModal
+  'users.create.title':     'Agregar usuario',
+  'users.create.submit':    'Crear usuario',
+  'users.create.creating':  'Creando...',
+  'users.create.success':   'Usuario creado exitosamente',
+  'users.create.oneTime':   'Esta contraseña se muestra una sola vez. Cópiala antes de cerrar.',
+  'users.create.error':     'Error al crear el usuario',
+
+  // Users — EditUserModal
+  'users.edit.title':       'Editar usuario',
+  'users.edit.submit':      'Guardar cambios',
+  'users.edit.saving':      'Guardando...',
+  'users.edit.error':       'Error al actualizar el usuario',
+
+  // Users — form field labels
+  'users.field.name':       'Nombre',
+  'users.field.email':      'Email',
+  'users.field.phone':      'Teléfono',
+  'users.field.country':    'País',
+  'users.field.role':       'Rol',
+
+  // Users — validation errors
+  'users.val.nameRequired': 'El nombre es requerido',
+  'users.val.emailRequired':'El email es requerido',
+  'users.val.emailInvalid': 'Ingresa un email válido',
+  'users.val.phoneRequired':'El teléfono es requerido',
+  'users.val.phoneInvalid': 'Solo se permiten dígitos',
+
+  // Users — placeholders
+  'users.ph.name':          'Nombre completo',
+  'users.ph.email':         'correo@ejemplo.com',
+  'users.ph.phone':         'Solo dígitos',
+
+  // Channex
+  'channex.manager':        'Channex Channel Manager',
+  'channex.propertyHub':    'Migo App · Property Hub',
+  'channex.tab.properties': 'Properties',
+  'channex.tab.airbnb':     'Airbnb',
+  'channex.tab.booking':    'Booking.com',
+
+  // Airbnb
+  'airbnb.integration':     'Airbnb Integration',
+  'airbnb.shell':           'Migo App · Airbnb',
+} as const;
+
+export type TranslationKey = keyof typeof es;
