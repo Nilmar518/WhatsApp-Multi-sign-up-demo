@@ -12,8 +12,10 @@ import type { ChannexWebhookFullPayload } from '../channex.types';
  */
 export interface FirestoreReservationDoc {
   // Identity
-  reservation_id: string;          // ota_reservation_code — doc ID and idempotency key
+  reservation_id: string | null;   // ota_reservation_code — doc ID and idempotency key; null for manual bookings
   channex_booking_id: string | null; // Channex revision UUID (booking.id) — for support/audit trails
+  pms_booking_id?: string;          // Firestore auto-ID — PMS internal identifier (set by worker, not transformer)
+  propertyId?: string;              // explicit field (previously implicit in Firestore path)
   booking_status: string;          // 'new' | 'modified' | 'cancelled'
   channel: string;              // OTA key: 'airbnb' | 'booking_com' | … derived from ota_name
   channex_property_id: string;
@@ -61,6 +63,10 @@ export interface FirestoreReservationDoc {
   count_of_nights?: number | null;
   count_of_rooms?: number | null;
   amount_raw?: string | number | null;
+
+  // Sync fields (Phase 2 flat bookings structure)
+  ari_synced?: boolean;             // true if availability was pushed to Channex successfully (manual bookings only)
+  ari_task_id?: string | null;      // Channex task ID from the availability push (manual bookings only)
 }
 
 // ─── OTA name → channel key ───────────────────────────────────────────────────

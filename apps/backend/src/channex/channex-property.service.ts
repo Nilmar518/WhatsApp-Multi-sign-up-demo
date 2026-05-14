@@ -104,6 +104,8 @@ export class ChannexPropertyService {
       settings: {
         min_stay_type: 'arrival',
         allow_availability_autoupdate_on_confirmation: true,
+        allow_availability_autoupdate_on_modification: false,
+        allow_availability_autoupdate_on_cancellation: false,
       },
     });
 

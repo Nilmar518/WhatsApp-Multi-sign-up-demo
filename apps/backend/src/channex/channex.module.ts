@@ -14,6 +14,8 @@ import { ChannexWebhookController } from './channex-webhook.controller';
 import { ChannexARIController } from './channex-ari.controller';
 import { ChannexEventsController } from './channex-events.controller';
 import { ChannexMessagingBridgeController } from './channex-messaging-bridge.controller';
+import { ChannexMigoAriController } from './channex-migo-ari.controller';
+import { MigoPropertyModule } from '../migo-property/migo-property.module';
 import { ChannexHmacGuard } from './guards/channex-hmac.guard';
 import { ChannexBookingWorker } from './workers/channex-booking.worker';
 import { ChannexMessageWorker } from './workers/channex-message.worker';
@@ -45,7 +47,7 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
  *   [TODO] Phase 8: ChannexHealthCron
  */
 @Module({
-  imports: [],
+  imports: [MigoPropertyModule],
   providers: [
     // ── Core services ────────────────────────────────────────────────────────
     ChannexService,
@@ -75,6 +77,7 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
     ChannexARIController,
     ChannexEventsController,
     ChannexMessagingBridgeController,
+    ChannexMigoAriController,
   ],
   exports: [
     ChannexService,

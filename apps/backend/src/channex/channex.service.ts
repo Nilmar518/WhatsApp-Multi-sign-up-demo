@@ -559,6 +559,27 @@ export class ChannexService {
   }
 
   /**
+   * Updates a Room Type entity in Channex.
+   * PUT /api/v1/room_types/{roomTypeId}
+   */
+  async updateRoomType(
+    roomTypeId: string,
+    payload: Partial<Omit<ChannexRoomTypePayload, 'property_id'>>,
+  ): Promise<ChannexRoomTypeResponse> {
+    this.logger.log(`[CHANNEX] Updating room type — roomTypeId=${roomTypeId}`);
+    try {
+      return await this.defLogger.request<ChannexRoomTypeResponse>({
+        method: 'PUT',
+        url: `${this.baseUrl}/room_types/${encodeURIComponent(roomTypeId)}`,
+        headers: this.buildAuthHeaders(),
+        data: { room_type: payload },
+      });
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
    * Lists room types for a property.
    *
    * GET /api/v1/room_types?filter[property_id]={propertyId}

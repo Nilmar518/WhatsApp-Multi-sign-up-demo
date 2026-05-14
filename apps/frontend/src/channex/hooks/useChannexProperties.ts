@@ -22,7 +22,14 @@ interface Result {
   error: string | null;
 }
 
-export function useChannexProperties(tenantId: string): Result {
+export interface UseChannexPropertiesOptions {
+  source?: 'airbnb' | 'booking';
+}
+
+export function useChannexProperties(
+  tenantId: string,
+  options?: UseChannexPropertiesOptions,
+): Result {
   const [properties, setProperties] = useState<ChannexProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,13 +44,12 @@ export function useChannexProperties(tenantId: string): Result {
     setLoading(true);
     setError(null);
 
-    // Subscribe to the properties subcollection under the tenant's integration doc.
     const propertiesCol = collection(db, 'channex_integrations', tenantId, 'properties');
 
     const unsubscribe = onSnapshot(
       propertiesCol,
       (snapshot) => {
-        const next: ChannexProperty[] = snapshot.docs.map((doc) => {
+        let next: ChannexProperty[] = snapshot.docs.map((doc) => {
           const d = doc.data();
           return {
             firestoreDocId: doc.id,
@@ -56,6 +62,12 @@ export function useChannexProperties(tenantId: string): Result {
             room_types: (d.room_types as StoredRoomType[]) ?? [],
           };
         });
+
+        if (options?.source) {
+          const src = options.source;
+          next = next.filter((p) => p.connected_channels.includes(src));
+        }
+
         setProperties(next);
         setLoading(false);
       },
@@ -66,7 +78,7 @@ export function useChannexProperties(tenantId: string): Result {
     );
 
     return () => unsubscribe();
-  }, [tenantId]);
+  }, [tenantId, options?.source]);
 
   return { properties, loading, error };
 }

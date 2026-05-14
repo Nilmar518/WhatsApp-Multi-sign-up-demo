@@ -19,6 +19,7 @@ import { ChannexModule } from './channex/channex.module';
 import { BookingModule } from './booking/booking.module';
 import { AuthGuardModule } from './auth-guard/auth-guard.module';
 import { UsersModule } from './users/users.module';
+import { MigoPropertyModule } from './migo-property/migo-property.module';
 
 @Module({
   imports: [
@@ -58,6 +59,8 @@ import { UsersModule } from './users/users.module';
     AuthGuardModule,
     // Users CRUD — Firestore users collection
     UsersModule,
+    // Migo Property Pool — multi-property availability management
+    MigoPropertyModule,
   ],
 })
 export class AppModule {}

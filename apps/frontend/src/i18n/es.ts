@@ -258,6 +258,7 @@ export const es = {
   'channex.tab.properties':      'Properties',
   'channex.tab.airbnb':          'Airbnb',
   'channex.tab.booking':         'Booking.com',
+  'channex.tab.pools':           'Pools',
 
   // Airbnb
   'airbnb.integration':          'Airbnb Integration',
