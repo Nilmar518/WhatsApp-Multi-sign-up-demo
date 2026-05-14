@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useChannexProperties } from '../../hooks/useChannexProperties';
 import { syncAirbnbListings, type IsolatedSyncResult } from '../../api/channexHubApi';
+import { useAllPropertyThreads } from '../../hooks/useChannexThreads';
 import ChannexOAuthIFrame from './ChannexOAuthIFrame';
 import PropertyCard from '../shared/PropertyCard';
 import PropertyDetail from '../shared/PropertyDetail';
+import MessagesInbox from '../shared/MessagesInbox';
 import type { ChannexProperty } from '../../hooks/useChannexProperties';
 
 interface Props {
@@ -23,6 +25,8 @@ export default function AirbnbConnectionPanel({ tenantId }: Props) {
   const hasAutoCollapsed = useRef(false);
 
   const baseProperty = allProperties[0] ?? null;
+  const airbnbPropertyIds = airbnbProperties.map((p) => p.channex_property_id);
+  const { threads: allThreads, loading: threadsLoading } = useAllPropertyThreads(tenantId, airbnbPropertyIds);
 
   // Auto-collapse once when properties first appear
   useEffect(() => {
@@ -191,18 +195,29 @@ export default function AirbnbConnectionPanel({ tenantId }: Props) {
       </div>
 
       {airbnbProperties.length > 0 && (
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-content">Connected Airbnb Properties</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {airbnbProperties.map((property) => (
-              <PropertyCard
-                key={property.firestoreDocId}
-                property={property}
-                onClick={setSelectedProperty}
-              />
-            ))}
+        <>
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-content">Messages</h3>
+            <MessagesInbox
+              tenantId={tenantId}
+              threads={allThreads}
+              loading={threadsLoading}
+            />
           </div>
-        </div>
+
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-content">Connected Airbnb Properties</h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {airbnbProperties.map((property) => (
+                <PropertyCard
+                  key={property.firestoreDocId}
+                  property={property}
+                  onClick={setSelectedProperty}
+                />
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

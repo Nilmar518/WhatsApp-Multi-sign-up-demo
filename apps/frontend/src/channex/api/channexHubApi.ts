@@ -369,6 +369,19 @@ export async function checkConnectionHealth(
   );
 }
 
+// ─── Messaging ───────────────────────────────────────────────────────────────
+
+export async function replyToThread(
+  propertyId: string,
+  threadId: string,
+  message: string,
+): Promise<{ channexMessageId: string }> {
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/threads/${encodeURIComponent(threadId)}/reply`,
+    { method: 'POST', body: JSON.stringify({ message }) },
+  );
+}
+
 // ─── OTA — Airbnb ─────────────────────────────────────────────────────────────
 
 export async function getAirbnbSessionToken(propertyId: string): Promise<string> {
