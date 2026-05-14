@@ -3,10 +3,12 @@ import type { ChannexProperty } from '../../hooks/useChannexProperties';
 import RoomRateManager from './RoomRateManager';
 import ARICalendar from './ARICalendar';
 import ReservationsPanel from './ReservationsPanel';
+import MessagesInbox from './MessagesInbox';
 import { checkConnectionHealth, type ConnectionHealthResult } from '../../api/channexHubApi';
+import { usePropertyThreads } from '../../hooks/useChannexThreads';
 import Button from '../../../components/ui/Button';
 
-type InnerTab = 'rooms' | 'ari' | 'reservations';
+type InnerTab = 'rooms' | 'ari' | 'reservations' | 'messages';
 
 interface Props {
   property: ChannexProperty;
@@ -28,6 +30,7 @@ function HealthRow({ label, ok, detail }: { label: string; ok: boolean; detail?:
 export default function PropertyDetail({ property, tenantId }: Props) {
   const [innerTab, setInnerTab] = useState<InnerTab>('rooms');
   const [syncing, setSyncing] = useState(false);
+  const { threads, loading: threadsLoading } = usePropertyThreads(tenantId, property.channex_property_id);
   const [healthResult, setHealthResult] = useState<ConnectionHealthResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -122,6 +125,7 @@ export default function PropertyDetail({ property, tenantId }: Props) {
           { id: 'rooms' as InnerTab, label: 'Rooms & Rates' },
           { id: 'ari' as InnerTab, label: 'ARI Calendar' },
           { id: 'reservations' as InnerTab, label: 'Reservations' },
+          { id: 'messages' as InnerTab, label: 'Messages' },
         ] as const).map((tab) => (
           <button
             key={tab.id}
@@ -158,6 +162,14 @@ export default function PropertyDetail({ property, tenantId }: Props) {
         <ReservationsPanel
           propertyId={property.channex_property_id}
           tenantId={tenantId}
+        />
+      )}
+
+      {innerTab === 'messages' && (
+        <MessagesInbox
+          tenantId={tenantId}
+          threads={threads}
+          loading={threadsLoading}
         />
       )}
     </div>

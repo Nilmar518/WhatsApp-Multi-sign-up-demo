@@ -5,8 +5,10 @@ import {
   syncBookingListings,
   disconnectBookingChannel,
 } from '../../api/channexHubApi';
+import { useAllPropertyThreads } from '../../hooks/useChannexThreads';
 import PropertyCard from '../shared/PropertyCard';
 import PropertyDetail from '../shared/PropertyDetail';
+import MessagesInbox from '../shared/MessagesInbox';
 import type { ChannexProperty } from '../../hooks/useChannexProperties';
 
 interface Props {
@@ -50,6 +52,8 @@ export default function BookingConnectionPanel({ tenantId }: Props) {
   const hasAutoCollapsed = useRef(false);
 
   const isLocked = connecting || syncing || disconnecting;
+  const bookingPropertyIds = bookingProperties.map((p) => p.channex_property_id);
+  const { threads: allThreads, loading: threadsLoading } = useAllPropertyThreads(tenantId, bookingPropertyIds);
 
   // Auto-collapse once when properties first appear
   useEffect(() => {
@@ -229,20 +233,31 @@ export default function BookingConnectionPanel({ tenantId }: Props) {
       </div>
 
       {bookingProperties.length > 0 && (
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-content">
-            Connected Booking.com Properties
-          </h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {bookingProperties.map((property) => (
-              <PropertyCard
-                key={property.firestoreDocId}
-                property={property}
-                onClick={setSelectedProperty}
-              />
-            ))}
+        <>
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-content">Messages</h3>
+            <MessagesInbox
+              tenantId={tenantId}
+              threads={allThreads}
+              loading={threadsLoading}
+            />
           </div>
-        </div>
+
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-content">
+              Connected Booking.com Properties
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {bookingProperties.map((property) => (
+                <PropertyCard
+                  key={property.firestoreDocId}
+                  property={property}
+                  onClick={setSelectedProperty}
+                />
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
