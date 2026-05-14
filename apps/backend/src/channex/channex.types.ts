@@ -37,6 +37,10 @@ export interface ChannexPropertyPayload {
     // Decrements inventory automatically on booking confirmation —
     // prevents race conditions before the NestJS worker processes the webhook.
     allow_availability_autoupdate_on_confirmation?: boolean;
+    // Prevents automatic reopening when OTA sends modification/cancellation events.
+    // Set to false to ensure the PMS (our system) remains the source of truth for availability.
+    allow_availability_autoupdate_on_modification?: boolean;
+    allow_availability_autoupdate_on_cancellation?: boolean;
   };
 }
 
@@ -909,4 +913,23 @@ export interface ChannexBookingNewEvent extends ChannexBaseEvent {
  */
 export interface ChannexUnmappedRoomEvent extends ChannexBaseEvent {
   revisionId: string;
+}
+
+// ─── MigoProperty Pool — SSE Events ──────────────────────────────────────────
+
+export const MIGO_PROPERTY_EVENTS = {
+  AVAILABILITY_ALERT: 'migo_property.availability_alert',
+} as const;
+
+/**
+ * Emitted when `current_availability` drops to or below `alert_threshold`.
+ * Forwarded to the frontend via the existing /channex/events/:tenantId SSE stream.
+ * The frontend uses this to show an alert prompting the admin to close dates.
+ */
+export interface MigoPropertyAvailabilityAlertEvent {
+  tenantId: string;
+  migoPropertyId: string;
+  title: string;
+  current_availability: number;
+  timestamp: string;
 }

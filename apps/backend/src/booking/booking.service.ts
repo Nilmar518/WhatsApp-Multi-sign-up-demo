@@ -101,6 +101,10 @@ export class BookingService {
             timezone: 'America/New_York',
             property_type: 'hotel',
             group_id: channexGroupId,
+            settings: {
+              allow_availability_autoupdate_on_modification: false,
+              allow_availability_autoupdate_on_cancellation: false,
+            },
           },
         },
       });

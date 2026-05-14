@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
-import AirbnbIntegration from '../integrations/airbnb/AirbnbIntegration';
-import BookingIntegrationView from '../integrations/booking/BookingIntegrationView';
+import AirbnbConnectionPanel from './components/connection/AirbnbConnectionPanel';
+import BookingConnectionPanel from './components/connection/BookingConnectionPanel';
 import { useChannexProperties } from './hooks/useChannexProperties';
 import PropertiesList from './components/PropertiesList';
-import PropertyDetail from './components/PropertyDetail';
+import PropertyDetail from './components/shared/PropertyDetail';
 import PropertySetupWizard from './components/PropertySetupWizard';
 import type { ChannexProperty } from './hooks/useChannexProperties';
 import Button from '../components/ui/Button';
 import { useLanguage } from '../context/LanguageContext';
+import { useMigoProperties } from './hooks/useMigoProperties';
+import PoolsList from './components/pools/PoolsList';
+import PoolDetail from './components/pools/PoolDetail';
+import PoolCreateForm from './components/pools/PoolCreateForm';
+import type { MigoProperty } from './api/migoPropertyApi';
 
-type SubTab = 'properties' | 'airbnb' | 'booking';
+type SubTab = 'properties' | 'airbnb' | 'booking' | 'pools';
 
 interface Props {
   businessId: string;
@@ -26,6 +31,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
     { id: 'properties', label: t('channex.tab.properties') },
     { id: 'airbnb',     label: t('channex.tab.airbnb') },
     { id: 'booking',    label: t('channex.tab.booking') },
+    { id: 'pools',      label: t('channex.tab.pools') },
   ];
 
   // Sync active tab when the parent navigates to a different channex sub-route
@@ -34,6 +40,9 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
   }, [initialTab]);
 
   const { properties, loading, error } = useChannexProperties(businessId);
+  const { pools, loading: poolsLoading, error: poolsError } = useMigoProperties(businessId);
+  const [showPoolCreate, setShowPoolCreate] = useState(false);
+  const [selectedPool, setSelectedPool] = useState<MigoProperty | null>(null);
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
@@ -113,14 +122,48 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
         )}
 
         {activeSubTab === 'airbnb' && (
-          <div className="h-full">
-            <AirbnbIntegration businessId={businessId} />
+          <div className="px-6 py-6">
+            <AirbnbConnectionPanel tenantId={businessId} />
           </div>
         )}
 
         {activeSubTab === 'booking' && (
-          <div className="h-full">
-            <BookingIntegrationView businessId={businessId} />
+          <div className="px-6 py-6">
+            <BookingConnectionPanel tenantId={businessId} />
+          </div>
+        )}
+
+        {activeSubTab === 'pools' && (
+          <div className="px-6 py-6">
+            {showPoolCreate ? (
+              <PoolCreateForm
+                tenantId={businessId}
+                onCreated={(pool) => {
+                  setShowPoolCreate(false);
+                  setSelectedPool(pool);
+                }}
+                onCancel={() => setShowPoolCreate(false)}
+              />
+            ) : selectedPool ? (
+              <PoolDetail
+                pool={selectedPool}
+                tenantId={businessId}
+                onBack={() => setSelectedPool(null)}
+                onUpdated={(updated) => setSelectedPool(updated)}
+              />
+            ) : (
+              <>
+                {poolsLoading && <p className="text-sm text-content-2">Loading pools…</p>}
+                {poolsError && <p className="text-sm text-danger-text">{poolsError}</p>}
+                {!poolsLoading && !poolsError && (
+                  <PoolsList
+                    pools={pools}
+                    onSelect={(pool) => setSelectedPool(pool)}
+                    onNew={() => setShowPoolCreate(true)}
+                  />
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

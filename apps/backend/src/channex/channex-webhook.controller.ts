@@ -1,5 +1,7 @@
 import {
   Controller,
+  HttpCode,
+  HttpStatus,
   Logger,
   Post,
   Body,
@@ -43,6 +45,7 @@ export class ChannexWebhookController {
    * then returns 200. Total latency is well within Channex's ACK timeout window.
    */
   @Post()
+  @HttpCode(HttpStatus.OK)
   async receive(
     @Body() body: ChannexWebhookFullPayload,
   ): Promise<{ status: string }> {

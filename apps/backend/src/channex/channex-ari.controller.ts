@@ -6,7 +6,9 @@ import {
   HttpStatus,
   Logger,
   Param,
+  Patch,
   Post,
+  Put,
   Query,
   ParseIntPipe,
   DefaultValuePipe,
@@ -15,12 +17,14 @@ import { ChannexARIService, StoredRoomType } from './channex-ari.service';
 import { ChannexARISnapshotService, MonthSnapshotDoc } from './channex-ari-snapshot.service';
 import { ChannexSyncService, ConnectionHealthResult } from './channex-sync.service';
 import { CreateRoomTypeDto } from './dto/create-room-type.dto';
+import { UpdateRoomTypeDto } from './dto/update-room-type.dto';
 import { CreateRatePlanDto } from './dto/create-rate-plan.dto';
 import {
   AriAvailabilityBatchDto,
   AriRestrictionsBatchDto,
   AriFullSyncDto,
 } from './dto/ari-batch.dto';
+import { CreateManualBookingDto } from './dto/create-manual-booking.dto';
 import type {
   ChannexRoomTypeResponse,
   ChannexRatePlanResponse,
@@ -76,6 +80,22 @@ export class ChannexARIController {
     );
 
     return this.ariService.createRoomType(propertyId, dto);
+  }
+
+  /**
+   * PUT /channex/properties/:propertyId/room-types/:roomTypeId
+   *
+   * Updates a Room Type in Channex and mirrors the change to Firestore.
+   * All fields are optional — only provided fields are updated.
+   */
+  @Put('room-types/:roomTypeId')
+  async updateRoomType(
+    @Param('propertyId') propertyId: string,
+    @Param('roomTypeId') roomTypeId: string,
+    @Body() dto: UpdateRoomTypeDto,
+  ): Promise<ChannexRoomTypeResponse> {
+    this.logger.log(`[CTRL] PUT /room-types/${roomTypeId} — propertyId=${propertyId}`);
+    return this.ariService.updateRoomType(propertyId, roomTypeId, dto);
   }
 
   /**
@@ -310,5 +330,51 @@ export class ChannexARIController {
       `[CTRL] POST /connection-health — propertyId=${propertyId} tenantId=${tenantId}`,
     );
     return this.syncService.checkConnectionHealth(propertyId, tenantId);
+  }
+
+  /**
+   * POST /channex/properties/:propertyId/bookings/manual
+   *
+   * Creates a manual booking (walk-in, maintenance block, owner stay, or direct)
+   * and immediately pushes availability=0 to Channex for the booked date range.
+   *
+   * Body:    CreateManualBookingDto (tenantId, roomTypeId, checkIn, checkOut, bookingType, …)
+   * Returns: FirestoreReservationDoc
+   * Status:  201 Created
+   */
+  @Post('bookings/manual')
+  @HttpCode(HttpStatus.CREATED)
+  async createManualBooking(
+    @Param('propertyId') propertyId: string,
+    @Body() dto: CreateManualBookingDto,
+  ): Promise<FirestoreReservationDoc> {
+    this.logger.log(
+      `[CTRL] POST /bookings/manual — propertyId=${propertyId} tenantId=${dto.tenantId} ` +
+        `type=${dto.bookingType} checkIn=${dto.checkIn} checkOut=${dto.checkOut}`,
+    );
+    return this.ariService.createManualBooking(propertyId, dto);
+  }
+
+  /**
+   * PATCH /channex/properties/:propertyId/bookings/manual/:pmsBookingId/cancel
+   *
+   * Cancels a manual booking (channex_booking_id === null only) and restores
+   * availability=1 in Channex for the original date range.
+   *
+   * Query:   tenantId (required)
+   * Returns: FirestoreReservationDoc
+   * Status:  200 OK
+   */
+  @Patch('bookings/manual/:pmsBookingId/cancel')
+  @HttpCode(HttpStatus.OK)
+  async cancelManualBooking(
+    @Param('propertyId') propertyId: string,
+    @Param('pmsBookingId') pmsBookingId: string,
+    @Query('tenantId') tenantId: string,
+  ): Promise<FirestoreReservationDoc> {
+    this.logger.log(
+      `[CTRL] PATCH /bookings/manual/${pmsBookingId}/cancel — propertyId=${propertyId} tenantId=${tenantId}`,
+    );
+    return this.ariService.cancelManualBooking(propertyId, pmsBookingId, tenantId);
   }
 }
