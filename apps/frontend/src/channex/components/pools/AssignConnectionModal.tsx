@@ -30,6 +30,16 @@ export default function AssignConnectionModal({
   const connectedIds = new Set(existingConnections.map((c) => c.channex_property_id));
   const available = properties.filter((p) => !connectedIds.has(p.channex_property_id));
 
+  const selectedProp = selectedChannexId
+    ? properties.find((p) => p.channex_property_id === selectedChannexId)
+    : null;
+
+  const selectedRoomCount = selectedProp
+    ? selectedProp.room_types.reduce((sum, rt) => sum + (rt.count_of_rooms ?? 0), 0)
+    : null;
+
+  const hasNoRooms = selectedRoomCount !== null && selectedRoomCount === 0;
+
   function handlePropertySelect(channexId: string) {
     setSelectedChannexId(channexId);
     const prop = properties.find((p) => p.channex_property_id === channexId);
@@ -95,6 +105,25 @@ export default function AssignConnectionModal({
               </Select>
             </div>
 
+            {selectedChannexId && selectedRoomCount !== null && (
+              <div className={`rounded-lg px-3 py-2 text-sm ${
+                hasNoRooms
+                  ? 'bg-danger-bg text-danger-text'
+                  : 'bg-ok-bg text-ok-text'
+              }`}>
+                {hasNoRooms ? (
+                  <>
+                    <strong>No rooms configured.</strong> Go to Properties → Rooms &amp; Rates and
+                    set the room count for this property before adding it to a pool.
+                  </>
+                ) : (
+                  <>
+                    This connection will add <strong>{selectedRoomCount} room{selectedRoomCount !== 1 ? 's' : ''}</strong> to the pool capacity.
+                  </>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
                 Platform
@@ -130,7 +159,7 @@ export default function AssignConnectionModal({
             {error && <p className="text-sm text-danger-text">{error}</p>}
 
             <div className="flex gap-3 pt-2">
-              <Button type="submit" variant="primary" size="sm" disabled={saving}>
+              <Button type="submit" variant="primary" size="sm" disabled={saving || hasNoRooms}>
                 {saving ? 'Assigning…' : 'Assign'}
               </Button>
               <Button type="button" variant="ghost" size="sm" onClick={onClose}>

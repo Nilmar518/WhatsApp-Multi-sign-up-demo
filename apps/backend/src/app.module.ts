@@ -16,7 +16,6 @@ import { CatalogManagerModule } from './catalog-manager/catalog-manager.module';
 import { AutoReplyModule } from './auto-reply/auto-reply.module';
 import { CartModule } from './cart/cart.module';
 import { ChannexModule } from './channex/channex.module';
-import { BookingModule } from './booking/booking.module';
 import { AuthGuardModule } from './auth-guard/auth-guard.module';
 import { UsersModule } from './users/users.module';
 import { MigoPropertyModule } from './migo-property/migo-property.module';
@@ -51,10 +50,8 @@ import { MigoPropertyModule } from './migo-property/migo-property.module';
     AutoReplyModule,
     // Cart ABM — Firestore-backed cart with soft deletes and real-time sync
     CartModule,
-    // Channex.io × Airbnb — Property Management integration
+    // Channex.io — Property Management integration (Airbnb + Booking.com)
     ChannexModule,
-    // Channex.io × Booking.com — XML channel connection
-    BookingModule,
     // Auth guard — global JWT verification via Firebase Admin
     AuthGuardModule,
     // Users CRUD — Firestore users collection

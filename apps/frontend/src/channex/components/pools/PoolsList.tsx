@@ -5,6 +5,7 @@ interface Props {
   pools: MigoProperty[];
   onSelect: (pool: MigoProperty) => void;
   onNew: () => void;
+  onEdit: (pool: MigoProperty) => void;
 }
 
 function AvailabilityChip({ pool }: { pool: MigoProperty }) {
@@ -44,7 +45,7 @@ function PlatformBadge({ platform }: { platform: string }) {
   );
 }
 
-export default function PoolsList({ pools, onSelect, onNew }: Props) {
+export default function PoolsList({ pools, onSelect, onNew, onEdit }: Props) {
   const platforms = (pool: MigoProperty) =>
     [...new Set(pool.platform_connections.map((c) => c.platform))];
 
@@ -75,32 +76,41 @@ export default function PoolsList({ pools, onSelect, onNew }: Props) {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {pools.map((pool) => (
-            <button
-              key={pool.id}
-              type="button"
-              onClick={() => onSelect(pool)}
-              className="group rounded-2xl border border-edge bg-surface-raised p-4 text-left transition hover:border-brand-light hover:shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold text-content group-hover:text-brand">{pool.title}</p>
-                <AvailabilityChip pool={pool} />
-              </div>
+            <div key={pool.id} className="relative group">
+              <button
+                type="button"
+                onClick={() => onSelect(pool)}
+                className="w-full rounded-2xl border border-edge bg-surface-raised p-4 text-left transition hover:border-brand-light hover:shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold text-content group-hover:text-brand">{pool.title}</p>
+                  <AvailabilityChip pool={pool} />
+                </div>
 
-              <p className="mt-1 text-xs text-content-2">
-                {pool.platform_connections.length} connection
-                {pool.platform_connections.length !== 1 ? 's' : ''}
-              </p>
+                <p className="mt-1 text-xs text-content-2">
+                  {pool.platform_connections.length} connection
+                  {pool.platform_connections.length !== 1 ? 's' : ''}
+                </p>
 
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {platforms(pool).length === 0 ? (
-                  <span className="inline-flex items-center rounded-full bg-surface-subtle px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-content-2">
-                    No platforms
-                  </span>
-                ) : (
-                  platforms(pool).map((p) => <PlatformBadge key={p} platform={p} />)
-                )}
-              </div>
-            </button>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {platforms(pool).length === 0 ? (
+                    <span className="inline-flex items-center rounded-full bg-surface-subtle px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-content-2">
+                      No platforms
+                    </span>
+                  ) : (
+                    platforms(pool).map((p) => <PlatformBadge key={p} platform={p} />)
+                  )}
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onEdit(pool); }}
+                title="Edit pool"
+                className="absolute right-3 top-3 rounded-lg px-2 py-1 text-xs text-content-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-surface-subtle hover:text-content"
+              >
+                Edit
+              </button>
+            </div>
           ))}
         </div>
       )}

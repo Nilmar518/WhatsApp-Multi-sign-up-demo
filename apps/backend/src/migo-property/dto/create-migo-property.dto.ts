@@ -10,10 +10,6 @@ export class CreateMigoPropertyDto {
   title: string;
 
   @IsInt()
-  @Min(1)
-  total_units: number;
-
-  @IsInt()
   @Min(0)
   @IsOptional()
   alert_threshold?: number;

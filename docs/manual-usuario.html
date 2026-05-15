@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Migo App · Manual de Usuario — Channex Channel Manager</title>
+<style>
+  :root {
+    --purple: #7c3aed;
+    --purple-light: #ede9fe;
+    --purple-mid: #a78bfa;
+    --dark: #0f0f1a;
+    --dark2: #1a1a2e;
+    --sidebar-w: 260px;
+    --green: #10b981;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --orange: #f59e0b;
+    --gray: #6b7280;
+    --gray-light: #f3f4f6;
+    --border: #e5e7eb;
+    --text: #111827;
+    --text-muted: #6b7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text);
+    background: #fff;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--dark2);
+    color: #fff;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    overflow-y: auto;
+    padding: 0 0 24px;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    margin-bottom: 12px;
+  }
+
+  .sidebar-logo-icon {
+    width: 32px; height: 32px;
+    background: var(--purple);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; color: #fff;
+  }
+
+  .sidebar-logo-text { font-size: 15px; font-weight: 600; color: #fff; }
+  .sidebar-logo-sub  { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 1px; }
+
+  .sidebar-section {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.3);
+    padding: 16px 20px 6px;
+  }
+
+  .sidebar-link {
+    display: block;
+    padding: 8px 20px;
+    color: rgba(255,255,255,.7);
+    text-decoration: none;
+    font-size: 13px;
+    border-left: 3px solid transparent;
+    transition: all .15s;
+  }
+
+  .sidebar-link:hover, .sidebar-link.active {
+    background: rgba(124,58,237,.2);
+    color: #fff;
+    border-left-color: var(--purple);
+  }
+
+  .sidebar-link .icon { margin-right: 8px; opacity: .7; }
+
+  /* ── MAIN CONTENT ── */
+  .content {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    padding: 0;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, var(--dark2) 0%, #2d1b69 100%);
+    color: #fff;
+    padding: 60px 60px 50px;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    background: rgba(124,58,237,.4);
+    border: 1px solid rgba(167,139,250,.4);
+    color: var(--purple-mid);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 { font-size: 36px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+  .hero p  { font-size: 16px; color: rgba(255,255,255,.7); max-width: 560px; line-height: 1.6; }
+
+  .hero-meta {
+    display: flex; gap: 24px; margin-top: 28px;
+    font-size: 13px; color: rgba(255,255,255,.5);
+  }
+
+  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* ── SECTION ── */
+  .section {
+    padding: 56px 60px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section:last-child { border-bottom: none; }
+
+  .section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .section-number {
+    width: 36px; height: 36px; min-width: 36px;
+    background: var(--purple);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px;
+    margin-top: 2px;
+  }
+
+  .section-title { font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .section-desc  { font-size: 15px; color: var(--text-muted); line-height: 1.6; }
+
+  /* ── SCREENSHOT ── */
+  .screenshot {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 24px 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,.08);
+  }
+
+  .screenshot-label {
+    background: var(--gray-light);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .screenshot img {
+    width: 100%;
+    display: block;
+  }
+
+  /* ── CALLOUT BOXES ── */
+  .callout {
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .callout-icon { font-size: 18px; margin-top: 1px; flex-shrink: 0; }
+
+  .callout.info    { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+  .callout.warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .callout.success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .callout.danger  { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+  /* ── STEPS ── */
+  .steps { counter-reset: step; margin: 24px 0; }
+
+  .step {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 28px;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    counter-increment: step;
+    width: 28px; height: 28px; min-width: 28px;
+    background: var(--purple);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .step-body h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .step-body p  { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+  .step-body ul { font-size: 14px; color: var(--text-muted); line-height: 1.8; padding-left: 18px; margin-top: 6px; }
+
+  /* ── UI REPLICAS ── */
+  /* Tabs */
+  .ui-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border);
+    margin: 12px 0 6px;
+    flex-wrap: wrap;
+  }
+
+  .ui-tab {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: default;
+    white-space: nowrap;
+  }
+
+  .ui-tab.active {
+    color: var(--purple);
+    border-bottom-color: var(--purple);
+    font-weight: 600;
+  }
+
+  /* Buttons */
+  .ui-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: default;
+    white-space: nowrap;
+  }
+
+  .ui-btn-primary   { background: var(--blue);   color: #fff; }
+  .ui-btn-purple    { background: var(--purple);  color: #fff; }
+  .ui-btn-red       { background: var(--red);     color: #fff; }
+  .ui-btn-outline   { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  .ui-btn-outline-p { background: #fff; color: var(--purple); border: 1px solid var(--purple); }
+  .ui-btn-outline-r { background: #fff; color: var(--red);    border: 1px solid var(--red); }
+  .ui-btn-green     { background: var(--green);   color: #fff; }
+  .ui-btn-sm        { padding: 4px 10px; font-size: 12px; }
+
+  /* Badges */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+  }
+
+  .badge-active   { background: #dcfce7; color: #166534; }
+  .badge-disabled { background: #f3f4f6; color: #6b7280; }
+  .badge-new      { background: #dbeafe; color: #1d4ed8; }
+  .badge-primary  { background: var(--purple-light); color: var(--purple); }
+  .badge-airbnb   { background: #fff0ef; color: #ff5a5f; border: 1px solid #ffcccb; }
+
+  /* Field display */
+  .field-row {
+    display: flex; flex-direction: column;
+    gap: 4px; margin-bottom: 16px;
+  }
+
+  .field-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .06em;
+    color: var(--text-muted);
+  }
+
+  .field-input {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 14px;
+    color: var(--text-muted);
+    background: #fff;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .checkbox-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: var(--text); margin: 12px 0;
+  }
+
+  .checkbox-box {
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    background: #fff;
+    flex-shrink: 0;
+  }
+
+  /* Property card mock */
+  .property-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .property-card-info h4 { font-size: 14px; font-weight: 600; color: var(--text); }
+  .property-card-info p  { font-size: 12px; color: var(--text-muted); margin-top: 2px; font-family: monospace; }
+
+  /* Room type card */
+  .room-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 12px 0;
+  }
+
+  .room-card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .room-card-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .room-card-meta  { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+  .rate-plan {
+    background: var(--gray-light);
+    border-radius: 7px;
+    padding: 10px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; margin-top: 8px;
+  }
+
+  /* Calendar cell mock */
+  .cal-mini {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    background: var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 16px 0;
+    border: 1px solid var(--border);
+  }
+
+  .cal-cell {
+    background: #fff;
+    padding: 8px 6px;
+    font-size: 11px;
+    text-align: left;
+    min-height: 52px;
+  }
+
+  .cal-cell.header {
+    background: var(--gray-light);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    min-height: auto;
+    padding: 6px;
+    text-align: center;
+  }
+
+  .cal-cell-date { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+  .cal-cell-rate { font-size: 10px; color: var(--purple); font-weight: 600; }
+  .cal-cell-avail { font-size: 10px; color: var(--blue); }
+  .cal-cell-blocked { background: #fef2f2; }
+  .cal-cell-blocked .cal-cell-rate { color: var(--red); }
+
+  /* Pool card */
+  .pool-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 12px 0;
+  }
+
+  .pool-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .pool-title { font-size: 16px; font-weight: 700; text-transform: uppercase; }
+  .pool-avail { color: var(--green); font-size: 14px; font-weight: 600; }
+
+  .pool-id { font-size: 11px; font-family: monospace; color: var(--text-muted); margin-bottom: 16px; }
+
+  /* Reservation item */
+  .reservation-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 8px 0;
+  }
+
+  .reservation-header { display: flex; justify-content: space-between; align-items: center; }
+  .reservation-name   { font-size: 15px; font-weight: 600; }
+  .reservation-dates  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .reservation-amount { font-size: 13px; color: var(--text); margin-top: 2px; }
+
+  /* Section divider */
+  .divider {
+    height: 1px; background: var(--border); margin: 32px 0;
+  }
+
+  /* Two-column layout */
+  .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .cols-2 { grid-template-columns: 1fr; } }
+
+  /* Highlight inline element */
+  .hl       { background: var(--purple-light); color: var(--purple); padding: 1px 6px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+  .hl-green { background: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+  .hl-red   { background: #fef2f2; color: var(--red); padding: 1px 6px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+
+  /* TOC numbers */
+  .toc { margin: 32px 0; }
+  .toc-item { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .toc-num  { width: 24px; height: 24px; background: var(--purple-light); color: var(--purple); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .toc-link a { font-size: 14px; font-weight: 500; color: var(--purple); text-decoration: none; }
+  .toc-link a:hover { text-decoration: underline; }
+  .toc-sub  { font-size: 12px; color: var(--text-muted); }
+
+  /* Nav breadcrumb mock */
+  .nav-breadcrumb {
+    background: var(--gray-light);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 12px 0;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .nav-breadcrumb span { color: var(--text); font-weight: 500; }
+
+  /* Info table */
+  .info-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  .info-table th { background: var(--gray-light); padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); border: 1px solid var(--border); }
+  .info-table td { padding: 10px 14px; border: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+  .info-table tr:nth-child(even) td { background: var(--gray-light); }
+
+  /* Sidebar messages mock */
+  .msg-inbox { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+  .msg-header { background: var(--gray-light); padding: 12px 16px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border); }
+  .msg-empty  { padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
+
+  /* Scroll to top */
+  .back-to-top {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--purple); font-size: 13px; text-decoration: none;
+    margin-top: 32px;
+  }
+
+  .back-to-top:hover { text-decoration: underline; }
+
+  /* Section alt background */
+  .section.alt { background: #fafafa; }
+
+  /* Page title bar */
+  .page-bar {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 60px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    position: sticky; top: 0;
+    z-index: 50;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── SIDEBAR ─── -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">M</div>
+    <div>
+      <div class="sidebar-logo-text">Migo App</div>
+      <div class="sidebar-logo-sub">Manual de Usuario</div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">Introducción</div>
+  <a class="sidebar-link" href="#inicio">🏠 Inicio &amp; Navegación</a>
+
+  <div class="sidebar-section">Gestión de Propiedades</div>
+  <a class="sidebar-link" href="#propiedades">🏢 Propiedades</a>
+  <a class="sidebar-link" href="#rooms-rates">🛏 Rooms &amp; Rates</a>
+  <a class="sidebar-link" href="#ari-calendar">📅 Calendario ARI</a>
+  <a class="sidebar-link" href="#full-sync">🔄 Full Sync</a>
+  <a class="sidebar-link" href="#reservaciones">📋 Reservaciones</a>
+  <a class="sidebar-link" href="#mensajes">💬 Mensajes</a>
+
+  <div class="sidebar-section">Integraciones</div>
+  <a class="sidebar-link" href="#airbnb">🏠 Airbnb</a>
+  <a class="sidebar-link" href="#booking">🏨 Booking.com</a>
+
+  <div class="sidebar-section">Gestión Avanzada</div>
+  <a class="sidebar-link" href="#pools">🔗 Pools</a>
+  <a class="sidebar-link" href="#ari-fanout">📡 ARI Fan-out</a>
+</nav>
+
+<!-- ─── CONTENT ─── -->
+<main class="content">
+
+  <div class="page-bar">Channex Channel Manager · Manual de Usuario v1.0 · Migo App</div>
+
+  <!-- ── HERO ── -->
+  <div class="hero" id="inicio">
+    <div class="hero-tag">Manual de Usuario</div>
+    <h1>Migo App<br>Channex Channel Manager</h1>
+    <p>Guía completa para gestionar tus propiedades, conectar canales de distribución como Airbnb y Booking.com, configurar disponibilidad, tarifas y recibir reservas en tiempo real.</p>
+    <div class="hero-meta">
+      <span>📅 Mayo 2026</span>
+      <span>📖 9 secciones</span>
+      <span>🔧 Channex · Airbnb · Booking.com</span>
+    </div>
+  </div>
+
+  <!-- ── TABLE OF CONTENTS ── -->
+  <div class="section" id="toc">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Tabla de Contenidos</div>
+        <div class="section-desc">Haz clic en cualquier sección para ir directamente a ella.</div>
+      </div>
+    </div>
+    <div class="toc">
+      <div class="toc-item"><div class="toc-num">1</div><div class="toc-link"><a href="#propiedades">Propiedades — Crear y administrar propiedades</a><div class="toc-sub">Cómo crear una propiedad, qué datos contiene, cómo navegar dentro de ella</div></div></div>
+      <div class="toc-item"><div class="toc-num">2</div><div class="toc-link"><a href="#rooms-rates">Rooms &amp; Rates — Tipos de habitación y planes de tarifa</a><div class="toc-sub">Crear Room Types, configurar Rate Plans, entender ocupación y precios</div></div></div>
+      <div class="toc-item"><div class="toc-num">3</div><div class="toc-link"><a href="#ari-calendar">Calendario ARI — Ver y actualizar disponibilidad</a><div class="toc-sub">Leer el calendario, qué significa cada dato, cómo modificar fechas</div></div></div>
+      <div class="toc-item"><div class="toc-num">4</div><div class="toc-link"><a href="#full-sync">Full Sync — Sincronización masiva de 500 días</a><div class="toc-sub">Qué es, cuándo usarlo, qué campos llenar y sus implicaciones</div></div></div>
+      <div class="toc-item"><div class="toc-num">5</div><div class="toc-link"><a href="#reservaciones">Reservaciones — Ver y sincronizar reservas</a><div class="toc-sub">Cómo ver reservas, qué significa cada estado, cómo forzar sincronización</div></div></div>
+      <div class="toc-item"><div class="toc-num">6</div><div class="toc-link"><a href="#mensajes">Mensajes — Comunicación con huéspedes</a><div class="toc-sub">Dónde ver los mensajes entrantes por propiedad</div></div></div>
+      <div class="toc-item"><div class="toc-num">7</div><div class="toc-link"><a href="#airbnb">Integración Airbnb — Conectar tu cuenta</a><div class="toc-sub">Paso a paso para conectar, sincronizar listings y reconectar</div></div></div>
+      <div class="toc-item"><div class="toc-num">8</div><div class="toc-link"><a href="#booking">Integración Booking.com — Conectar via Channex</a><div class="toc-sub">Flujo de conexión, sincronización de rooms &amp; rates, desconexión</div></div></div>
+      <div class="toc-item"><div class="toc-num">9</div><div class="toc-link"><a href="#pools">Pools — Gestión de disponibilidad multi-canal</a><div class="toc-sub">Qué son los pools, cómo crearlos, plataformas conectadas, ARI Fan-out</div></div></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SECCIÓN 1: PROPIEDADES                   -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="section" id="propiedades">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <div>
+        <div class="section-title">Propiedades</div>
+        <div class="section-desc">Una Propiedad en Migo App representa una unidad de alquiler (apartamento, casa, habitación) que registras en Channex para conectarla a canales de distribución. Desde aquí gestionas disponibilidad, tarifas y reservas.</div>
+      </div>
+    </div>
+
+    <!-- Cómo llegar -->
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:8px;">¿Dónde está?</h3>
+    <div class="nav-breadcrumb">
+      Menú lateral → <span>Channex</span> → Tab <span>Properties</span>
+    </div>
+
+    <div class="screenshot">
+      <div class="screenshot-label">📸 Pantalla: Tab "Properties" con lista de propiedades</div>
+      <img src="file:///C:/Users/lutin/Downloads/roomsrates.png" alt="Properties tab" />
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div>La pantalla <strong>Migo App · Property Hub</strong> tiene cuatro pestañas en la parte superior: <span class="hl">Properties</span>, <span class="hl">Airbnb</span>, <span class="hl">Booking.com</span> y <span class="hl">Pools</span>. Cada una agrupa funcionalidades distintas.</div>
+    </div>
+
+    <!-- Tabs visuales -->
+    <div class="ui-tabs" style="margin-top:16px;">
+      <div class="ui-tab active">Properties</div>
+      <div class="ui-tab">Airbnb</div>
+      <div class="ui-tab">Booking.com</div>
+      <div class="ui-tab">Pools</div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Anatomía de una propiedad</h3>
+
+    <div class="property-card">
+      <div class="property-card-info">
+        <h4>studio full – sin ventanas · Studio Cruceño A/C, Baño Privado, wifi, TV, cama2p</h4>
+        <p>3c5e1052-3f02-4542-90a4-346ce0897c02</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="text-align:right;font-size:12px;color:var(--text-muted);">USD · America/New_York</div>
+        <span class="badge badge-active">● ACTIVE</span>
+        <span class="ui-btn ui-btn-outline" style="font-size:12px;">↻ Sync</span>
+      </div>
+    </div>
+
+    <table class="info-table" style="margin-top:16px;">
+      <thead><tr><th>Elemento</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Nombre</strong></td><td>Título descriptivo de la propiedad tal como fue registrado en Channex.</td></tr>
+        <tr><td><strong>ID (gris debajo del nombre)</strong></td><td>UUID único de Channex que identifica esta propiedad. Úsalo para soporte técnico.</td></tr>
+        <tr><td><span class="badge badge-active">● ACTIVE</span></td><td>La propiedad está activa y recibiendo reservas. Si no aparece, el estado es inactivo.</td></tr>
+        <tr><td><code>USD · America/New_York</code></td><td>Moneda configurada y zona horaria de la propiedad.</td></tr>
+        <tr><td><span class="ui-btn ui-btn-outline ui-btn-sm">↻ Sync</span></td><td>Fuerza la sincronización de esta propiedad con Channex para refrescar sus datos en Migo.</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Pestañas dentro de una propiedad</h3>
+    <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">Al hacer clic sobre el nombre de una propiedad, entras a su vista detallada con 4 pestañas:</p>
+
+    <div class="ui-tabs">
+      <div class="ui-tab active">Rooms &amp; Rates</div>
+      <div class="ui-tab">ARI Calendar</div>
+      <div class="ui-tab">Reservations</div>
+      <div class="ui-tab">Messages</div>
+    </div>
+
+    <div class="callout success" style="margin-top:16px;">
+      <span class="callout-icon">✅</span>
+      <div>Cada propiedad es independiente. Puedes tener varias propiedades en tu cuenta, cada una con sus propios rooms, tarifas, calendario y reservas.</div>
+    </div>
+
+    <a href="#toc" class="back-to-top">↑ Volver al índice</a>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SECCIÓN 2: ROOMS & RATES                 -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="section alt" id="rooms-rates">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <div>
+        <div class="section-title">Rooms &amp; Rates</div>
+        <div class="section-desc">Un <strong>Room Type</strong> define el tipo de habitación (cuántas unidades físicas existen, cuántos adultos/niños puede recibir). Un <strong>Rate Plan</strong> define el precio y las condiciones de venta de ese tipo de habitación.</div>
+      </div>
+    </div>
+
+    <div class="screenshot">
+      <div class="screenshot-label">📸 Pantalla: Tab "Rooms &amp; Rates" de una propiedad</div>
+      <img src="file:///C:/Users/lutin/Downloads/roomsrates.png" alt="Rooms and Rates" />
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div><strong>¿Por qué es importante esta sección?</strong> Sin al menos un Room Type y un Rate Plan configurados, la propiedad no puede publicar disponibilidad en ningún canal (Airbnb, Booking.com) y el calendario ARI aparecerá vacío.</div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Anatomía de un Room Type</h3>
+
+    <div class="room-card">
+      <div class="room-card-header">
+        <div>
+          <div class="room-card-title">studio full – sin ventanas · Studio Cruceño A/C, Baño Privado, wifi, TV, cama2p</div>
+          <div class="room-card-meta" style="font-family:monospace;font-size:11px;">1e992b52-4c74-4912-a66e-ee815a84fee4</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Adultos: 2 &nbsp; Niños: 0 &nbsp; Bebés: 0</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:13px;color:var(--text-muted);">1 unidad</span>
+          <span style="font-size:13px;color:var(--text-muted);">Occ 2</span>
+          <span class="badge badge-airbnb">AIRBNB</span>
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px;">Rate Plans (1)</div>
+      <div class="rate-plan">
+        <div>
+          <div style="font-size:13px;font-weight:600;">studio full – sin ventanas · Studio Cruceño ... — Standard</div>
+          <div style="font-size:11px;font-family:monospace;color:var(--text-muted);margin-top:2px;">c32546b9-db56-47b8-bcfe-7b877215a675</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="badge badge-primary">Primary</span>
+          <span style="font-size:13px;font-weight:700;">USD 1300</span>
+          <span style="font-size:12px;color:var(--text-muted);">occ 2</span>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <span style="color:var(--purple);font-size:13px;cursor:default;">+ Agregar rate plan</span>
+      </div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Campos de un Room Type — Guía de llenado</h3>
+
+    <table class="info-table">
+      <thead><tr><th>Campo</th><th>Qué ingresar</th><th>Implicación</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Título</strong></td><td>Nombre descriptivo de la habitación (ej: "Suite Deluxe")</td><td>Aparece en canales OTA como Airbnb y Booking.com</td></tr>
+        <tr><td><strong>Unidades (count_of_rooms)</strong></td><td>Número de habitaciones físicas idénticas</td><td>Determina la disponibilidad máxima. Si tienes 3 apartamentos iguales, pon 3.</td></tr>
+        <tr><td><strong>Ocupación por defecto</strong></td><td>Número máximo de personas en total</td><td>Define el límite general de huéspedes</td></tr>
+        <tr><td><strong>Adultos / Niños / Bebés</strong></td><td>Desglose de la ocupación por tipo</td><td>Usado por los canales para filtrar búsquedas de huéspedes</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Campos de un Rate Plan — Guía de llenado</h3>
+
+    <table class="info-table">
+      <thead><tr><th>Campo</th><th>Qué ingresar</th><th>Implicación</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Título</strong></td><td>Nombre del plan (ej: "Standard", "Sin reembolso")</td><td>Se muestra al huésped en algunos canales</td></tr>
+        <tr><td><strong>Moneda</strong></td><td>USD, EUR, etc.</td><td>Moneda en la que se cobra. Debe coincidir con la configuración del canal.</td></tr>
+        <tr><td><strong>Tarifa base (rate)</strong></td><td>Precio por noche</td><td>Es el precio neto que se envía al canal. Booking.com puede aplicar comisiones sobre este valor.</td></tr>
+        <tr><td><strong>Ocupación (occupancy)</strong></td><td>Número de personas para las que aplica este precio</td><td>Si la ocupación real difiere, el canal puede aplicar suplementos automáticamente</td></tr>
+        <tr><td><span class="badge badge-primary">Primary</span></td><td>Marcado automáticamente en el primer rate plan</td><td>El rate plan primario es el que el sistema usa por defecto para mostrar precio en el calendario ARI</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">¿Cómo agregar un Room Type?</h3>
+
+    <div style="border:2px dashed var(--purple);border-radius:10px;padding:14px 20px;text-align:center;color:var(--purple);font-size:14px;font-weight:600;margin-bottom:20px;cursor:default;">
+      + Agregar room type
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Hacer clic en <span class="hl">+ Agregar room type</span></h4>
+          <p>El botón aparece al final de la lista de room types, con borde punteado. Si ya existe un room type sincronizado desde Airbnb, verás ese primero y el botón estará debajo.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Completar el formulario de creación</h4>
+          <p>Ingresa título, número de unidades y configuración de ocupación. Estos datos se envían a Channex en tiempo real.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Agregar al menos un Rate Plan</h4>
+          <p>Una vez creado el room type, haz clic en <span class="hl">+ Agregar rate plan</span> para definir el precio. Sin rate plan, el calendario ARI no puede mostrar tarifas.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>Si ya tienes datos:</strong> Si el room type fue sincronizado automáticamente desde Airbnb (verás el badge <span class="badge badge-airbnb">AIRBNB</span>), modificar el nombre o la ocupación aquí actualizará los datos en Channex. Ten cuidado de no alterar datos que Airbnb ya tiene configurados, ya que esto puede afectar la visibilidad del listing.</div>
+    </div>
+
+    <a href="#toc" class="back-to-top">↑ Volver al índice</a>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SECCIÓN 3: CALENDARIO ARI                -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="section" id="ari-calendar">
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <div>
+        <div class="section-title">Calendario ARI</div>
+        <div class="section-desc">ARI significa <strong>Availability, Rates &amp; Inventory</strong> (Disponibilidad, Tarifas e Inventario). El calendario ARI es tu vista central para ver qué días tienen precio publicado, qué disponibilidad queda y cuáles están bloqueados.</div>
+      </div>
+    </div>
+
+    <div class="nav-breadcrumb">
+      Channex → Properties → [clic en una propiedad] → Tab <span>ARI Calendar</span>
+    </div>
+
+    <div class="screenshot">
+      <div class="screenshot-label">📸 Pantalla: Calendario ARI — mayo 2026</div>
+      <img src="file:///C:/Users/lutin/Downloads/aricalendar.png" alt="ARI Calendar" />
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">¿Qué muestra cada celda del calendario?</h3>
+
+    <div class="cal-mini">
+      <div class="cal-cell header">DOM</div>
+      <div class="cal-cell header">LUN</div>
+      <div class="cal-cell header">MAR</div>
+      <div class="cal-cell header">MIÉ</div>
+      <div class="cal-cell header">JUE</div>
+      <div class="cal-cell header">VIE</div>
+      <div class="cal-cell header">SÁB</div>
+      <div class="cal-cell"><div class="cal-cell-date">14</div><div class="cal-cell-rate">USD 13.00</div><div class="cal-cell-avail" style="color:var(--blue);">1u</div></div>
+      <div class="cal-cell"><div class="cal-cell-date">15</div><div class="cal-cell-rate">USD 13.00</div><div class="cal-cell-avail" style="color:var(--blue);">1u</div></div>
+      <div class="cal-cell"><div class="cal-cell-date">16</div><div class="cal-cell-rate">USD 13.00</div><div class="cal-cell-avail" style="color:var(--blue);">1u</div></div>
+      <div class="cal-cell cal-cell-blocked"><div class="cal-cell-date">17</div><div class="cal-cell-rate" style="color:var(--red);">USD 0.00</div><div class="cal-cell-avail" style="color:var(--red);">0u</div></div>
+      <div class="cal-cell"><div class="cal-cell-date">18</div><div class="cal-cell-rate">USD 13.00</div><div class="cal-cell-avail" style="color:var(--blue);">1u</div></div>
+      <div class="cal-cell"><div class="cal-cell-date">19</div></div>
+      <div class="cal-cell"><div class="cal-cell-date">20</div></div>
+    </div>
+
+    <table class="info-table">
+      <thead><tr><th>Dato en la celda</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td><span style="color:var(--purple);font-weight:600;">USD 13.00</span></td><td>Tarifa base publicada para ese día. Proviene del Rate Plan Primary del room type. Si no aparece precio, ese día no tiene tarifa publicada.</td></tr>
+        <tr><td><span style="color:var(--blue);font-weight:600;">1u</span></td><td>Unidades disponibles ese día. "1u" = 1 unidad disponible. Si hay 3 unidades y 1 está reservada, verás "2u".</td></tr>
+        <tr><td><span style="color:var(--red);font-weight:600;">0u</span></td><td>Sin disponibilidad. El día está bloqueado (reservado o cerrado manualmente).</td></tr>
+        <tr><td>Celda vacía</td><td>No hay datos ARI publicados para ese día. Debes hacer un Full Sync para publicar disponibilidad.</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Botones del calendario</h3>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+      <span class="ui-btn ui-btn-outline">ℹ️</span>
+      <span class="ui-btn ui-btn-outline">↻ Refresh Calendar</span>
+      <span class="ui-btn ui-btn-purple">Full Sync (500 days)</span>
+    </div>
+
+    <table class="info-table">
+      <thead><tr><th>Botón</th><th>Qué hace</th><th>Cuándo usarlo</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="ui-btn ui-btn-outline ui-btn-sm">↻ Refresh Calendar</span></td>
+          <td>Recarga el snapshot ARI desde Channex para el mes visible. Actualiza las tarifas y disponibilidades mostradas en pantalla.</td>
+          <td>Después de actualizar tarifas o disponibilidad manualmente, para ver los cambios reflejados en el calendario.</td>
+        </tr>
+        <tr>
+          <td><span class="ui-btn ui-btn-purple ui-btn-sm">Full Sync (500 days)</span></td>
+          <td>Envía disponibilidad y tarifas para los próximos 500 días a todos los canales conectados. Ver Sección 4 para detalles completos.</td>
+          <td>Primera vez que conectas una propiedad, o cuando necesitas restablecer toda la disponibilidad desde cero.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">¿Cómo actualizar una fecha específica?</h3>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Primer clic en una fecha: Vista previa</h4>
+          <p>Haz clic una vez sobre una celda del calendario. Verás un panel de vista previa que muestra la tarifa y disponibilidad actuales para ese día.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Segundo clic: Panel de edición</h4>
+          <p>Haz clic en una segunda fecha (puede ser la misma o una diferente) para abrir el panel de actualización. Aquí puedes cambiar: tarifa, disponibilidad, y restricciones (min_stay, stop_sell, cerrado a llegada/salida).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Guardar cambios</h4>
+          <p>Los cambios se envían a Channex en tiempo real. Verás el calendario actualizarse en segundos. Los canales conectados (Airbnb, Booking.com) recibirán la actualización automáticamente.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>Importante:</strong> Si el calendario muestra celdas vacías (sin precio ni disponibilidad), es porque aún no se ha hecho un Full Sync. Los huéspedes no podrán reservar esas fechas hasta que publiques disponibilidad.</div>
+    </div>
+
+    <a href="#toc" class="back-to-top">↑ Volver al índice</a>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SECCIÓN 4: FULL SYNC                     -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="section alt" id="full-sync">
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <div>
+        <div class="section-title">Full Sync (500 días)</div>
+        <div class="section-desc">El Full Sync es una operación que envía de una sola vez la disponibilidad y tarifas para los próximos 500 días a Channex. Es el mecanismo principal para "abrir" una propiedad a nuevas reservas.</div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">📡</span>
+      <div><strong>¿Por qué 500 días?</strong> Channex exige que los canales publiquen al menos 500 días de disponibilidad hacia adelante para la certificación. El Full Sync cumple con este requisito en una sola acción.</div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Botón Full Sync en el calendario</h3>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+      <span class="ui-btn ui-btn-purple">Full Sync (500 days)</span>
+      <span style="font-size:13px;color:var(--text-muted);">← Esquina superior derecha del Calendario ARI</span>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Campos del Full Sync — Qué significa cada uno</h3>
+
+    <table class="info-table">
+      <thead><tr><th>Campo</th><th>Descripción</th><th>Ejemplo / Cuándo usarlo</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Disponibilidad base<br><code>defaultAvailability</code></strong></td>
+          <td>Número de unidades disponibles que se publicarán en todos los días del rango de 500 días.</td>
+          <td>Si tienes 1 apartamento, pon <strong>1</strong>. Si tienes 3 unidades idénticas, pon <strong>3</strong>. <br><br><span class="hl-red">No pongas 0</span> a menos que quieras bloquear toda la disponibilidad.</td>
+        </tr>
+        <tr>
+          <td><strong>Tarifa base<br><code>defaultRate</code></strong></td>
+          <td>Precio por noche (en USD u otra moneda configurada) que se aplicará a todos los días del rango.</td>
+          <td>El precio que cobrarás normalmente. Por ejemplo: <strong>85.00</strong>. Puedes ajustar días específicos después desde el calendario.</td>
+        </tr>
+        <tr>
+          <td><strong>Min Stay Arrival<br><code>defaultMinStayArrival</code></strong></td>
+          <td>Mínimo de noches requeridas cuando el huésped llega en cualquier día del rango.</td>
+          <td>Si quieres reservas mínimas de 2 noches, pon <strong>2</strong>. Para no restricción, pon <strong>1</strong> o déjalo vacío.</td>
+        </tr>
+        <tr>
+          <td><strong>Max Stay<br><code>defaultMaxStay</code></strong></td>
+          <td>Máximo de noches permitidas. Restricción poco usada.</td>
+          <td>Dejar vacío o en 0 significa sin restricción de máximo. Útil si quieres limitar reservas largas.</td>
+        </tr>
+        <tr>
+          <td><strong>Stop Sell<br><code>defaultStopSell</code></strong></td>
+          <td>Activa el cierre total de ventas para el rango. Si es <strong>true</strong>, los canales NO recibirán reservas aunque haya disponibilidad.</td>
+          <td><span class="hl-red">Normalmente debe estar en false</span>. Solo actívalo si quieres cerrar temporalmente todas las reservas.</td>
+        </tr>
+        <tr>
+          <td><strong>Closed to Arrival<br><code>defaultClosedToArrival</code></strong></td>
+          <td>Prohíbe que el huésped llegue (check-in) en cualquier día del rango.</td>
+          <td>Útil para días específicos como feriados donde no quieres recibir llegadas. Generalmente <strong>false</strong> en Full Sync.</td>
+        </tr>
+        <tr>
+          <td><strong>Closed to Departure<br><code>defaultClosedToDeparture</code></strong></td>
+          <td>Prohíbe que el huésped se vaya (check-out) en cualquier día del rango.</td>
+          <td>Similar al anterior. Generalmente <strong>false</strong>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Casos de uso del Full Sync</h3>
+
+    <div class="cols-2">
+      <div class="callout success">
+        <span class="callout-icon">🟢</span>
+        <div>
+          <strong>Primera conexión de una propiedad</strong><br>
+          Después de conectar con Airbnb o Booking.com, la propiedad tiene 0 días publicados. Usa Full Sync con <code>availability=1</code>, <code>rate=TU_PRECIO</code> para abrir los 500 días de golpe.
+        </div>
+      </div>
+      <div class="callout warning">
+        <span class="callout-icon">🟡</span>
+        <div>
+          <strong>Restablecer calendario corrupto</strong><br>
+          Si el calendario muestra datos incorrectos o inconsistentes después de actualizaciones parciales, el Full Sync lo sobreescribe todo con valores uniformes. Después ajusta días específicos.
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="callout-icon">🔵</span>
+        <div>
+          <strong>Cambio de precio base</strong><br>
+          Si quieres cambiar tu tarifa base para todo el año, usa Full Sync con el nuevo <code>rate</code>. Los días con precios especiales deberás ajustarlos individualmente después.
+        </div>
+      </div>
+      <div class="callout danger">
+        <span class="callout-icon">🔴</span>
+        <div>
+          <strong>No usar para bloquear reservas</strong><br>
+          No hagas Full Sync con <code>availability=0</code> para bloquear días. Esto cierra TODA la disponibilidad de los 500 días. Usa el calendario para bloquear días específicos.
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warning" style="margin-top:24px;">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>El Full Sync sobreescribe TODO el rango.</strong> Si tienes precios especiales configurados para diciembre o temporada alta, el Full Sync los borrará y aplicará el precio base. Recomendamos hacer el Full Sync primero y luego ajustar las fechas especiales manualmente en el calendario.</div>
+    </div>
+
+    <a href="#toc" class="back-to-top">↑ Volver al índice</a>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SECCIÓN 5: RESERVACIONES                 -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="section" id="reservaciones">
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <div>
+        <div class="section-title">Reservaciones</div>
+        <div class="section-desc">La pestaña Reservations muestra todas las reservas recibidas para una propiedad, tanto desde Airbnb como de otros canales conectados. Las reservas llegan automáticamente via webhook en tiempo real.</div>
+      </div>
+    </div>
+
+    <div class="nav-breadcrumb">
+      Channex → Properties → [clic en una propiedad] → Tab <span>Reservations</span>
+    </div>
+
+    <div class="screenshot">
+      <div class="screenshot-label">📸 Pantalla: Tab "Reservations" — 2 reservaciones activas</div>
+      <img src="file:///C:/Users/lutin/Downloads/reservaciones.png" alt="Reservaciones" />
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Anatomía de una reserva</h3>
+
+    <div class="reservation-item">
+      <div class="reservation-header">
+        <div class="reservation-name">Eliane M</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;font-family:monospace;color:var(--text-muted);">HMW5WNB9TB</span>
+          <span class="badge badge-new">NEW</span>
+        </div>
+      </div>
+      <div class="reservation-dates">2026-05-28 → 2026-06-01 <span style="color:var(--text-muted);">(4n)</span></div>
+      <div class="reservation-amount">USD 45.80 <span style="font-size:11px;color:var(--text-muted);">net</span></div>
+      <div style="font-size:11px;font-family:monospace;color:var(--text-muted);margin-top:4px;">ABB-HM%5ANB9TB</div>
+    </div>
+
+    <table class="info-table" style="margin-top:16px;">
+      <thead><tr><th>Campo</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Nombre del huésped</strong></td><td>Nombre registrado en el canal OTA (Airbnb, Booking.com).</td></tr>
+        <tr><td><strong>Código (ej: HMW5WNB9TB)</strong></td><td>Código de confirmación del canal. Úsalo para buscar la reserva en Airbnb o Booking.com.</td></tr>
+        <tr><td><span class="badge badge-new">NEW</span></td><td>La reserva es nueva, aún no procesada manualmente. Otros estados posibles: <strong>modified</strong> (modificada), <strong>cancelled</strong> (cancelada).</td></tr>
+        <tr><td><strong>Fechas (4n)</strong></td><td>Check-in → Check-out. El número entre paréntesis es la cantidad de noches.</td></tr>
+        <tr><td><strong>USD X.XX net</strong></td><td>Monto neto que recibirás después de la comisión del canal. Es el ingreso real para el propietario.</td></tr>
+        <tr><td><strong>Código ABB-...</strong></td><td>ID interno de Channex para la reserva. Útil para soporte técnico.</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">¿Cómo llegan las reservas automáticamente?</h3>
+
+    <div class="callout success">
+      <span class="callout-icon">✅</span>
+      <div>Las reservas llegan a través del <strong>webhook de Channex</strong>. Cuando un huésped reserva en Airbnb, Channex notifica a Migo App en segundos. No necesitas hacer ninguna acción manual para recibir reservas.</div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Huésped hace una reserva en Airbnb</h4>
+          <p>El huésped elige fechas y confirma el pago en Airbnb.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Channex notifica a Migo App (automático)</h4>
+          <p>Airbnb envía el evento a Channex, que lo retransmite a Migo App via webhook. El proceso tarda segundos.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>La reserva aparece en Reservations</h4>
+          <p>Migo App guarda la reserva y actualiza la disponibilidad del calendario automáticamente. Si la propiedad tiene Pool, también actualiza el contador de disponibilidad.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">¿Qué es el botón "Sync from Channex"?</h3>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <span class="ui-btn ui-btn-outline-p">↻ Sync from Channex</span>
+    </div>
+
+    <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:16px;">
+      Este botón descarga manualmente todas las reservas pendientes desde el feed de Channex. Úsalo cuando:
+    </p>
+
+    <ul style="font-size:14px;color:var(--text-muted);line-height:2;padding-left:20px;margin-bottom:16px;">
+      <li>Sospechas que una reserva no llegó por un fallo temporal del webhook</li>
+      <li>Acabas de reconectar la integración de Airbnb</li>
+      <li>Ves discrepancias entre lo que muestra Airbnb y lo que muestra Migo App</li>
+    </ul>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div>El texto <strong>"Updated 5:51:53 p.m."</strong> que aparece junto a la lista indica la última vez que se refrescaron las reservas. Si ves que ya pasó mucho tiempo y esperas una reserva nueva, usa <span class="ui-btn ui-btn-outline-p ui-btn-sm">↻ Sync from Channex</span> para verificar.</div>
+    </div>
+
+    <a href="#toc" class="back-to-top">↑ Volver al índice</a>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SECCIÓN 6: MENSAJES                      -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="section alt" id="mensajes">
+    <div class="section-header">
+      <div class="section-number">6</div>
+      <div>
+        <div class="section-title">Mensajes</div>
+        <div class="section-desc">La pestaña Messages permite ver los mensajes enviados por los huéspedes a través de los canales OTA (Airbnb, Booking.com) directamente dentro de Migo App, sin tener que ir a cada plataforma por separado.</div>
+      </div>
+    </div>
+
+    <div class="nav-breadcrumb">
+      Channex → Properties → [clic en una propiedad] → Tab <span>Messages</span>
+    </div>
+
+    <div class="screenshot">
+      <div class="screenshot-label">📸 Pantalla: Tab "Messages" — sin mensajes aún</div>
+      <img src="file:///C:/Users/lutin/Downloads/messages.png" alt="Messages" />
+    </div>
+
+    <div class="msg-inbox">
+      <div class="msg-header">Mensajes de huéspedes — studio full – sin ventanas</div>
+      <div class="msg-empty">No messages yet.<br><span style="font-size:12px;">Los mensajes aparecerán aquí cuando los huéspedes escriban a través de Airbnb o Booking.com.</span></div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">¿Cuándo llegan mensajes aquí?</h3>
+
+    <table class="info-table">
+      <thead><tr><th>Origen</th><th>Cuándo aparece en Messages</th></tr></thead>
+      <tbody>
+        <tr><td>Huésped de Airbnb escribe un mensaje</td><td>El mensaje llega en tiempo real vía webhook de Channex a esta sección.</td></tr>
+        <tr><td>Huésped de Booking.com escribe</td><td>Si la integración Booking.com está activa, los mensajes del hilo de reserva se muestran aquí.</td></tr>
+        <tr><td>Consultas de disponibilidad (Inquiry)</td><td>Los <em>inquiries</em> de Airbnb también aparecen como mensajes en esta sección.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout info">
+      <span class="callout-icon">💡</span>
+      <div><strong>Mensajes globales:</strong> También puedes ver todos los mensajes de todas las propiedades a la vez desde el menú lateral → <span class="hl">Messages</span> (sección MAIN). La vista de mensajes dentro de cada propiedad solo muestra los mensajes de esa propiedad específica.</div>
+    </div>
+
+    <a href="#toc" class="back-to-top">↑ Volver al índice</a>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SECCIÓN 7: AIRBNB                        -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="section" id="airbnb">
+    <div class="section-header">
+      <div class="section-number">7</div>
+      <div>
+        <div class="section-title">Integración Airbnb</div>
+        <div class="section-desc">Conectar tu cuenta de Airbnb a través de Channex permite sincronizar tus listings existentes, recibir reservas automáticamente y gestionar la disponibilidad desde Migo App.</div>
+      </div>
+    </div>
+
+    <div class="nav-breadcrumb">
+      Menú lateral → Channex → <span>Airbnb</span> (sub-ítem) o bien Property Hub → Tab <span>Airbnb</span>
+    </div>
+
+    <div class="screenshot">
+      <div class="screenshot-label">📸 Pantalla: Tab "Airbnb" — 3 propiedades conectadas</div>
+      <img src="file:///C:/Users/lutin/Downloads/airbnb.png" alt="Airbnb integration" />
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Elementos de la pantalla Airbnb</h3>
+
+    <div style="border:1px solid var(--border);border-radius:10px;padding:20px;margin:16px 0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+          <div style="font-size:16px;font-weight:700;">Airbnb Connection</div>
+          <div style="font-size:13px;color:var(--text-muted);">3 properties connected</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <span class="ui-btn ui-btn-outline ui-btn-sm">Advanced Search</span>
+          <span class="ui-btn ui-btn-outline ui-btn-sm">↻ Refresh</span>
+          <span class="ui-btn ui-btn-primary ui-btn-sm">+ Create</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:center;font-size:13px;">
+          <div style="font-weight:700;color:var(--text-muted);">Title</div>
+          <div style="font-weight:700;color:var(--text-muted);">Channel</div>
+          <div style="font-weight:700;color:var(--text-muted);">Status</div>
+          <div style="font-weight:700;color:var(--text-muted);">Actions</div>
+          <div>air1</div>
+          <div>Airbnb</div>
+          <div><span class="badge badge-disabled">Disabled</span></div>
+          <div><span style="color:var(--blue);font-size:13px;">Actions ▾</span></div>
+        </div>
+      </div>
+    </div>
+
+    <table class="info-table">
+      <thead><tr><th>Elemento</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Title</strong></td><td>Nombre del canal/propiedad creado en Channex. No es el nombre de tu listing en Airbnb, sino el nombre interno en Channex.</td></tr>
+        <tr><td><strong>Channel</strong></td><td>Siempre "Airbnb" en esta vista.</td></tr>
+        <tr><td><span class="badge badge-active">Active</span></td><td>El canal está conectado y recibiendo reservas.</td></tr>
+        <tr><td><span class="badge badge-disabled">Disabled</span></td><td>El canal existe en Channex pero no está activo. Las reservas no llegarán hasta que se reactive.</td></tr>
+        <tr><td><span class="ui-btn ui-btn-primary ui-btn-sm">+ Create</span></td><td>Crea un nuevo canal Airbnb en Channex. Se usa durante el proceso de primera conexión.</td></tr>
+        <tr><td>Actions ▾</td><td>Menú desplegable con opciones: editar, ver mapeo de habitaciones, activar/desactivar.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="divider"></div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:0 0 16px;">Botones en la parte inferior de la vista Airbnb</h3>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+      <span style="color:var(--purple);font-size:14px;text-decoration:underline;cursor:default;">Reconnect Airbnb</span>
+      <span class="ui-btn ui-btn-red">Sync Listings</span>
+    </div>
+
+    <table class="info-table">
+      <thead><tr><th>Botón</th><th>Qué hace</th><th>Cuándo usarlo</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span style="color:var(--purple);font-size:13px;text-decoration:underline;">Reconnect Airbnb</span></td>
+          <td>Inicia el flujo OAuth de reconexión con tu cuenta de Airbnb. Abre el portal de Channex para reautorizar la conexión.</td>
+          <td>Si la conexión se interrumpió (token expirado, cambio de contraseña en Airbnb, revocación de permisos). También al conectar por primera vez.</td>
+        </tr>
+        <tr>
+          <td><span class="ui-btn ui-btn-red ui-btn-sm">Sync Listings</span></td>
+          <td>Descarga desde Airbnb la lista de tus listings activos y los sincroniza como propiedades en Channex/Migo App. Los listings aparecerán en la tab Properties como propiedades nuevas.</td>
+          <td>Después de conectar por primera vez. También si agregas un nuevo listing en Airbnb y quieres que aparezca en Migo App.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Paso a paso: Conectar Airbnb por primera vez</h3>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Ir a la tab Airbnb</h4>
+          <p>Menú lateral → Channex → Airbnb (o Property Hub → tab Airbnb).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Hacer clic en <span style="color:var(--purple);text-decoration:underline;">Reconnect Airbnb</span></h4>
+          <p>Se abrirá el flujo de autenticación de Channex con Airbnb. Puede abrirse una nueva ventana del navegador con la URL de Channex.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Autorizar en Airbnb</h4>
+          <p>Inicia sesión en tu cuenta de Airbnb y autoriza a Channex a acceder a tus listings y reservas. Haz clic en "Permitir" o "Authorize".</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Hacer clic en <span class="ui-btn ui-btn-red ui-btn-sm">Sync Listings</span></h4>
+          <p>Una vez autorizado, vuelve a Migo App y haz clic en Sync Listings. Tus propiedades de Airbnb aparecerán listadas en "Connected Airbnb Properties" y como Properties individuales.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Hacer el Full Sync de cada propiedad</h4>
+          <p>Ve a cada propiedad sincronizada → ARI Calendar → <span class="ui-btn ui-btn-purple ui-btn-sm">Full Sync (500 days)</span>. Esto publica la disponibilidad para que Airbnb muestre tu propiedad como disponible.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Sección "Connected Airbnb Properties"</h3>
+
+    <div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin:12px 0;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text-muted);">Connected Airbnb Properties</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div style="border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;position:relative;">
+          <div style="position:absolute;top:8px;right:8px;width:8px;height:8px;background:var(--green);border-radius:50%;"></div>
+          studio full – sin ventanas · Studio Cruceño A/C, Baño Privado, wifi, TV, cama2p
+        </div>
+        <div style="border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;position:relative;">
+          <div style="position:absolute;top:8px;right:8px;width:8px;height:8px;background:var(--green);border-radius:50%;"></div>
+          studio full – ventana grande · Centrico Studio, A/C, Wifi, baño privado, TV,
+        </div>
+        <div style="border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;position:relative;">
+          <div style="position:absolute;top:8px;right:8px;width:8px;height:8px;background:var(--green);border-radius:50%;"></div>
+          studio full – 2 ventanas · A/C Studio, Wifi, Cama 2 plazas, baño privado, TV,
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">Cada tarjeta con <strong>punto verde</strong> indica una propiedad de Airbnb conectada y activa. Si el punto fuera rojo o gris, la propiedad no está transmitiendo datos correctamente.</p>
+
+    <a href="#toc" class="back-to-top">↑ Volver al índice</a>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SECCIÓN 8: BOOKING.COM                   -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="section alt" id="booking">
+    <div class="section-header">
+      <div class="section-number">8</div>
+      <div>
+        <div class="section-title">Integración Booking.com</div>
+        <div class="section-desc">Booking.com se conecta mediante el sistema de canal de Channex. A diferencia de Airbnb (donde traes listings existentes), con Booking.com primero creas la estructura de habitaciones en Channex y luego la sincronizas hacia Booking.com.</div>
+      </div>
+    </div>
+
+    <div class="nav-breadcrumb">
+      Menú lateral → Channex → Booking.com (sub-ítem) o bien Property Hub → Tab <span>Booking.com</span>
+    </div>
+
+    <div class="screenshot">
+      <div class="screenshot-label">📸 Pantalla: Tab "Booking.com" — flujo de conexión vía popup de Channex</div>
+      <img src="file:///C:/Users/lutin/Downloads/bookigncom.png" alt="Booking.com integration" />
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Los 3 botones principales</h3>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+      <span class="ui-btn ui-btn-outline-p">Connect via Channex</span>
+      <span class="ui-btn ui-btn-purple">Sync Rooms &amp; Rates</span>
+      <span class="ui-btn ui-btn-outline-r">Disconnect</span>
+    </div>
+
+    <table class="info-table">
+      <thead><tr><th>Botón</th><th>Qué hace</th><th>Cuándo usarlo</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="ui-btn ui-btn-outline-p ui-btn-sm">Connect via Channex</span></td>
+          <td>Abre una ventana emergente (popup) con el portal de Channex en la URL <code>staging.channex.io/channels</code>. Desde ahí creas el canal de Booking.com.</td>
+          <td>Primera vez que conectas Booking.com. Deberás tener credenciales de Booking.com Extranet.</td>
+        </tr>
+        <tr>
+          <td><span class="ui-btn ui-btn-purple ui-btn-sm">Sync Rooms &amp; Rates</span></td>
+          <td>Descarga la estructura de habitaciones y tarifas desde el canal Booking.com ya conectado y las guarda en Migo App para su gestión.</td>
+          <td>Después de completar la conexión via Channex. También si modificas rooms/rates en Channex directamente.</td>
+        </tr>
+        <tr>
+          <td><span class="ui-btn ui-btn-outline-r ui-btn-sm">Disconnect</span></td>
+          <td>Elimina el canal de Booking.com de Channex y borra la integración de Migo App. <strong>Acción destructiva.</strong></td>
+          <td>Solo si quieres desconectar permanentemente Booking.com. Esto libera el calendario de Booking.com Extranet.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout danger">
+      <span class="callout-icon">🔴</span>
+      <div><strong>Sobre el botón Disconnect:</strong> Desconectar Booking.com elimina el canal en Channex y libera el Extranet. Booking.com dejará de recibir disponibilidad y reservas se dejarán de sincronizar. Esta acción no se puede deshacer fácilmente — deberías crear el canal nuevamente y volver a hacer el Full Sync.</div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Paso a paso: Conectar Booking.com por primera vez</h3>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Ir a Property Hub → Tab Booking.com</h4>
+          <p>Desde el menú lateral → Channex → Booking.com, o desde la tab Booking.com en Property Hub.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Hacer clic en <span class="ui-btn ui-btn-outline-p ui-btn-sm">Connect via Channex</span></h4>
+          <p>Se abrirá un popup con el portal de Channex. <strong>No cierres la ventana principal de Migo App</strong> mientras completas el proceso en el popup.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Crear el canal en Channex (dentro del popup)</h4>
+          <p>En el popup de Channex, haz clic en <span class="ui-btn ui-btn-primary ui-btn-sm">+ Create</span> y selecciona "Booking.com" como canal. Ingresa tus credenciales de Booking.com Extranet cuando se solicite.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Cerrar el popup y hacer clic en <span class="ui-btn ui-btn-purple ui-btn-sm">Sync Rooms &amp; Rates</span></h4>
+          <p>Una vez completada la conexión en Channex, regresa a Migo App y sincroniza para importar la estructura de habitaciones desde Booking.com.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Configurar Rooms &amp; Rates en Migo App</h4>
+          <p>Ve a Properties → [propiedad] → Rooms &amp; Rates. Verifica que los room types y rate plans estén correctamente configurados.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <h4>Hacer Full Sync para publicar disponibilidad</h4>
+          <p>Ve a ARI Calendar → <span class="ui-btn ui-btn-purple ui-btn-sm">Full Sync (500 days)</span>. Booking.com comenzará a mostrar tu propiedad como disponible.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>El popup puede mostrar "Ooops… We could not find anything":</strong> Esto es normal si aún no has creado ningún canal en Channex. Usa el botón <span class="ui-btn ui-btn-primary ui-btn-sm">+ Create</span> dentro del popup para crear el primer canal de Booking.com.</div>
+    </div>
+
+    <a href="#toc" class="back-to-top">↑ Volver al índice</a>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SECCIÓN 9: POOLS                         -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="section" id="pools">
+    <div class="section-header">
+      <div class="section-number">9</div>
+      <div>
+        <div class="section-title">Pools — Gestión de disponibilidad multi-canal</div>
+        <div class="section-desc">Un <strong>Pool</strong> es un grupo de propiedades del mismo tipo (por ejemplo, 3 apartamentos idénticos) que comparten un contador global de disponibilidad. Cuando se recibe una reserva en cualquier canal, el Pool actualiza automáticamente la disponibilidad en todos los demás canales conectados.</div>
+      </div>
+    </div>
+
+    <div class="nav-breadcrumb">
+      Property Hub → Tab <span>Pools</span>
+    </div>
+
+    <div class="screenshot">
+      <div class="screenshot-label">📸 Pantalla: Detalle de un Pool — STUDIO FULL</div>
+      <img src="file:///C:/Users/lutin/Downloads/POOL.png" alt="Pools" />
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">¿Por qué usar Pools?</h3>
+
+    <div class="callout success">
+      <span class="callout-icon">🎯</span>
+      <div>
+        <strong>Ejemplo práctico:</strong> Tienes 3 apartamentos tipo "Studio Full". Cada uno está listado en Airbnb con su propia propiedad en Channex. Sin un Pool, cuando se reserva uno en Airbnb, los otros dos siguen mostrando 1 unidad disponible cada uno, sin saber que el inventario total ya cambió. Con un Pool de 3 unidades, la reserva en cualquier canal actualiza el contador central y redistribuye correctamente la disponibilidad.
+      </div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Anatomía de un Pool</h3>
+
+    <div class="pool-card">
+      <div class="pool-header">
+        <div class="pool-title">STUDIO FULL</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="pool-avail">5 / 5 available</div>
+          <span class="ui-btn ui-btn-outline ui-btn-sm">Reset to full</span>
+        </div>
+      </div>
+      <div class="pool-id">0SF91w1xVspKFcU87hVy</div>
+
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:14px;font-weight:600;">Platform Connections</div>
+          <span class="ui-btn ui-btn-outline-p ui-btn-sm">+ Add</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-muted);padding:12px;border:1px dashed var(--border);border-radius:8px;text-align:center;">
+          No connections yet. Add a platform connection above.
+        </div>
+      </div>
+
+      <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px;">ARI Fan-out</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">Push ARI updates to all 0 enabled platforms simultaneously.</div>
+        <div class="cols-2" style="gap:12px;margin-bottom:12px;">
+          <div>
+            <div class="field-label">DATE FROM</div>
+            <div class="field-input">dd/mm/aaaa 📅</div>
+          </div>
+          <div>
+            <div class="field-label">DATE TO</div>
+            <div class="field-input">dd/mm/aaaa 📅</div>
+          </div>
+        </div>
+        <div class="checkbox-row">
+          <div class="checkbox-box"></div>
+          <span><strong>Stop Sell</strong> — Close all bookings for this period</span>
+        </div>
+        <div style="margin-top:8px;">
+          <div class="field-label" style="margin-bottom:4px;">AVAILABILITY OVERRIDE (optional)</div>
+          <div class="field-input" style="max-width:160px;color:var(--text-muted);">Leave blank</div>
+        </div>
+        <div style="margin-top:14px;">
+          <span class="ui-btn ui-btn-purple" style="opacity:.7;">Push to all platforms</span>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Campos del Pool — Significado</h3>
+
+    <table class="info-table">
+      <thead><tr><th>Elemento</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Nombre del Pool (ej: STUDIO FULL)</strong></td>
+          <td>Nombre descriptivo que identifica el tipo de unidad agrupada. Puede ser cualquier nombre que te ayude a identificar el tipo de propiedad.</td>
+        </tr>
+        <tr>
+          <td><strong>5 / 5 available</strong></td>
+          <td>Contador de disponibilidad: <code>actual / total</code>. "5/5" = todas las unidades disponibles. "3/5" = 2 ya tienen reservas activas. Este número se actualiza automáticamente con cada reserva o cancelación.</td>
+        </tr>
+        <tr>
+          <td><span class="ui-btn ui-btn-outline ui-btn-sm">Reset to full</span></td>
+          <td>Restaura el contador de disponibilidad al máximo (total_units). Úsalo si el contador quedó desincronizado por algún error. <strong>No cancela reservas existentes.</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Platform Connections</strong></td>
+          <td>Lista de propiedades Channex vinculadas a este Pool. Cada conexión apunta a una propiedad específica (ej: la propiedad de Airbnb "Studio 1", la de Booking.com "Studio 1").</td>
+        </tr>
+        <tr>
+          <td><span class="ui-btn ui-btn-outline-p ui-btn-sm">+ Add</span></td>
+          <td>Agrega una nueva plataforma/propiedad Channex al Pool. Debes seleccionar el channex_property_id de la propiedad que quieres conectar.</td>
+        </tr>
+        <tr>
+          <td><strong>is_sync_enabled</strong> (toggle por conexión)</td>
+          <td>Activa o desactiva la sincronización ARI para esa plataforma específica. Si está desactivado, las actualizaciones de disponibilidad no se enviarán a ese canal aunque otros estén habilitados.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div id="ari-fanout"></div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">ARI Fan-out — Actualización masiva desde el Pool</h3>
+
+    <div class="callout info">
+      <span class="callout-icon">📡</span>
+      <div><strong>¿Qué es el ARI Fan-out?</strong> Es una herramienta para enviar manualmente actualizaciones de disponibilidad y restricciones a <strong>todos los canales conectados al Pool simultáneamente</strong>, en un rango de fechas específico. Es distinto al Full Sync individual — el Fan-out afecta todas las plataformas del Pool de una sola vez.</div>
+    </div>
+
+    <h3 style="font-size:15px;font-weight:700;margin:20px 0 10px;">Campos del ARI Fan-out</h3>
+
+    <table class="info-table">
+      <thead><tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>DATE FROM</strong></td>
+          <td>Fecha de inicio del rango de actualización (inclusive).</td>
+          <td>01/06/2026 — inicio de temporada alta</td>
+        </tr>
+        <tr>
+          <td><strong>DATE TO</strong></td>
+          <td>Fecha de fin del rango de actualización (inclusive).</td>
+          <td>31/08/2026 — fin de temporada alta</td>
+        </tr>
+        <tr>
+          <td><strong>Stop Sell</strong></td>
+          <td>Si lo marcas, cierra la venta en todos los canales del Pool para el rango indicado. Las fechas quedarán bloqueadas en Airbnb, Booking.com y cualquier otro canal conectado.</td>
+          <td>Úsalo cuando vayas de vacaciones y no quieras recibir reservas en esas fechas en ningún canal.</td>
+        </tr>
+        <tr>
+          <td><strong>AVAILABILITY OVERRIDE (opcional)</strong></td>
+          <td>Número fijo de unidades disponibles que se enviará a todos los canales para el rango. Si lo dejas vacío, se usará el valor actual del Pool recalculado.</td>
+          <td>Si quieres forzar "2 disponibles" en todos los canales sin importar el estado real del Pool, pon 2.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="display:flex;align-items:center;gap:12px;margin:16px 0;">
+      <span class="ui-btn ui-btn-purple">Push to all platforms</span>
+      <span style="font-size:13px;color:var(--text-muted);">← Envía los cambios a todos los canales del Pool simultáneamente</span>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Cómo funciona el Pool con las reservas (automático)</h3>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Llega una reserva via webhook (ej: Airbnb)</h4>
+          <p>Un huésped reserva en Airbnb para la propiedad "Studio 1". El webhook llega a Migo App en segundos.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Migo App actualiza el contador del Pool</h4>
+          <p>El contador pasa de <span class="hl-green">3 / 3 available</span> a <span class="hl-red">2 / 3 available</span>. Automáticamente, sin acción manual.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>ARI fan-out automático a otros canales</h4>
+          <p>Migo App recalcula la disponibilidad por noche para los días bloqueados por la reserva y envía la actualización a todos los otros canales del Pool (ej: Booking.com). Los canales reciben la disponibilidad actualizada y dejan de mostrar esas noches como disponibles.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout success">
+      <span class="callout-icon">✅</span>
+      <div><strong>Resultado:</strong> Si tienes 3 Studios en Airbnb y Booking.com (6 propiedades en total, agrupadas en 1 Pool de 3 unidades), una reserva en Airbnb actualiza automáticamente la disponibilidad en Booking.com para evitar doble reserva.</div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;">Cómo crear un Pool desde cero</h3>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Ir a Property Hub → Tab Pools</h4>
+          <p>Verás la lista de Pools existentes o la pantalla vacía si es la primera vez.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Crear un nuevo Pool</h4>
+          <p>Usa el botón de creación y asigna un nombre (ej: "Studio Full") y el número total de unidades (ej: 3 si tienes 3 apartamentos idénticos).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Agregar Platform Connections</h4>
+          <p>Haz clic en <span class="ui-btn ui-btn-outline-p ui-btn-sm">+ Add</span> y selecciona cada propiedad Channex que pertenece a este Pool. Por ejemplo: agrega la propiedad Airbnb de cada Studio, y la propiedad Booking.com de cada Studio.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Activar sync en cada conexión</h4>
+          <p>Asegúrate de que el toggle <strong>is_sync_enabled</strong> esté activado en cada conexión para que el fan-out automático funcione.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Hacer un ARI Fan-out inicial</h4>
+          <p>Para sincronizar el estado actual del Pool con todos los canales, usa el <strong>ARI Fan-out</strong> con el rango de fechas deseado y la disponibilidad correcta. Esto establece el estado inicial correcto en todos los canales.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>Antes de crear un Pool:</strong> Todas las propiedades que agregarás ya deben estar creadas en Channex y aparecer en la tab Properties. Asegúrate de que cada una tenga al menos un Room Type y un Rate Plan configurados para que el ARI Fan-out funcione correctamente.</div>
+    </div>
+
+    <a href="#toc" class="back-to-top">↑ Volver al índice</a>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div style="background:var(--dark2);color:rgba(255,255,255,.5);padding:40px 60px;font-size:13px;line-height:2;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+      <div>
+        <div style="color:#fff;font-weight:700;font-size:16px;margin-bottom:4px;">Migo App · Channex Channel Manager</div>
+        <div>Manual de Usuario v1.0 · Mayo 2026</div>
+      </div>
+      <div style="text-align:right;">
+        <div>Secciones: Propiedades · Rooms &amp; Rates · ARI Calendar · Full Sync</div>
+        <div>Reservaciones · Mensajes · Airbnb · Booking.com · Pools</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // Active sidebar link on scroll
+  const links = document.querySelectorAll('.sidebar-link');
+  const sections = document.querySelectorAll('.section[id], .hero[id]');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.sidebar-link[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

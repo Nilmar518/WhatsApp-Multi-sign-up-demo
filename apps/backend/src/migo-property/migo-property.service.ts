@@ -22,6 +22,7 @@ export interface PlatformConnection {
   channex_property_id: string;
   listing_title: string;
   is_sync_enabled: boolean;
+  count_of_rooms?: number;
 }
 
 export interface MigoPropertyDoc {
@@ -53,8 +54,8 @@ export class MigoPropertyService {
       id: ref.id,
       tenant_id: dto.tenantId,
       title: dto.title,
-      total_units: dto.total_units,
-      current_availability: dto.total_units,
+      total_units: 0,
+      current_availability: 0,
       alert_threshold: dto.alert_threshold ?? 0,
       platform_connections: [],
       created_at: now,
@@ -62,7 +63,7 @@ export class MigoPropertyService {
     };
     await this.firebase.set(ref, doc as unknown as Record<string, unknown>);
     this.logger.log(
-      `[MIGO-PROPERTY] Created — id=${ref.id} title="${dto.title}" units=${dto.total_units}`,
+      `[MIGO-PROPERTY] Created — id=${ref.id} title="${dto.title}" units=0`,
     );
     return doc;
   }
@@ -132,6 +133,17 @@ export class MigoPropertyService {
       );
     }
 
+    const propData = propSnap.docs[0].data();
+    const roomTypes = (propData?.room_types as Array<{ count_of_rooms?: number }>) ?? [];
+    const countOfRooms = roomTypes.reduce((sum, rt) => sum + (rt.count_of_rooms ?? 0), 0);
+
+    if (countOfRooms === 0) {
+      throw new BadRequestException(
+        `Property "${dto.channexPropertyId}" has no room types with a room count configured. ` +
+          `Go to Properties → Rooms & Rates and set the room count before adding to a pool.`,
+      );
+    }
+
     const doc = await this.getPropertyType(migoPropertyId);
     const alreadyConnected = doc.platform_connections.some(
       (c) => c.channex_property_id === dto.channexPropertyId,
@@ -143,6 +155,7 @@ export class MigoPropertyService {
       channex_property_id: dto.channexPropertyId,
       listing_title: dto.listingTitle,
       is_sync_enabled: dto.isSyncEnabled ?? true,
+      count_of_rooms: countOfRooms,
     };
 
     const updatedConnections = [...doc.platform_connections, newConnection];
@@ -150,6 +163,8 @@ export class MigoPropertyService {
 
     await this.firebase.update(db.collection(COLLECTION).doc(migoPropertyId), {
       platform_connections: updatedConnections,
+      total_units: FieldValue.increment(countOfRooms),
+      current_availability: FieldValue.increment(countOfRooms),
       updated_at: now,
     });
 
@@ -162,7 +177,13 @@ export class MigoPropertyService {
         `channexPropertyId=${dto.channexPropertyId}`,
     );
 
-    return { ...doc, platform_connections: updatedConnections, updated_at: now };
+    return {
+      ...doc,
+      platform_connections: updatedConnections,
+      total_units: doc.total_units + countOfRooms,
+      current_availability: doc.current_availability + countOfRooms,
+      updated_at: now,
+    };
   }
 
   async removeConnection(
@@ -173,11 +194,22 @@ export class MigoPropertyService {
     const updatedConnections = doc.platform_connections.filter(
       (c) => c.channex_property_id !== channexPropertyId,
     );
+    const removedConn = doc.platform_connections.find(
+      (c) => c.channex_property_id === channexPropertyId,
+    );
+    const countOfRooms = removedConn?.count_of_rooms ?? 0;
     const now = new Date().toISOString();
     const db = this.firebase.getFirestore();
 
+    const capacityPatch: Record<string, unknown> = {};
+    if (countOfRooms > 0) {
+      capacityPatch.total_units = FieldValue.increment(-countOfRooms);
+      capacityPatch.current_availability = FieldValue.increment(-countOfRooms);
+    }
+
     await this.firebase.update(db.collection(COLLECTION).doc(migoPropertyId), {
       platform_connections: updatedConnections,
+      ...capacityPatch,
       updated_at: now,
     });
 
@@ -195,7 +227,13 @@ export class MigoPropertyService {
         `channexPropertyId=${channexPropertyId}`,
     );
 
-    return { ...doc, platform_connections: updatedConnections, updated_at: now };
+    return {
+      ...doc,
+      platform_connections: updatedConnections,
+      total_units: countOfRooms > 0 ? doc.total_units - countOfRooms : doc.total_units,
+      current_availability: countOfRooms > 0 ? doc.current_availability - countOfRooms : doc.current_availability,
+      updated_at: now,
+    };
   }
 
   async toggleSync(
@@ -281,5 +319,40 @@ export class MigoPropertyService {
       updated_at: now,
     });
     return { ...doc, current_availability: doc.total_units, updated_at: now };
+  }
+
+  async recalibrateAvailability(migoPropertyId: string): Promise<MigoPropertyDoc> {
+    const doc = await this.getPropertyType(migoPropertyId);
+
+    const newTotal = doc.platform_connections.reduce(
+      (sum, c) => sum + (c.count_of_rooms ?? 0),
+      0,
+    );
+
+    // No connections have room counts configured — skip write; returned doc reflects pre-call state.
+    if (newTotal === 0) {
+      this.logger.warn(
+        `[MIGO-PROPERTY] recalibrateAvailability — no room count on connections, skipping write: ${migoPropertyId}`,
+      );
+      return doc;
+    }
+
+    const occupied = Math.max(0, doc.total_units - doc.current_availability);
+    const newAvail = Math.max(0, newTotal - occupied);
+    const now = new Date().toISOString();
+
+    const db = this.firebase.getFirestore();
+    await this.firebase.update(db.collection(COLLECTION).doc(migoPropertyId), {
+      total_units: newTotal,
+      current_availability: newAvail,
+      updated_at: now,
+    });
+
+    this.logger.log(
+      `[MIGO-PROPERTY] recalibrateAvailability — id=${migoPropertyId} ` +
+        `total_units=${newTotal} current_availability=${newAvail} occupied=${occupied}`,
+    );
+
+    return { ...doc, total_units: newTotal, current_availability: newAvail, updated_at: now };
   }
 }

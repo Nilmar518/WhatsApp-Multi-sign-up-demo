@@ -98,4 +98,11 @@ export class MigoPropertyController {
     this.logger.log(`[CTRL] POST /migo-properties/${id}/availability/reset`);
     return this.migoPropertyService.resetAvailability(id);
   }
+
+  @Post(':id/availability/recalibrate')
+  @HttpCode(HttpStatus.OK)
+  async recalibrate(@Param('id') id: string): Promise<MigoPropertyDoc> {
+    this.logger.log(`[CTRL] POST /migo-properties/${id}/availability/recalibrate`);
+    return this.migoPropertyService.recalibrateAvailability(id);
+  }
 }
