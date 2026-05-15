@@ -12,6 +12,7 @@ import { useMigoProperties } from './hooks/useMigoProperties';
 import PoolsList from './components/pools/PoolsList';
 import PoolDetail from './components/pools/PoolDetail';
 import PoolCreateForm from './components/pools/PoolCreateForm';
+import PoolEditModal from './components/pools/PoolEditModal';
 import type { MigoProperty } from './api/migoPropertyApi';
 
 type SubTab = 'properties' | 'airbnb' | 'booking' | 'pools';
@@ -43,6 +44,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
   const { pools, loading: poolsLoading, error: poolsError } = useMigoProperties(businessId);
   const [showPoolCreate, setShowPoolCreate] = useState(false);
   const [selectedPool, setSelectedPool] = useState<MigoProperty | null>(null);
+  const [editingPool, setEditingPool] = useState<MigoProperty | null>(null);
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
@@ -123,13 +125,19 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
 
         {activeSubTab === 'airbnb' && (
           <div className="px-6 py-6">
-            <AirbnbConnectionPanel tenantId={businessId} />
+            <AirbnbConnectionPanel
+              tenantId={businessId}
+              onNavigateToProperties={() => setActiveSubTab('properties')}
+            />
           </div>
         )}
 
         {activeSubTab === 'booking' && (
           <div className="px-6 py-6">
-            <BookingConnectionPanel tenantId={businessId} />
+            <BookingConnectionPanel
+              tenantId={businessId}
+              onNavigateToProperties={() => setActiveSubTab('properties')}
+            />
           </div>
         )}
 
@@ -160,6 +168,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
                     pools={pools}
                     onSelect={(pool) => setSelectedPool(pool)}
                     onNew={() => setShowPoolCreate(true)}
+                    onEdit={(pool) => setEditingPool(pool)}
                   />
                 )}
               </>
@@ -167,6 +176,17 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
           </div>
         )}
       </div>
+
+      {editingPool && (
+        <PoolEditModal
+          pool={editingPool}
+          onSaved={(updated) => {
+            setEditingPool(null);
+            if (selectedPool?.id === updated.id) setSelectedPool(updated);
+          }}
+          onClose={() => setEditingPool(null)}
+        />
+      )}
     </div>
   );
 }

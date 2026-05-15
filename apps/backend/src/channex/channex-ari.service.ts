@@ -27,6 +27,11 @@ import {
   type FirestoreReservationDoc,
 } from './transformers/booking-revision.transformer';
 import { MigoPropertyAriDto } from '../migo-property/dto/migo-property-ari.dto';
+import {
+  MigoPropertyService,
+  type PlatformConnection,
+} from '../migo-property/migo-property.service';
+import { expandDateRange } from './utils/date-range';
 
 // ─── Firestore constants ──────────────────────────────────────────────────────
 
@@ -104,6 +109,7 @@ export class ChannexARIService {
     private readonly firebase: FirebaseService,
     private readonly rateLimiter: ChannexARIRateLimiter,
     private readonly snapshotService: ChannexARISnapshotService,
+    private readonly migoPropertyService: MigoPropertyService,
   ) {}
 
   // ─── Room Type CRUD ───────────────────────────────────────────────────────
@@ -771,7 +777,7 @@ export class ChannexARIService {
     const matchingRt = cachedRoomTypes.find((rt) => rt.room_type_id === dto.roomTypeId);
     const roomTypeCapacity = matchingRt?.count_of_rooms ?? 1;
 
-    const nights = this.expandDateRange(dto.checkIn, dto.checkOut);
+    const nights = expandDateRange(dto.checkIn, dto.checkOut);
     const countOfRooms = dto.countOfRooms ?? 1;
 
     // ── Count existing active bookings per night ──────────────────────────────
@@ -878,6 +884,17 @@ export class ChannexARIService {
         `[ARI] ✓ createManualBooking complete — pms_booking_id=${newRef.id} ari_task_id=${taskId}`,
       );
 
+      const manualBookingMigoId =
+        (propDoc.data()?.migo_property_id as string | null) ?? null;
+      if (manualBookingMigoId) {
+        this.migoPropertyService.decrementAvailability(manualBookingMigoId).catch((err) =>
+          this.logger.error(
+            `[MANUAL-BOOKING] decrementAvailability failed — ` +
+              `migoPropertyId=${manualBookingMigoId}: ${(err as Error).message}`,
+          ),
+        );
+      }
+
       return { ...doc, ari_synced: true, ari_task_id: taskId };
     } catch (e) {
       this.logger.warn(
@@ -972,7 +989,7 @@ export class ChannexARIService {
       );
     }
 
-    const cancelNights = this.expandDateRange(existingDoc.check_in, existingDoc.check_out);
+    const cancelNights = expandDateRange(existingDoc.check_in, existingDoc.check_out);
 
     // ── Static capacity from Firestore room types cache ───────────────────────
     const cancelPropDoc = await db
@@ -1030,23 +1047,22 @@ export class ChannexARIService {
       );
     }
 
+    const cancelMigoId =
+      (cancelPropDoc.data()?.migo_property_id as string | null) ?? null;
+    if (cancelMigoId) {
+      this.migoPropertyService.incrementAvailability(cancelMigoId).catch((err) =>
+        this.logger.error(
+          `[MANUAL-BOOKING] incrementAvailability failed — ` +
+            `migoPropertyId=${cancelMigoId}: ${(err as Error).message}`,
+        ),
+      );
+    }
+
     this.logger.log(
       `[ARI] ✓ cancelManualBooking complete — availability restored for pms_booking_id=${pmsBookingId}`,
     );
 
     return { ...existingDoc, booking_status: 'cancelled', updated_at: now };
-  }
-
-  /** Returns ISO dates for every night in [dateFrom, dateTo) — dateTo is exclusive. */
-  private expandDateRange(dateFrom: string, dateTo: string): string[] {
-    const dates: string[] = [];
-    const cur = new Date(`${dateFrom}T00:00:00Z`);
-    const end = new Date(`${dateTo}T00:00:00Z`);
-    while (cur < end) {
-      dates.push(cur.toISOString().slice(0, 10));
-      cur.setUTCDate(cur.getUTCDate() + 1);
-    }
-    return dates;
   }
 
   /**
@@ -1188,5 +1204,162 @@ export class ChannexARIService {
     );
 
     return { succeeded, failed };
+  }
+
+  /**
+   * Recalculates per-night availability for affected nights and pushes to all
+   * MigoProperty-connected channels except the originating one.
+   *
+   * No-op when: the property has no migo_property_id, there are no other enabled
+   * connections, roomTypeId is falsy, or nights is empty.
+   *
+   * Always call fire-and-forget (.catch) at the call site — never block the
+   * booking upsert or revision ACK on this.
+   */
+  async syncAriForAffectedNights(
+    tenantId: string,
+    originatingPropertyId: string,
+    roomTypeId: string | null | undefined,
+    nights: string[],
+  ): Promise<void> {
+    if (!roomTypeId || !nights.length) {
+      this.logger.warn(
+        `[ARI-SYNC] Skipped — roomTypeId=${roomTypeId ?? 'null'} nights=${nights.length}`,
+      );
+      return;
+    }
+
+    const db = this.firebase.getFirestore();
+
+    // 1. Resolve migo_property_id from the originating property doc
+    const propSnap = await db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(originatingPropertyId)
+      .get();
+
+    const migoPropertyId =
+      (propSnap.data()?.migo_property_id as string | null) ?? null;
+
+    if (!migoPropertyId) {
+      this.logger.log(
+        `[ARI-SYNC] No migo_property_id for propertyId=${originatingPropertyId} — skipping`,
+      );
+      return;
+    }
+
+    // 2. Get enabled connections from MigoProperty, excluding the originator
+    const migoSnap = await db.collection('migo_properties').doc(migoPropertyId).get();
+
+    if (!migoSnap.exists) {
+      this.logger.warn(`[ARI-SYNC] MigoProperty not found: ${migoPropertyId}`);
+      return;
+    }
+
+    const connections: PlatformConnection[] =
+      (migoSnap.data()?.platform_connections as PlatformConnection[]) ?? [];
+
+    const targets = connections.filter(
+      (c) => c.is_sync_enabled && c.channex_property_id !== originatingPropertyId,
+    );
+
+    if (!targets.length) {
+      this.logger.log(
+        `[ARI-SYNC] No other enabled connections for migoPropertyId=${migoPropertyId}`,
+      );
+      return;
+    }
+
+    // 3. Fan-out: per-night recalculation for each connected property
+    const bookingsRef = db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('bookings');
+
+    const results = await Promise.allSettled(
+      targets.map(async (conn) => {
+        const { channex_property_id } = conn;
+
+        const connPropSnap = await db
+          .collection(INTEGRATIONS_COLLECTION)
+          .doc(tenantId)
+          .collection('properties')
+          .doc(channex_property_id)
+          .get();
+
+        const connRoomTypes: StoredRoomType[] =
+          (connPropSnap.data()?.room_types as StoredRoomType[]) ?? [];
+
+        if (!connRoomTypes.length) {
+          this.logger.warn(
+            `[ARI-SYNC] No room_types cached for channex_property_id=${channex_property_id} — skipping`,
+          );
+          return;
+        }
+
+        // Fetch all active bookings for this connected property that overlap nights
+        const bookingsSnap = await bookingsRef
+          .where('propertyId', '==', channex_property_id)
+          .get();
+
+        const activeOverlapping = bookingsSnap.docs.filter((d) => {
+          const b = d.data() as {
+            booking_status: string;
+            check_in: string;
+            check_out: string;
+          };
+          if (b.booking_status === 'cancelled') return false;
+          return nights.some((night) => b.check_in <= night && b.check_out > night);
+        });
+
+        // Build per-room-type per-night availability entries
+        const availabilityUpdates: AvailabilityEntryDto[] = [];
+
+        for (const rt of connRoomTypes) {
+          for (const night of nights) {
+            const taken = activeOverlapping
+              .filter((d) => {
+                const b = d.data() as { room_type_id?: string };
+                return b.room_type_id === rt.room_type_id;
+              })
+              .map((d) => {
+                const b = d.data() as {
+                  check_in: string;
+                  check_out: string;
+                  count_of_rooms?: number;
+                };
+                if (b.check_in > night || b.check_out <= night) return 0;
+                return b.count_of_rooms ?? 1;
+              })
+              .reduce((sum, n) => sum + n, 0);
+
+            availabilityUpdates.push({
+              property_id: channex_property_id,
+              room_type_id: rt.room_type_id,
+              date_from: night,
+              date_to: night,
+              availability: Math.max(0, rt.count_of_rooms - taken),
+            });
+          }
+        }
+
+        await this.pushAvailability(availabilityUpdates);
+
+        this.logger.log(
+          `[ARI-SYNC] ✓ Pushed ${availabilityUpdates.length} entries ` +
+            `to channex_property_id=${channex_property_id}`,
+        );
+      }),
+    );
+
+    results.forEach((result, i) => {
+      if (result.status === 'rejected') {
+        this.logger.error(
+          `[ARI-SYNC] Fan-out failed for channex_property_id=${targets[i].channex_property_id}: ` +
+            `${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+        );
+      }
+    });
   }
 }

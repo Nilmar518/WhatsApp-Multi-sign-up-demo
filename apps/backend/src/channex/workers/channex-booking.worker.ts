@@ -4,6 +4,8 @@ import { ChannexService } from '../channex.service';
 import { ChannexPropertyService } from '../channex-property.service';
 import { FirebaseService } from '../../firebase/firebase.service';
 import { MigoPropertyService } from '../../migo-property/migo-property.service';
+import { ChannexARIService } from '../channex-ari.service';
+import { expandDateRange } from '../utils/date-range';
 import {
   BookingRevisionTransformer,
   type FirestoreReservationDoc,
@@ -34,6 +36,7 @@ export class ChannexBookingWorker {
     private readonly firebase: FirebaseService,
     private readonly eventEmitter: EventEmitter2,
     private readonly migoPropertyService: MigoPropertyService,
+    private readonly ariService: ChannexARIService,
   ) {}
 
   async handleWithRetry(payload: ChannexWebhookFullPayload): Promise<void> {
@@ -243,6 +246,18 @@ export class ChannexBookingWorker {
       .limit(1)
       .get();
 
+    // Capture pre-merge dates for booking_modification night union
+    let previousCheckIn: string | null = null;
+    let previousCheckOut: string | null = null;
+    if (!existing.empty) {
+      const prevData = existing.docs[0].data() as {
+        check_in?: string;
+        check_out?: string;
+      };
+      previousCheckIn = prevData.check_in ?? null;
+      previousCheckOut = prevData.check_out ?? null;
+    }
+
     if (!existing.empty) {
       // Booking already exists — merge update (modification or cancellation).
       // Do NOT overwrite pms_booking_id; preserve the original auto-ID.
@@ -261,6 +276,37 @@ export class ChannexBookingWorker {
         `event=${event} bookingId=${bookingId} bookingRef=${bookingUniqueId ?? bookingId} ` +
         `status=${reservationDoc.booking_status} tenantId=${tenantId}`,
     );
+
+    // ── Cross-channel ARI fan-out ─────────────────────────────────────────────
+    if (
+      (event === 'booking_new' ||
+        event === 'booking_cancellation' ||
+        event === 'booking_modification') &&
+      reservationDoc.room_type_id &&
+      reservationDoc.check_in &&
+      reservationDoc.check_out
+    ) {
+      const newNights = expandDateRange(reservationDoc.check_in, reservationDoc.check_out);
+
+      const affectedNights =
+        event === 'booking_modification' && previousCheckIn && previousCheckOut
+          ? [...new Set([...expandDateRange(previousCheckIn, previousCheckOut), ...newNights])]
+          : newNights;
+
+      this.ariService
+        .syncAriForAffectedNights(
+          firestoreDocId,
+          propertyId,
+          reservationDoc.room_type_id,
+          affectedNights,
+        )
+        .catch((err) =>
+          this.logger.error(
+            `[BOOKING-WORKER] syncAriForAffectedNights failed — ` +
+              `event=${event} propertyId=${propertyId}: ${(err as Error).message}`,
+          ),
+        );
+    }
 
     // ── Pool availability update (MigoProperty) ──────────────────────────────
     const migoPropertyId =

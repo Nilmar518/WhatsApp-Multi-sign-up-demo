@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useChannexProperties } from '../../hooks/useChannexProperties';
-import { syncAirbnbListings, type IsolatedSyncResult } from '../../api/channexHubApi';
+import { syncAirbnbListings, getAirbnbSessionToken, type IsolatedSyncResult } from '../../api/channexHubApi';
 import { useAllPropertyThreads } from '../../hooks/useChannexThreads';
 import ChannexOAuthIFrame from './ChannexOAuthIFrame';
+import NoPropertyGuide from './NoPropertyGuide';
 import PropertyCard from '../shared/PropertyCard';
 import PropertyDetail from '../shared/PropertyDetail';
 import MessagesInbox from '../shared/MessagesInbox';
@@ -10,9 +11,10 @@ import type { ChannexProperty } from '../../hooks/useChannexProperties';
 
 interface Props {
   tenantId: string;
+  onNavigateToProperties: () => void;
 }
 
-export default function AirbnbConnectionPanel({ tenantId }: Props) {
+export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties }: Props) {
   const { properties: allProperties, loading } = useChannexProperties(tenantId);
   const { properties: airbnbProperties } = useChannexProperties(tenantId, { source: 'airbnb' });
 
@@ -116,9 +118,7 @@ export default function AirbnbConnectionPanel({ tenantId }: Props) {
             {loading && <p className="text-sm text-content-2">Loading properties…</p>}
 
             {!loading && !baseProperty && (
-              <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-3 text-sm text-content-2">
-                No Channex property found. Create one in the <strong>Properties</strong> tab first.
-              </div>
+              <NoPropertyGuide channel="airbnb" onNavigateToProperties={onNavigateToProperties} />
             )}
 
             {!loading && baseProperty && (
@@ -126,6 +126,8 @@ export default function AirbnbConnectionPanel({ tenantId }: Props) {
                 <ChannexOAuthIFrame
                   key={`${baseProperty.channex_property_id}-${iframeReloadToken}`}
                   propertyId={baseProperty.channex_property_id}
+                  channel="ABB"
+                  getToken={getAirbnbSessionToken}
                 />
 
                 {syncError && (

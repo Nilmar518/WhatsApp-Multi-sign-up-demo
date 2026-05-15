@@ -4,10 +4,13 @@ import {
   removeConnection,
   toggleSync,
   resetAvailability,
+  recalibrateAvailability,
   type MigoProperty,
 } from '../../api/migoPropertyApi';
 import AssignConnectionModal from './AssignConnectionModal';
 import PoolAriPanel from './PoolAriPanel';
+import PoolSyncModal, { isPoolSyncDismissed } from './PoolSyncModal';
+import PoolEditModal from './PoolEditModal';
 
 interface Props {
   pool: MigoProperty;
@@ -52,6 +55,18 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
   const [showAssign, setShowAssign] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [calibrating, setCalibrating] = useState(false);
+  const [calibrateError, setCalibrateError] = useState<string | null>(null);
+  const [showEdit, setShowEdit] = useState(false);
+
+  const computedTotal = pool.platform_connections.reduce(
+    (sum, c) => sum + (c.count_of_rooms ?? 0),
+    0,
+  );
+  const hasMismatch = computedTotal > 0 && pool.total_units !== computedTotal;
+  const [showSyncModal, setShowSyncModal] = useState(
+    hasMismatch && !isPoolSyncDismissed(),
+  );
 
   function handleUpdated(updated: MigoProperty) {
     setPool(updated);
@@ -74,6 +89,19 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
       handleUpdated(updated);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to toggle sync');
+    }
+  }
+
+  async function handleCalibrate() {
+    setCalibrating(true);
+    setCalibrateError(null);
+    try {
+      const updated = await recalibrateAvailability(pool.id);
+      handleUpdated(updated);
+    } catch (err) {
+      setCalibrateError(err instanceof Error ? err.message : 'Calibration failed');
+    } finally {
+      setCalibrating(false);
     }
   }
 
@@ -105,8 +133,17 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
           <h2 className="text-lg font-semibold text-content">{pool.title}</h2>
           <p className="mt-0.5 text-xs text-content-2 font-mono">{pool.id}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <AvailabilityBadge pool={pool} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCalibrate}
+            disabled={calibrating}
+          >
+            {calibrating ? 'Adjusting…' : 'Adjust capacity'}
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -116,8 +153,18 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
           >
             {resetting ? 'Resetting…' : 'Reset to full'}
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowEdit(true)}
+          >
+            Edit
+          </Button>
         </div>
-        {resetError && <p className="w-full text-xs text-danger-text">{resetError}</p>}
+        {(resetError || calibrateError) && (
+          <p className="w-full text-xs text-danger-text">{resetError ?? calibrateError}</p>
+        )}
       </div>
 
       {/* Platform connections */}
@@ -142,6 +189,11 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm font-medium text-content">{conn.listing_title}</p>
                   <p className="truncate font-mono text-xs text-content-3">{conn.channex_property_id}</p>
+                  {(conn.count_of_rooms ?? 0) > 0 && (
+                    <p className="text-xs text-content-2">
+                      {conn.count_of_rooms} room{(conn.count_of_rooms ?? 1) !== 1 ? 's' : ''}
+                    </p>
+                  )}
                 </div>
                 <label className="flex cursor-pointer items-center gap-1.5">
                   <input
@@ -176,6 +228,29 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
           existingConnections={pool.platform_connections}
           onAssigned={handleUpdated}
           onClose={() => setShowAssign(false)}
+        />
+      )}
+
+      {showSyncModal && (
+        <PoolSyncModal
+          pool={pool}
+          computedTotal={computedTotal}
+          onCalibrated={(updated) => {
+            handleUpdated(updated);
+            setShowSyncModal(false);
+          }}
+          onClose={() => setShowSyncModal(false)}
+        />
+      )}
+
+      {showEdit && (
+        <PoolEditModal
+          pool={pool}
+          onSaved={(updated) => {
+            handleUpdated(updated);
+            setShowEdit(false);
+          }}
+          onClose={() => setShowEdit(false)}
         />
       )}
     </div>

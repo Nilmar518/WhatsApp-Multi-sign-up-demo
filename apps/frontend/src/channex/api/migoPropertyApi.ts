@@ -8,6 +8,7 @@ export interface PlatformConnection {
   channex_property_id: string;
   listing_title: string;
   is_sync_enabled: boolean;
+  count_of_rooms?: number;
 }
 
 export interface MigoProperty {
@@ -25,7 +26,6 @@ export interface MigoProperty {
 export interface CreateMigoPropertyPayload {
   tenantId: string;
   title: string;
-  total_units: number;
   alert_threshold?: number;
 }
 
@@ -134,6 +134,12 @@ export function toggleSync(
 
 export function resetAvailability(id: string): Promise<MigoProperty> {
   return apiFetch(`${BASE}/${encodeURIComponent(id)}/availability/reset`, { method: 'POST' });
+}
+
+export function recalibrateAvailability(id: string): Promise<MigoProperty> {
+  return apiFetch(`${BASE}/${encodeURIComponent(id)}/availability/recalibrate`, {
+    method: 'POST',
+  });
 }
 
 // ─── ARI fan-out ──────────────────────────────────────────────────────────────

@@ -11,16 +11,14 @@ interface Props {
 
 export default function PoolCreateForm({ tenantId, onCreated, onCancel }: Props) {
   const [title, setTitle] = useState('');
-  const [totalUnits, setTotalUnits] = useState('');
   const [alertThreshold, setAlertThreshold] = useState('0');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const units = parseInt(totalUnits, 10);
-    if (!title.trim() || isNaN(units) || units < 1) {
-      setError('Title and total units (≥ 1) are required.');
+    if (!title.trim()) {
+      setError('Pool name is required.');
       return;
     }
     setSaving(true);
@@ -29,7 +27,6 @@ export default function PoolCreateForm({ tenantId, onCreated, onCancel }: Props)
       const pool = await createMigoProperty({
         tenantId,
         title: title.trim(),
-        total_units: units,
         alert_threshold: parseInt(alertThreshold, 10) || 0,
       });
       onCreated(pool);
@@ -58,23 +55,6 @@ export default function PoolCreateForm({ tenantId, onCreated, onCancel }: Props)
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold text-content-2 uppercase tracking-wide">
-            Total Physical Units
-          </label>
-          <Input
-            type="number"
-            min={1}
-            value={totalUnits}
-            onChange={(e) => setTotalUnits(e.target.value)}
-            placeholder="e.g. 5"
-            required
-          />
-          <p className="mt-1 text-xs text-content-3">
-            Number of interchangeable physical units in this pool.
-          </p>
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold text-content-2 uppercase tracking-wide">
             Alert Threshold
           </label>
           <Input
@@ -87,6 +67,10 @@ export default function PoolCreateForm({ tenantId, onCreated, onCancel }: Props)
             Show alert when availability drops to or below this number. Default: 0.
           </p>
         </div>
+
+        <p className="text-xs text-content-3">
+          Pool capacity is calculated automatically when you add platform connections.
+        </p>
 
         {error && <p className="text-sm text-danger-text">{error}</p>}
 

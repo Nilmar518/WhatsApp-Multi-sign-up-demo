@@ -1799,6 +1799,12 @@ export class ChannexService {
         );
         return;
       }
+      if (status === 404) {
+        this.logger.warn(
+          `[CHANNEX] Application not found (404) — id="${applicationId}" propertyId=${propertyId}. App may not be available on this account. Skipping.`,
+        );
+        return;
+      }
       this.normaliseError(err);
     }
   }
@@ -1808,6 +1814,6 @@ export class ChannexService {
    * These are stable identifiers assigned by Channex — use instead of application_code.
    */
   static readonly APP_IDS = {
-    channex_messages: '8587fbf6-a6d1-46f8-8c12-074273284917',
+    channex_messages: 'd5c07f16-52f7-4afb-a884-dfe2d1cd7103',
   } as const;
 }

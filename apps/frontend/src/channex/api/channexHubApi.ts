@@ -436,23 +436,20 @@ export async function syncAirbnbListings(
 
 // ─── OTA — Booking.com ────────────────────────────────────────────────────────
 
-export async function getBookingSessionToken(
-  tenantId: string,
-): Promise<{ token: string; propertyId: string }> {
-  return apiFetch(`/api/booking/session?tenantId=${encodeURIComponent(tenantId)}`);
+export interface BdcSyncResult {
+  channexPropertyId: string;
+  channexChannelId: string;
+  webhookId: string | undefined;
+  roomTypesCreated: number;
+  ratePlansCreated: number;
+  mappingsCreated: number;
 }
 
-export async function syncBookingListings(
+export async function syncBdcListings(
+  propertyId: string,
   tenantId: string,
-): Promise<{ rooms: { id: string; title: string }[]; rates: { id: string; title: string; room_id: string }[] }> {
-  return apiFetch('/api/booking/sync', {
-    method: 'POST',
-    body: JSON.stringify({ tenantId }),
-  });
-}
-
-export async function disconnectBookingChannel(tenantId: string): Promise<void> {
-  return apiFetch('/api/booking/disconnect', {
+): Promise<BdcSyncResult> {
+  return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/sync-bdc`, {
     method: 'POST',
     body: JSON.stringify({ tenantId }),
   });
