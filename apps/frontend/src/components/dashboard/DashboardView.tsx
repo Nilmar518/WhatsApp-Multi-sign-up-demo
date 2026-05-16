@@ -414,9 +414,9 @@ export default function DashboardView({
   const { t } = useLanguage();
   const today = todayPrefix();
 
-  const waMsgToday   = useMemo(() => waMessages.filter((m) => m.timestamp.startsWith(today)).length,   [waMessages, today]);
-  const msgrMsgToday = useMemo(() => msgrMessages.filter((m) => m.timestamp.startsWith(today)).length, [msgrMessages, today]);
-  const igMsgToday   = useMemo(() => igMessages.filter((m) => m.timestamp.startsWith(today)).length,   [igMessages, today]);
+  const waMsgToday   = useMemo(() => waMessages.filter((m) => m.timestamp?.startsWith(today)).length,   [waMessages, today]);
+  const msgrMsgToday = useMemo(() => msgrMessages.filter((m) => m.timestamp?.startsWith(today)).length, [msgrMessages, today]);
+  const igMsgToday   = useMemo(() => igMessages.filter((m) => m.timestamp?.startsWith(today)).length,   [igMessages, today]);
 
   const messagesToday       = waMsgToday + msgrMsgToday + igMsgToday;
   const totalConversations  = waConversations.length + msgrConversations.length + igConversations.length;

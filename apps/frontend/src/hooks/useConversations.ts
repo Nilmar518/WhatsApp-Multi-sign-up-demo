@@ -40,6 +40,6 @@ export function useConversations(messages: Message[]): Contact[] {
         lastMessage,
         lastTimestamp,
       }))
-      .sort((a, b) => b.lastTimestamp.localeCompare(a.lastTimestamp));
+      .sort((a, b) => (b.lastTimestamp ?? '').localeCompare(a.lastTimestamp ?? ''));
   }, [messages]);
 }
