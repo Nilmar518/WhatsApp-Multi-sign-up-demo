@@ -69,26 +69,32 @@ export class ChannexBdcSyncService {
     private readonly secrets: SecretManagerService,
   ) {}
 
-  async syncBdc(propertyId: string, tenantId: string): Promise<BdcSyncResult> {
+  async syncBdc(propertyId: string, tenantId: string, channelId?: string): Promise<BdcSyncResult> {
     this.logger.log(`[BDC_SYNC] ▶ Starting — parentPropertyId=${propertyId} tenantId=${tenantId}`);
 
-    // ── Step 0: Discover BDC channel on base property ─────────────────────────
-    const channels = await this.channex.getChannels(propertyId);
-    const bdcChannel = channels.find(
-      (c: any) =>
-        c.attributes?.channel === 'BookingCom' ||
-        c.attributes?.channel_design_id === 'booking_com',
-    );
-
-    if (!bdcChannel) {
-      throw new HttpException(
-        'No Booking.com channel found for this property. Complete the Channex IFrame popup first.',
-        HttpStatus.UNPROCESSABLE_ENTITY,
+    // ── Step 0: Resolve BDC channel ID ────────────────────────────────────────
+    let channexChannelId: string;
+    if (channelId) {
+      channexChannelId = channelId;
+      this.logger.log(`[BDC_SYNC] BDC channel provided directly — channelId=${channexChannelId}`);
+    } else {
+      const channels = await this.channex.getChannels(propertyId);
+      const bdcChannel = channels.find(
+        (c) =>
+          c.attributes?.channel === 'BookingCom' ||
+          c.attributes?.channel_design_id === 'booking_com',
       );
-    }
 
-    const channexChannelId: string = bdcChannel.id;
-    this.logger.log(`[BDC_SYNC] BDC channel found — channelId=${channexChannelId}`);
+      if (!bdcChannel) {
+        throw new HttpException(
+          'No Booking.com channel found for this property. Complete the Channex IFrame popup first.',
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
+
+      channexChannelId = bdcChannel.id;
+      this.logger.log(`[BDC_SYNC] BDC channel discovered — channelId=${channexChannelId}`);
+    }
 
     // ── Step 1: Fetch mapping_details (BDC room/rate catalog) ─────────────────
     const channelDetails = await this.channex.getChannelDetails(channexChannelId);

@@ -454,6 +454,16 @@ export async function syncAirbnbListings(
 
 // ─── OTA — Booking.com ────────────────────────────────────────────────────────
 
+export interface BdcChannel {
+  id: string;
+  title: string;
+}
+
+export async function getBdcChannels(tenantId: string): Promise<BdcChannel[]> {
+  const params = new URLSearchParams({ tenantId });
+  return apiFetch(`${BASE}/properties/bdc-channels?${params}`);
+}
+
 export interface BdcSyncResult {
   channexPropertyId: string;
   channexChannelId: string;
@@ -466,9 +476,10 @@ export interface BdcSyncResult {
 export async function syncBdcListings(
   propertyId: string,
   tenantId: string,
+  channelId?: string,
 ): Promise<BdcSyncResult> {
   return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/sync-bdc`, {
     method: 'POST',
-    body: JSON.stringify({ tenantId }),
+    body: JSON.stringify({ tenantId, ...(channelId ? { channelId } : {}) }),
   });
 }

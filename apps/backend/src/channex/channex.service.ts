@@ -810,6 +810,30 @@ export class ChannexService {
   }
 
   /**
+   * Lists all OTA channel connections for a given Channex group.
+   *
+   * GET /api/v1/channels?filter[group_id]={groupId}
+   *
+   * Used to enumerate all BDC channels that belong to a tenant before
+   * presenting the channel-selection modal.
+   */
+  async getChannelsByGroup(groupId: string): Promise<ChannexChannelItem[]> {
+    this.logger.log(`[CHANNEX] Listing channels by group — groupId=${groupId}`);
+
+    try {
+      const response = await this.defLogger.request<ChannexChannelListResponse>({
+        method: 'GET',
+        url: `${this.baseUrl}/channels?filter[group_id]=${encodeURIComponent(groupId)}`,
+        headers: this.buildAuthHeaders(),
+      });
+
+      return response?.data ?? [];
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
    * Resolves all property IDs attached to a channel.
    *
    * GET /api/v1/channels/{channelId}

@@ -59,6 +59,17 @@ export class ChannexGroupService {
     return newGroupId;
   }
 
+  /**
+   * Returns the cached Channex Group ID for a given businessId, or null if
+   * no group has been created yet. Unlike ensureGroup, does NOT create a group.
+   */
+  async getGroupId(businessId: string): Promise<string | null> {
+    const db = this.firebase.getFirestore();
+    const snap = await db.collection(COLLECTION).doc(businessId).get();
+    if (!snap.exists) return null;
+    return (snap.data()!.channex_group_id as string) ?? null;
+  }
+
   private async cacheGroup(
     docRef: FirebaseFirestore.DocumentReference,
     channexGroupId: string,

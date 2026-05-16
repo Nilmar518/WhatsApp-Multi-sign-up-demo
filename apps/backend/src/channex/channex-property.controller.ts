@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -25,6 +26,7 @@ import {
   CommitMappingResult,
 } from './channex-sync.service';
 import { ChannexBdcSyncService, BdcSyncResult } from './channex-bdc-sync.service';
+import { ChannexGroupService } from './channex-group.service';
 import { CreateChannexPropertyDto } from './dto/create-channex-property.dto';
 import { GetListingCalendarQueryDto } from './dto/get-listing-calendar.query.dto';
 import { ReplyToThreadDto } from './dto/reply-to-thread.dto';
@@ -60,6 +62,7 @@ export class ChannexPropertyController {
     private readonly syncService: ChannexSyncService,
     private readonly bdcSyncService: ChannexBdcSyncService,
     private readonly channexService: ChannexService,
+    private readonly groupService: ChannexGroupService,
   ) {}
 
   /**
@@ -386,6 +389,48 @@ export class ChannexPropertyController {
   }
 
   /**
+   * GET /channex/properties/bdc-channels?tenantId=X
+   *
+   * Returns all Booking.com channels that belong to this tenant's Channex
+   * group. Used by the BDC channel-selection modal before Rooms & Rates sync.
+   *
+   * Query:   tenantId — Migo tenant ID (same as businessId / WABA ID)
+   * Returns: Array<{ id: string; title: string }>
+   * Status:  200 OK
+   *
+   * Possible errors:
+   *   404 Not Found — tenant has no Channex group yet (never provisioned a property)
+   */
+  @Get('bdc-channels')
+  async getBdcChannels(
+    @Query('tenantId') tenantId: string,
+  ): Promise<Array<{ id: string; title: string }>> {
+    this.logger.log(`[CTRL] GET /channex/properties/bdc-channels — tenantId=${tenantId}`);
+
+    if (!tenantId) {
+      throw new BadRequestException('tenantId query parameter is required.');
+    }
+
+    const groupId = await this.groupService.getGroupId(tenantId);
+    if (!groupId) {
+      throw new NotFoundException(
+        `No Channex group found for tenant: ${tenantId}. Provision a property first.`,
+      );
+    }
+
+    const allChannels = await this.channexService.getChannelsByGroup(groupId);
+
+    const bdcChannels = allChannels.filter(
+      (c) =>
+        c.attributes?.channel === 'BookingCom' ||
+        c.attributes?.channel_design_id === 'booking_com',
+    );
+
+    this.logger.log(`[CTRL] ✓ BDC channels — groupId=${groupId} count=${bdcChannels.length}`);
+    return bdcChannels.map((c) => ({ id: c.id, title: c.attributes.title }));
+  }
+
+  /**
    * POST /channex/properties/:propertyId/sync-bdc
    *
    * Booking.com sync pipeline — mirrors the Airbnb sync endpoint.
@@ -403,12 +448,13 @@ export class ChannexPropertyController {
   async syncBdc(
     @Param('propertyId') propertyId: string,
     @Body('tenantId') tenantId: string,
+    @Body('channelId') channelId?: string,
   ): Promise<BdcSyncResult> {
     this.logger.log(
-      `[CTRL] POST /channex/properties/${propertyId}/sync-bdc — tenantId=${tenantId}`,
+      `[CTRL] POST /channex/properties/${propertyId}/sync-bdc — tenantId=${tenantId} channelId=${channelId ?? 'auto'}`,
     );
 
-    const result = await this.bdcSyncService.syncBdc(propertyId, tenantId);
+    const result = await this.bdcSyncService.syncBdc(propertyId, tenantId, channelId);
 
     this.logger.log(
       `[CTRL] ✓ BDC sync complete — succeeded=${result.succeeded.length} failed=${result.failed.length}`,

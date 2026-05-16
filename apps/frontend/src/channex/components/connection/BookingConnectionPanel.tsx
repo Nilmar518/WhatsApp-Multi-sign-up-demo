@@ -13,6 +13,7 @@ import PropertyDetail from '../shared/PropertyDetail';
 import MessagesInbox from '../shared/MessagesInbox';
 import ChannexOAuthIFrame from './ChannexOAuthIFrame';
 import NoPropertyGuide from './NoPropertyGuide';
+import BdcChannelSelectModal from './BdcChannelSelectModal';
 import type { ChannexProperty } from '../../hooks/useChannexProperties';
 
 interface Props {
@@ -28,6 +29,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
   const [error, setError] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<BdcSyncResult | null>(null);
   const [isOpen, setIsOpen] = useState(true);
+  const [showChannelModal, setShowChannelModal] = useState(false);
   const [iframeReloadToken, setIframeReloadToken] = useState(0);
   const hasAutoCollapsed = useRef(false);
 
@@ -43,13 +45,14 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
     }
   }, [loading, bookingProperties.length]);
 
-  const handleSync = useCallback(async () => {
+  const handleSyncConfirmed = useCallback(async (channelId: string) => {
     if (!baseProperty) return;
+    setShowChannelModal(false);
     setSyncing(true);
     setError(null);
     setSyncResult(null);
     try {
-      const result = await syncBdcListings(baseProperty.channex_property_id, tenantId);
+      const result = await syncBdcListings(baseProperty.channex_property_id, tenantId, channelId);
       setSyncResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed.');
@@ -158,7 +161,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
                   <button
                     type="button"
                     disabled={isLocked}
-                    onClick={() => void handleSync()}
+                    onClick={() => setShowChannelModal(true)}
                     className={[
                       'inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors',
                       isLocked
@@ -181,6 +184,14 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
           </div>
         )}
       </div>
+
+      {showChannelModal && (
+        <BdcChannelSelectModal
+          tenantId={tenantId}
+          onConfirm={handleSyncConfirmed}
+          onClose={() => setShowChannelModal(false)}
+        />
+      )}
 
       {bookingProperties.length > 0 && (
         <>

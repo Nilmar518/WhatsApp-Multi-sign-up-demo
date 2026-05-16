@@ -245,6 +245,7 @@ export interface ChannexChannelItem {
   attributes: {
     title: string;    // e.g. "Airbnb", "Booking.com"
     channel: string;  // OTA code — "ABB" for Airbnb, "BDC" for Booking.com
+    channel_design_id?: string;  // e.g. "booking_com" — alternate BDC identifier from Channex API
     status: string;   // e.g. "active", "not_connected"
     is_active: boolean;
   };
