@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import Button from '../ui/Button';
+import { Input } from '../ui/Input';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface Props {
   businessId: string;
@@ -30,35 +33,10 @@ async function post<T>(
   }
 }
 
-const inputBase =
-  'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:bg-gray-50 disabled:text-gray-400';
-
-const otpInput = `${inputBase} tracking-[0.4em] text-center text-xl font-mono`;
-
-function Btn({ disabled, loading, label, loadingLabel, onClick }: {
-  disabled: boolean;
-  loading: boolean;
-  label: string;
-  loadingLabel: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      disabled={disabled || loading}
-      onClick={onClick}
-      className={[
-        'w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-colors',
-        disabled || loading
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          : 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white',
-      ].join(' ')}
-    >
-      {loading ? loadingLabel : label}
-    </button>
-  );
-}
+const otpClasses = 'tracking-[0.4em] text-center text-xl font-mono';
 
 export default function ForceMigrationForm({ businessId, fromFailedPopup }: Props) {
+  const { t } = useLanguage();
   const [step, setStep] = useState<Step>('start');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,45 +103,44 @@ export default function ForceMigrationForm({ businessId, fromFailedPopup }: Prop
       {/* Banner — shown when redirected from a failed signup popup */}
       {fromFailedPopup && step === 'start' && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-900 leading-relaxed">
-          <strong className="font-semibold">Signup incomplete.</strong>{' '}
-          Your number may already be linked to your account. Enter it below and we'll
-          complete the migration automatically.
+          <strong className="font-semibold">{t('migration.signupIncomplete')}</strong>{' '}
+          {t('migration.signupBody')}
         </div>
       )}
 
       {/* Step 1 — phone number */}
       {step === 'start' && (
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-gray-800">Enter your WhatsApp number</p>
-          <p className="text-xs text-gray-500 -mt-1">
-            Include the country code. Example: <span className="font-mono">+591 67025559</span>
+          <p className="text-sm font-semibold text-content">{t('migration.enterNumber')}</p>
+          <p className="text-xs text-content-2 -mt-1">
+            {t('migration.includeCode')} <span className="font-mono">+591 67025559</span>
           </p>
-          <input
-            className={inputBase}
+          <Input
             placeholder="+591 67025559"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             disabled={loading}
             type="tel"
           />
-          <Btn
-            disabled={phone.trim().length < 7}
-            loading={loading}
-            label="Send verification code →"
-            loadingLabel="Setting up..."
+          <Button
+            variant="primary"
+            className="w-full"
+            disabled={phone.trim().length < 7 || loading}
             onClick={handleStart}
-          />
+          >
+            {loading ? t('migration.settingUp') : t('migration.sendCode')}
+          </Button>
         </div>
       )}
 
       {/* Step 2 — choose delivery method, send OTP */}
       {step === 'request_code' && (
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-gray-800">
-            How should we send the code?
+          <p className="text-sm font-semibold text-content">
+            {t('migration.howToSend')}
           </p>
-          <p className="text-xs text-gray-500 -mt-1">
-            A 6-digit code will be delivered to <strong>{phone}</strong>.
+          <p className="text-xs text-content-2 -mt-1">
+            {t('migration.codeDelivery')} <strong>{phone}</strong>.
           </p>
           <div className="flex gap-2">
             {(['SMS', 'VOICE'] as CodeMethod[]).map((m) => (
@@ -174,33 +151,34 @@ export default function ForceMigrationForm({ businessId, fromFailedPopup }: Prop
                   'flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors',
                   codeMethod === m
                     ? 'border-purple-500 bg-purple-50 text-purple-700'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                    : 'border-edge text-content-2 hover:border-edge',
                 ].join(' ')}
               >
-                {m === 'SMS' ? '💬 SMS' : '📞 Voice call'}
+                {m === 'SMS' ? '💬 SMS' : t('migration.voiceOption')}
               </button>
             ))}
           </div>
-          <Btn
-            disabled={false}
-            loading={loading}
-            label={`Send via ${codeMethod} →`}
-            loadingLabel="Sending..."
+          <Button
+            variant="primary"
+            className="w-full"
+            disabled={loading}
             onClick={handleRequestCode}
-          />
+          >
+            {loading ? t('migration.sending') : (codeMethod === 'SMS' ? t('migration.sendViaSms') : t('migration.sendViaVoice'))}
+          </Button>
         </div>
       )}
 
       {/* Step 3 — enter OTP */}
       {step === 'verify_code' && (
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-gray-800">Enter the 6-digit code</p>
-          <p className="text-xs text-gray-500 -mt-1">
-            Check your {codeMethod === 'SMS' ? 'SMS messages' : 'phone for a call'}.
-            Submitting this code will disconnect the number from the WhatsApp app.
+          <p className="text-sm font-semibold text-content">{t('migration.enterOtp')}</p>
+          <p className="text-xs text-content-2 -mt-1">
+            {codeMethod === 'SMS' ? t('migration.checkSms') : t('migration.checkCall')}{' '}
+            {t('migration.otpWarning')}
           </p>
-          <input
-            className={otpInput}
+          <Input
+            className={otpClasses}
             placeholder="——————"
             value={otp}
             onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -208,26 +186,27 @@ export default function ForceMigrationForm({ businessId, fromFailedPopup }: Prop
             maxLength={6}
             inputMode="numeric"
           />
-          <Btn
-            disabled={otp.length !== 6}
-            loading={loading}
-            label="Verify →"
-            loadingLabel="Verifying..."
+          <Button
+            variant="primary"
+            className="w-full"
+            disabled={otp.length !== 6 || loading}
             onClick={handleVerify}
-          />
+          >
+            {loading ? t('migration.verifying') : t('migration.verify')}
+          </Button>
         </div>
       )}
 
       {/* Step 4 — set PIN and activate */}
       {step === 'complete' && (
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-gray-800">Set a 6-digit security PIN</p>
-          <p className="text-xs text-gray-500 -mt-1">
-            This PIN protects your number on the WhatsApp Cloud API.
-            Use <span className="font-mono bg-gray-100 px-1 rounded">000000</span> for testing.
+          <p className="text-sm font-semibold text-content">{t('migration.setPin')}</p>
+          <p className="text-xs text-content-2 -mt-1">
+            {t('migration.pinDesc')}
+            {' '}Use <span className="font-mono bg-surface-subtle px-1 rounded">000000</span> for testing.
           </p>
-          <input
-            className={otpInput}
+          <Input
+            className={otpClasses}
             placeholder="——————"
             value={pin}
             onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -235,13 +214,14 @@ export default function ForceMigrationForm({ businessId, fromFailedPopup }: Prop
             maxLength={6}
             inputMode="numeric"
           />
-          <Btn
-            disabled={pin.length !== 6}
-            loading={loading}
-            label="Activate number →"
-            loadingLabel="Activating..."
+          <Button
+            variant="primary"
+            className="w-full"
+            disabled={pin.length !== 6 || loading}
             onClick={handleComplete}
-          />
+          >
+            {loading ? t('migration.activating') : t('migration.activate')}
+          </Button>
         </div>
       )}
 
@@ -249,16 +229,16 @@ export default function ForceMigrationForm({ businessId, fromFailedPopup }: Prop
       {step === 'done' && (
         <div className="text-center py-6 space-y-2">
           <div className="text-4xl">✓</div>
-          <p className="font-semibold text-green-700">Migration complete!</p>
-          <p className="text-xs text-gray-500">
-            {phone} is now live on WhatsApp Cloud API. The dashboard will update automatically.
+          <p className="font-semibold text-ok-text">{t('migration.complete')}</p>
+          <p className="text-xs text-content-2">
+            {phone} {t('migration.completeBody')}
           </p>
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 leading-relaxed">
+        <p className="text-xs text-danger-text bg-danger-bg border border-danger/40 rounded-lg px-3 py-2 leading-relaxed">
           {error}
         </p>
       )}

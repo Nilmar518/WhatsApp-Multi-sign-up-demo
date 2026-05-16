@@ -1,3 +1,101 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── DESIGN TOKENS: Slate & Violet ─────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg-page:            #f8fafc;
+  --bg-elevated:        #ffffff;
+  --bg-subtle:          #f1f5f9;
+  --bg-sidebar:         #0f172a;
+  --bg-sidebar-hover:   #1e293b;
+  --bg-sidebar-active:  #1e293b;
+
+  /* Text */
+  --text-primary:       #0f172a;
+  --text-secondary:     #64748b;
+  --text-muted:         #94a3b8;
+  --text-on-dark:       #f1f5f9;
+  --text-sidebar:       #cbd5e1;
+  --text-sidebar-muted: #64748b;
+
+  /* Brand — violet */
+  --brand:              #7c3aed;
+  --brand-hover:        #6d28d9;
+  --brand-active:       #5b21b6;
+  --brand-subtle:       #f5f3ff;
+  --brand-light:        #ddd6fe;
+  --brand-dim:          #4c1d95;
+
+  /* Borders */
+  --border:             #e2e8f0;
+  --border-strong:      #94a3b8;
+
+  /* Semantic */
+  --ok:                 #22c55e;
+  --ok-bg:              #f0fdf4;
+  --ok-text:            #166534;
+  --danger:             #ef4444;
+  --danger-bg:          #fef2f2;
+  --danger-text:        #991b1b;
+  --caution:            #f59e0b;
+  --caution-bg:         #fffbeb;
+  --caution-text:       #92400e;
+  --notice:             #0ea5e9;
+  --notice-bg:          #f0f9ff;
+  --notice-text:        #075985;
+
+  /* Channels */
+  --ch-wa:              #25d366;
+  --ch-ms:              #0866ff;
+  --ch-ig:              #e1306c;
+  --ch-cx:              #7c3aed;
+
+  /* Shadows */
+  --shadow-sm:    0 1px 2px rgba(15,23,42,.06);
+  --shadow-md:    0 4px 12px rgba(15,23,42,.10);
+  --shadow-lg:    0 8px 24px rgba(15,23,42,.14);
+  --shadow-brand: 0 4px 14px rgba(124,58,237,.25);
+
+  /* Radius */
+  --r-sm:   6px;
+  --r-md:   8px;
+  --r-lg:   12px;
+  --r-xl:   16px;
+  --r-full: 9999px;
+}
+
+.dark {
+  --bg-page:            #0f172a;
+  --bg-elevated:        #1e293b;
+  --bg-subtle:          #334155;
+  --bg-sidebar:         #020617;
+  --bg-sidebar-hover:   #0f172a;
+  --bg-sidebar-active:  #1e293b;
+
+  --text-primary:       #f1f5f9;
+  --text-secondary:     #94a3b8;
+  --text-muted:         #64748b;
+
+  --brand-subtle:       #1e1b4b;
+  --brand-light:        #4c1d95;
+  --brand-dim:          #c4b5fd;
+
+  --border:             #1e293b;
+  --border-strong:      #475569;
+
+  --ok-bg:              #052e16;
+  --ok-text:            #4ade80;
+  --danger-bg:          #1f0707;
+  --danger-text:        #f87171;
+  --caution-bg:         #1c1200;
+  --caution-text:       #fbbf24;
+  --notice-bg:          #0c1a26;
+  --notice-text:        #38bdf8;
+
+  --shadow-sm:    0 1px 2px rgba(0,0,0,.35);
+  --shadow-md:    0 4px 12px rgba(0,0,0,.45);
+  --shadow-lg:    0 8px 24px rgba(0,0,0,.55);
+  --shadow-brand: 0 4px 14px rgba(124,58,237,.20);
+}

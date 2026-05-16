@@ -109,6 +109,7 @@ export interface IsolatedListingResult {
   defaultPrice: number;
   currency: string | null;
   capacity: number;
+  webhookId: string | null;
 }
 
 /**
@@ -347,9 +348,9 @@ export class ChannexSyncService {
 
         // ── Step E: Register per-property webhook subscription ────────────
         currentStep = 'E';
-        await this.registerPropertyWebhook(newPropertyId);
+        const webhookId = await this.registerPropertyWebhook(newPropertyId);
         this.logger.log(
-          `[SYNC:1:1] ✓ E — Webhook registered — newPropertyId=${newPropertyId}`,
+          `[SYNC:1:1] ✓ E — Webhook registered — newPropertyId=${newPropertyId} webhookId=${webhookId ?? 'none'}`,
         );
 
         // ── Step F: Install Channex Messages App ──────────────────────────
@@ -370,6 +371,7 @@ export class ChannexSyncService {
           defaultPrice: seed.price,
           currency: seed.currency,
           capacity: seed.capacity,
+          webhookId,
         });
       } catch (err) {
         const reason = (err as Error).message ?? String(err);
@@ -688,7 +690,7 @@ export class ChannexSyncService {
       errors: [],
     };
 
-    const callbackUrl = `${process.env.CHANNEX_WEBHOOK_CALLBACK_URL ?? ''}/webhook`;
+    const callbackUrl = `${process.env.CHANNEX_WEBHOOK_CALLBACK_URL ?? ''}/api/channex/webhook`;
 
     // ── Check 1: Property exists in Channex ────────────────────────────────
     // The group UUID lives in relationships.groups.data[0].id (not in attributes).
@@ -1284,14 +1286,14 @@ export class ChannexSyncService {
    *   CHANNEX_WEBHOOK_CALLBACK_URL (.env) — base public URL of this server
    *   CHANNEX_WEBHOOK_SECRET (.env.secrets) — HMAC secret validated by ChannexHmacGuard
    */
-  public async registerPropertyWebhook(channexPropertyId: string): Promise<void> {
+  public async registerPropertyWebhook(channexPropertyId: string): Promise<string | null> {
     try {
       const baseCallbackUrl = process.env.CHANNEX_WEBHOOK_CALLBACK_URL;
       if (!baseCallbackUrl) {
         this.logger.warn(
           `[COMMIT] Webhook registration skipped — CHANNEX_WEBHOOK_CALLBACK_URL not set. propertyId=${channexPropertyId}`,
         );
-        return;
+        return null;
       }
 
       const webhookSecret = this.secrets.get('CHANNEX_WEBHOOK_SECRET');
@@ -1299,22 +1301,22 @@ export class ChannexSyncService {
         this.logger.warn(
           `[COMMIT] Webhook registration skipped — CHANNEX_WEBHOOK_SECRET not set in .env.secrets. propertyId=${channexPropertyId}`,
         );
-        return;
+        return null;
       }
 
-      const callbackUrl = `${baseCallbackUrl}/webhook`;
+      const callbackUrl = `${baseCallbackUrl}/api/channex/webhook`;
 
       // Idempotency preflight — skip POST if already registered
       const existing = await this.channex.listPropertyWebhooks(channexPropertyId);
-      const alreadyRegistered = existing.some(
-        (wh) => wh.attributes.callback_url === callbackUrl,
-      );
+      const alreadyFound = existing.find((wh) => wh.attributes.callback_url === callbackUrl);
 
-      if (alreadyRegistered) {
+      if (alreadyFound) {
         this.logger.log(
-          `[COMMIT] Webhook already registered — propertyId=${channexPropertyId} callbackUrl=${callbackUrl}`,
+          `[COMMIT] Webhook already registered — propertyId=${channexPropertyId} webhookId=${alreadyFound.id}`,
         );
-        return;
+        // Persist to Firestore if the doc already exists (health-check / commit_mapping path)
+        await this.tryPersistWebhookId(channexPropertyId, alreadyFound.id);
+        return alreadyFound.id;
       }
 
       const payload: ChannexWebhookPayload = {
@@ -1328,29 +1330,45 @@ export class ChannexSyncService {
       };
 
       const result = await this.channex.createWebhookSubscription(payload);
+      const webhookId = result.webhookId ?? null;
 
-      // Persist webhookId to Firestore
-      if (result.webhookId) {
-        const db = this.firebase.getFirestore();
-        const snapshot = await db
-          .collectionGroup('properties')
-          .where('channex_property_id', '==', channexPropertyId)
-          .limit(1)
-          .get();
-
-        if (!snapshot.empty) {
-          await snapshot.docs[0].ref.update({
-            channex_webhook_id: result.webhookId,
-            updated_at: new Date().toISOString(),
-          });
-          this.logger.log(
-            `[COMMIT] ✓ Webhook registered and persisted — propertyId=${channexPropertyId} webhookId=${result.webhookId}`,
-          );
-        }
+      // Persist to Firestore if the doc already exists.
+      // For the 1:1 sync pipeline, the doc doesn't exist yet — the caller
+      // includes webhookId in persistIsolatedSyncResults instead.
+      if (webhookId) {
+        await this.tryPersistWebhookId(channexPropertyId, webhookId);
+        this.logger.log(
+          `[COMMIT] ✓ Webhook registered — propertyId=${channexPropertyId} webhookId=${webhookId}`,
+        );
       }
+
+      return webhookId;
     } catch (err) {
       this.logger.warn(
         `[COMMIT] Webhook registration failed (non-fatal) — propertyId=${channexPropertyId}: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  private async tryPersistWebhookId(channexPropertyId: string, webhookId: string): Promise<void> {
+    try {
+      const db = this.firebase.getFirestore();
+      const snapshot = await db
+        .collectionGroup('properties')
+        .where('channex_property_id', '==', channexPropertyId)
+        .limit(1)
+        .get();
+
+      if (!snapshot.empty) {
+        await snapshot.docs[0].ref.update({
+          channex_webhook_id: webhookId,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[COMMIT] Webhook ID Firestore persist failed (non-fatal) — propertyId=${channexPropertyId}: ${(err as Error).message}`,
       );
     }
   }
@@ -1467,12 +1485,16 @@ export class ChannexSyncService {
       return;
     }
 
-    const tenantId = parentSnap.docs[0].data().tenant_id as string;
-    // Root integration doc ID is tenantId in the new structure.
+    const parentData = parentSnap.docs[0].data();
+    const tenantId = parentData.tenant_id as string;
     const integrationDocId = tenantId;
+    const groupId = (parentData.channex_group_id as string | null | undefined) ?? null;
+    const timezone = (parentData.timezone as string | undefined) ?? 'UTC';
     const now = new Date().toISOString();
 
     // ── Write one properties subcollection doc per succeeded listing ─────
+    // Each doc uses the same standard structure as manually-provisioned properties
+    // so that useChannexProperties and webhook routing work identically.
     for (const s of succeeded) {
       const propertyRef = db
         .collection(COLLECTION)
@@ -1480,50 +1502,69 @@ export class ChannexSyncService {
         .collection('properties')
         .doc(s.channexPropertyId);
 
+      const roomType: StoredRoomType = {
+        room_type_id: s.roomTypeId,
+        title: s.listingTitle,
+        count_of_rooms: 1,
+        default_occupancy: s.capacity,
+        occ_adults: s.capacity,
+        occ_children: 0,
+        occ_infants: 0,
+        source: 'airbnb',
+        ota_listing_id: s.listingId,
+        rate_plans: [
+          {
+            rate_plan_id: s.ratePlanId,
+            title: `${s.listingTitle} — Standard`,
+            currency: s.currency ?? 'USD',
+            rate: Math.round(s.defaultPrice * 100),
+            occupancy: s.capacity,
+            is_primary: true,
+            channel_rate_plan_id: s.channelRatePlanId,
+          } as StoredRatePlan,
+        ],
+      };
+
       await this.firebase.set(propertyRef, {
-        // Identity fields for Channex API calls
         channex_property_id: s.channexPropertyId,
         tenant_id: tenantId,
+        channex_group_id: groupId,
         channex_channel_id: channelId,
-        channex_room_type_id: s.roomTypeId,
-        channex_rate_plan_id: s.ratePlanId,
-        channex_channel_rate_plan_id: s.channelRatePlanId,
-        // Airbnb listing linkage
-        airbnb_listing_id: s.listingId,
+        channex_webhook_id: s.webhookId ?? null,
+        connection_status: ChannexConnectionStatus.Active,
+        oauth_refresh_required: false,
+        last_sync_timestamp: now,
         title: s.listingTitle,
-        // Pricing snapshot (from Airbnb listing_details)
-        default_price: s.defaultPrice,
-        currency: s.currency,
-        capacity: s.capacity,
-        // Integration routing fields — required by resolveIntegration fallback
+        currency: s.currency ?? 'USD',
+        timezone,
+        property_type: 'apartment',
+        connected_channels: ['airbnb'],
+        room_types: [roomType],
+        // Airbnb-specific linkage (supplement, not replacement for standard fields)
+        airbnb_listing_id: s.listingId,
+        channex_channel_rate_plan_id: s.channelRatePlanId,
         integrationDocId,
-        tenantId,
-        // Status
-        status: 'active',
-        updatedAt: now,
+        created_at: now,
+        updated_at: now,
       });
 
       this.logger.log(
-        `[SYNC:1:1] ✓ Property doc written — integrationDocId=${integrationDocId} channexPropertyId=${s.channexPropertyId} listing="${s.listingTitle}"`,
+        `[SYNC:1:1] ✓ Property doc written — channexPropertyId=${s.channexPropertyId} listing="${s.listingTitle}"`,
       );
     }
 
-    // ── Update parent integration document ───────────────────────────────
-    const newStatus =
-      succeeded.length > 0
-        ? ChannexConnectionStatus.Active
-        : ChannexConnectionStatus.Error;
-
-    const update: Record<string, unknown> = {
-      connection_status: newStatus,
-      channex_channel_id: channelId,
-      oauth_refresh_required: false,
-      last_sync_timestamp: now,
+    // ── Record sync metadata on the root integration doc only ───────────
+    // The parent property doc (manually created) is NOT modified — its room_types,
+    // connection_status, and title must remain exactly as the user set them.
+    const rootRef = db.collection(COLLECTION).doc(integrationDocId);
+    const rootUpdate: Record<string, unknown> = {
+      last_airbnb_sync_timestamp: now,
+      airbnb_channel_id: channelId,
       updated_at: now,
     };
 
     if (failed.length > 0) {
-      update.failed_listings = failed.map((f) => ({
+      rootUpdate.failed_airbnb_listings = failed.map((f) => ({
         listingId: f.listingId,
         listingTitle: f.listingTitle,
         reason: f.reason,
@@ -1531,10 +1572,10 @@ export class ChannexSyncService {
       }));
     }
 
-    await this.firebase.update(parentSnap.docs[0].ref, update);
+    await this.firebase.update(rootRef, rootUpdate);
 
     this.logger.log(
-      `[SYNC:1:1] ✓ Firestore updated — integrationDocId=${integrationDocId} status=${newStatus} succeeded=${succeeded.length} failed=${failed.length}`,
+      `[SYNC:1:1] ✓ Firestore updated — integrationDocId=${integrationDocId} succeeded=${succeeded.length} failed=${failed.length}`,
     );
   }
 }

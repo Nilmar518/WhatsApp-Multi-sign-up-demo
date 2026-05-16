@@ -76,9 +76,9 @@ function ProductCard({
   const [imgError, setImgError] = useState(false);
 
   return (
-    <div className="group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+    <div className="group bg-surface-raised border border-edge rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       {/* Thumbnail */}
-      <div className="relative bg-gray-100 aspect-square flex items-center justify-center overflow-hidden">
+      <div className="relative bg-surface-subtle aspect-square flex items-center justify-center overflow-hidden">
         {product.image_url && !imgError ? (
           <img
             src={product.image_url}
@@ -88,7 +88,7 @@ function ProductCard({
           />
         ) : (
           <svg
-            className="w-10 h-10 text-gray-300"
+            className="w-10 h-10 text-content-3"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -106,7 +106,7 @@ function ProductCard({
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
           <button
             onClick={onEdit}
-            className="text-xs font-medium bg-white text-gray-800 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            className="text-xs font-medium bg-surface-raised text-content px-3 py-1.5 rounded-lg hover:bg-surface-subtle transition-colors"
           >
             Edit
           </button>
@@ -128,11 +128,11 @@ function ProductCard({
 
       {/* Info */}
       <div className="p-3 space-y-1">
-        <p className="text-sm font-semibold text-gray-800 truncate" title={product.name}>
+        <p className="text-sm font-semibold text-content truncate" title={product.name}>
           {product.name}
         </p>
         <div className="flex items-center justify-between gap-1">
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-content-2">
             {formatPrice(product.price, product.currency)}
           </span>
           {product.availability && (
@@ -154,7 +154,7 @@ function ProductCard({
           )}
         </div>
         {product.retailer_id && (
-          <p className="text-xs text-gray-400 font-mono truncate">
+          <p className="text-xs text-content-3 font-mono truncate">
             {product.retailer_id}
           </p>
         )}
@@ -167,11 +167,11 @@ function ProductCard({
 
 function SkeletonCard() {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="aspect-square bg-gray-100 animate-pulse" />
+    <div className="bg-surface-raised border border-edge rounded-xl overflow-hidden">
+      <div className="aspect-square bg-surface-subtle animate-pulse" />
       <div className="p-3 space-y-2">
-        <div className="h-4 bg-gray-100 animate-pulse rounded" />
-        <div className="h-3 bg-gray-100 animate-pulse rounded w-2/3" />
+        <div className="h-4 bg-surface-subtle animate-pulse rounded" />
+        <div className="h-3 bg-surface-subtle animate-pulse rounded w-2/3" />
       </div>
     </div>
   );
@@ -342,12 +342,12 @@ export default function ProductManager({
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-sm font-medium text-content-2 hover:text-content transition-colors"
           >
             ← Catalogs
           </button>
-          <span className="text-gray-300">|</span>
-          <h2 className="text-base font-semibold text-gray-800 truncate max-w-xs">
+          <span className="text-content-3">|</span>
+          <h2 className="text-base font-semibold text-content truncate max-w-xs">
             {catalog.name}
           </h2>
         </div>
@@ -374,7 +374,7 @@ export default function ProductManager({
             <button
               type="button"
               onClick={cancelForm}
-              className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              className="text-xs text-content-2 hover:text-content transition-colors"
             >
               Cancel
             </button>
@@ -383,7 +383,7 @@ export default function ProductManager({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* SKU — read-only on edit */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 SKU / Retailer ID <span className="text-red-400">*</span>
               </label>
               <input
@@ -393,13 +393,13 @@ export default function ProductManager({
                 placeholder="e.g. SHIRT-RED-M"
                 disabled={!!editingProduct}
                 required={!editingProduct}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:text-gray-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-surface-subtle disabled:text-content-3"
               />
             </div>
 
             {/* Name */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Name <span className="text-red-400">*</span>
               </label>
               <input
@@ -408,13 +408,13 @@ export default function ProductManager({
                 onChange={(e) => updateField('name', e.target.value)}
                 placeholder="e.g. Red Cotton T-Shirt"
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
 
             {/* Description */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Description <span className="text-red-400">*</span>
               </label>
               <textarea
@@ -423,13 +423,13 @@ export default function ProductManager({
                 placeholder="Short product description"
                 required
                 rows={2}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
               />
             </div>
 
             {/* Price */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Price <span className="text-red-400">*</span>
               </label>
               <input
@@ -440,13 +440,13 @@ export default function ProductManager({
                 onChange={(e) => updateField('priceDecimal', e.target.value)}
                 placeholder="10.00"
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
 
             {/* Currency */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Currency <span className="text-red-400">*</span>
               </label>
               <input
@@ -458,19 +458,19 @@ export default function ProductManager({
                 placeholder="USD"
                 maxLength={3}
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
               />
             </div>
 
             {/* Availability */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Availability <span className="text-red-400">*</span>
               </label>
               <select
                 value={form.availability}
                 onChange={(e) => updateField('availability', e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 {AVAILABILITY_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -482,13 +482,13 @@ export default function ProductManager({
 
             {/* Condition */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Condition <span className="text-red-400">*</span>
               </label>
               <select
                 value={form.condition}
                 onChange={(e) => updateField('condition', e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 {CONDITION_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -500,7 +500,7 @@ export default function ProductManager({
 
             {/* Image URL */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Image URL <span className="text-red-400">*</span>
               </label>
               <input
@@ -509,13 +509,13 @@ export default function ProductManager({
                 onChange={(e) => updateField('imageUrl', e.target.value)}
                 placeholder="https://example.com/image.jpg"
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
 
             {/* Product URL */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label className="block text-xs font-medium text-content-2 mb-1">
                 Product Page URL <span className="text-red-400">*</span>
               </label>
               <input
@@ -524,7 +524,7 @@ export default function ProductManager({
                 onChange={(e) => updateField('url', e.target.value)}
                 placeholder="https://example.com/products/item"
                 required
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
           </div>
@@ -539,7 +539,7 @@ export default function ProductManager({
             <button
               type="button"
               onClick={cancelForm}
-              className="text-sm font-medium text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg transition-colors"
+              className="text-sm font-medium text-content-2 hover:text-content px-4 py-2 rounded-lg transition-colors"
             >
               Cancel
             </button>
@@ -567,9 +567,9 @@ export default function ProductManager({
 
       {/* Empty state */}
       {!loading && products.length === 0 && (
-        <div className="text-center py-10 text-gray-400">
+        <div className="text-center py-10 text-content-3">
           <svg
-            className="w-10 h-10 mx-auto mb-3 text-gray-200"
+            className="w-10 h-10 mx-auto mb-3 text-content-3"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -605,12 +605,12 @@ export default function ProductManager({
       {/* Footer */}
       {!loading && (
         <div className="flex justify-between items-center pt-1">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-content-3">
             {products.length} product{products.length !== 1 ? 's' : ''}
           </p>
           <button
             onClick={() => void fetchProducts()}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-xs text-content-3 hover:text-content-2 transition-colors"
           >
             ↻ Refresh
           </button>

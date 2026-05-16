@@ -24,6 +24,7 @@ import {
   CommitMappingInput,
   CommitMappingResult,
 } from './channex-sync.service';
+import { ChannexBdcSyncService, BdcSyncResult } from './channex-bdc-sync.service';
 import { CreateChannexPropertyDto } from './dto/create-channex-property.dto';
 import { GetListingCalendarQueryDto } from './dto/get-listing-calendar.query.dto';
 import { ReplyToThreadDto } from './dto/reply-to-thread.dto';
@@ -57,6 +58,7 @@ export class ChannexPropertyController {
     private readonly propertyService: ChannexPropertyService,
     private readonly oauthService: ChannexOAuthService,
     private readonly syncService: ChannexSyncService,
+    private readonly bdcSyncService: ChannexBdcSyncService,
     private readonly channexService: ChannexService,
   ) {}
 
@@ -381,6 +383,38 @@ export class ChannexPropertyController {
     );
 
     return { channexMessageId: response.data?.id ?? '' };
+  }
+
+  /**
+   * POST /channex/properties/:propertyId/sync-bdc
+   *
+   * Booking.com sync pipeline — mirrors the Airbnb sync endpoint.
+   * Discovers the BDC channel for this property, fetches mapping_details,
+   * Creates one isolated Channex property per BDC room type (1:1 model, same as Airbnb),
+   * applies mappings on the base BDC channel, activates it, registers the webhook,
+   * installs the Messages App per isolated property, and persists to Firestore.
+   *
+   * Body:    { tenantId: string }
+   * Returns: BdcSyncResult
+   * Status:  201 Created
+   */
+  @Post(':propertyId/sync-bdc')
+  @HttpCode(HttpStatus.CREATED)
+  async syncBdc(
+    @Param('propertyId') propertyId: string,
+    @Body('tenantId') tenantId: string,
+  ): Promise<BdcSyncResult> {
+    this.logger.log(
+      `[CTRL] POST /channex/properties/${propertyId}/sync-bdc — tenantId=${tenantId}`,
+    );
+
+    const result = await this.bdcSyncService.syncBdc(propertyId, tenantId);
+
+    this.logger.log(
+      `[CTRL] ✓ BDC sync complete — succeeded=${result.succeeded.length} failed=${result.failed.length}`,
+    );
+
+    return result;
   }
 
   /**

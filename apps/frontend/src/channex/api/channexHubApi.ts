@@ -86,8 +86,18 @@ export async function provisionProperty(
 
 export interface CreateRoomTypePayload {
   title: string;
+  countOfRooms?: number;
   defaultOccupancy: number;
   occAdults: number;
+  occChildren?: number;
+  occInfants?: number;
+}
+
+export interface UpdateRoomTypePayload {
+  title?: string;
+  countOfRooms?: number;
+  defaultOccupancy?: number;
+  occAdults?: number;
   occChildren?: number;
   occInfants?: number;
 }
@@ -101,6 +111,17 @@ export async function createRoomType(
     { method: 'POST', body: JSON.stringify(payload) },
   );
   return { id: res.data.id };
+}
+
+export async function updateRoomType(
+  propertyId: string,
+  roomTypeId: string,
+  payload: UpdateRoomTypePayload,
+): Promise<void> {
+  await apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/room-types/${encodeURIComponent(roomTypeId)}`,
+    { method: 'PUT', body: JSON.stringify(payload) },
+  );
 }
 
 export async function listRoomTypes(propertyId: string): Promise<StoredRoomType[]> {
@@ -236,6 +257,7 @@ export async function refreshARISnapshot(
 export interface Reservation {
   id?: string;
   reservation_id: string | null;
+  pms_booking_id?: string;
   channex_booking_id: string | null;
   booking_status: string;
   /** OTA source — 'airbnb' | 'booking_com' | … */
@@ -284,6 +306,45 @@ export async function pullPropertyBookings(
   );
 }
 
+// ─── Manual Bookings ──────────────────────────────────────────────────────────
+
+export interface CreateManualBookingPayload {
+  tenantId: string;
+  roomTypeId: string;
+  ratePlanId?: string | null;
+  checkIn: string;
+  checkOut: string;
+  bookingType: 'walkin' | 'maintenance' | 'owner_stay' | 'direct';
+  countOfRooms?: number;     // units booked; defaults to 1
+  guestName?: string;
+  guestPhone?: string;
+  notes?: string;
+  grossAmount?: number;      // unit price per room
+  currency?: string;
+}
+
+export async function createManualBooking(
+  propertyId: string,
+  body: CreateManualBookingPayload,
+): Promise<Reservation> {
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings/manual`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export async function cancelManualBooking(
+  propertyId: string,
+  pmsBookingId: string,
+  tenantId: string,
+): Promise<Reservation> {
+  const params = new URLSearchParams({ tenantId });
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings/manual/${encodeURIComponent(pmsBookingId)}/cancel?${params}`,
+    { method: 'PATCH' },
+  );
+}
+
 // ─── Connection Health ────────────────────────────────────────────────────────
 
 export interface ConnectionHealthResult {
@@ -306,4 +367,90 @@ export async function checkConnectionHealth(
     `${BASE}/properties/${encodeURIComponent(propertyId)}/connection-health?${params}`,
     { method: 'POST' },
   );
+}
+
+// ─── Messaging ───────────────────────────────────────────────────────────────
+
+export async function replyToThread(
+  propertyId: string,
+  threadId: string,
+  message: string,
+): Promise<{ channexMessageId: string }> {
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/threads/${encodeURIComponent(threadId)}/reply`,
+    { method: 'POST', body: JSON.stringify({ message }) },
+  );
+}
+
+// ─── OTA — Airbnb ─────────────────────────────────────────────────────────────
+
+export async function getAirbnbSessionToken(propertyId: string): Promise<string> {
+  const res = await apiFetch<{ token: string }>(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/one-time-token`,
+  );
+  return res.token;
+}
+
+export async function getAirbnbCopyLink(propertyId: string): Promise<string> {
+  const res = await apiFetch<{ url: string }>(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/copy-link`,
+  );
+  return res.url;
+}
+
+export interface IsolatedListingResult {
+  listingId: string;
+  listingTitle: string;
+  channexPropertyId: string;
+  roomTypeId: string;
+  ratePlanId: string;
+  channelId: string;
+  channelRatePlanId: string;
+  defaultPrice: number;
+  currency: string | null;
+  capacity: number;
+  webhookId: string | null;
+}
+
+export interface IsolatedListingFailure {
+  listingId: string;
+  listingTitle: string;
+  reason: string;
+  step: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+}
+
+export interface IsolatedSyncResult {
+  succeeded: IsolatedListingResult[];
+  failed: IsolatedListingFailure[];
+}
+
+export async function syncAirbnbListings(
+  propertyId: string,
+  tenantId: string,
+): Promise<IsolatedSyncResult> {
+  return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/sync`, {
+    method: 'POST',
+    body: JSON.stringify({ tenantId }),
+  });
+}
+
+// ─── OTA — Booking.com ────────────────────────────────────────────────────────
+
+export interface BdcSyncResult {
+  channexPropertyId: string;
+  channexChannelId: string;
+  webhookId: string | undefined;
+  roomTypesCreated: number;
+  ratePlansCreated: number;
+  mappingsCreated: number;
+}
+
+export async function syncBdcListings(
+  propertyId: string,
+  tenantId: string,
+): Promise<BdcSyncResult> {
+  return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/sync-bdc`, {
+    method: 'POST',
+    body: JSON.stringify({ tenantId }),
+  });
 }

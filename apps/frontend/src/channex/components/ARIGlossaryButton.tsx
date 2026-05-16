@@ -46,7 +46,7 @@ export default function ARIGlossaryButton({ className }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         title="Guía de términos ARI"
-        className={`rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 ${className ?? ''}`}
+        className={`rounded-xl border border-edge bg-surface-raised px-2.5 py-1.5 text-xs font-semibold text-content-2 hover:bg-surface-subtle ${className ?? ''}`}
       >
         ℹ
       </button>
@@ -57,15 +57,15 @@ export default function ARIGlossaryButton({ className }: Props) {
           onClick={() => setOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            className="w-full max-w-md rounded-2xl bg-surface-raised p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-900">Guía de términos ARI</h2>
+              <h2 className="text-sm font-bold text-content">Guía de términos ARI</h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-lg leading-none"
+                className="text-content-3 hover:text-content-2 text-lg leading-none"
               >
                 ✕
               </button>
@@ -73,18 +73,18 @@ export default function ARIGlossaryButton({ className }: Props) {
 
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="pb-2 text-left font-semibold text-slate-500 w-16">Término</th>
-                  <th className="pb-2 text-left font-semibold text-slate-500 w-36">Nombre completo</th>
-                  <th className="pb-2 text-left font-semibold text-slate-500">Descripción</th>
+                <tr className="border-b border-edge">
+                  <th className="pb-2 text-left font-semibold text-content-2 w-16">Término</th>
+                  <th className="pb-2 text-left font-semibold text-content-2 w-36">Nombre completo</th>
+                  <th className="pb-2 text-left font-semibold text-content-2">Descripción</th>
                 </tr>
               </thead>
               <tbody>
                 {TERMS.map((t) => (
-                  <tr key={t.abbr} className="border-b border-slate-50 last:border-0">
-                    <td className="py-2 font-bold text-slate-800">{t.abbr}</td>
-                    <td className="py-2 text-slate-600">{t.full}</td>
-                    <td className="py-2 text-slate-500">{t.desc}</td>
+                  <tr key={t.abbr} className="border-b border-edge last:border-0">
+                    <td className="py-2 font-bold text-content">{t.abbr}</td>
+                    <td className="py-2 text-content-2">{t.full}</td>
+                    <td className="py-2 text-content-3">{t.desc}</td>
                   </tr>
                 ))}
               </tbody>

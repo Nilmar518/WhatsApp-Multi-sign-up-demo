@@ -155,18 +155,18 @@ export default function InventoryPage() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-surface-subtle">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="bg-white border-b border-gray-200 px-6 py-3.5 flex items-center justify-between shrink-0 z-10">
+      <header className="bg-surface-raised border-b border-edge px-6 py-3.5 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3">
           <a
             href="/"
-            className="text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-sm font-medium text-content-3 hover:text-content-2 transition-colors"
           >
             ← Dashboard
           </a>
-          <span className="text-gray-200">|</span>
-          <h1 className="text-sm font-bold text-gray-900">Inventory Manager</h1>
+          <span className="text-content-3">|</span>
+          <h1 className="text-sm font-bold text-content">Inventory Manager</h1>
           <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
             Admin
           </span>
@@ -174,11 +174,11 @@ export default function InventoryPage() {
 
         {/* Business selector */}
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-400">Business</label>
+          <label className="text-xs font-medium text-content-3">Business</label>
           <select
             value={businessId}
             onChange={(e) => setBusinessId(e.target.value)}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+            className="text-sm border border-edge rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-surface-raised"
           >
             {BUSINESS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -193,8 +193,8 @@ export default function InventoryPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-        <aside className="w-56 bg-white border-r border-gray-200 shrink-0 flex flex-col py-5 px-3">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-3 mb-2">
+        <aside className="w-56 bg-surface-raised border-r border-edge shrink-0 flex flex-col py-5 px-3">
+          <p className="text-[10px] font-semibold text-content-3 uppercase tracking-widest px-3 mb-2">
             Menu
           </p>
           <nav className="space-y-0.5">
@@ -203,7 +203,7 @@ export default function InventoryPage() {
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
                 section === 'inventory'
                   ? 'bg-emerald-50 text-emerald-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+                  : 'text-content-2 hover:bg-surface-subtle hover:text-content'
               }`}
             >
               <BoxIcon active={section === 'inventory'} />
@@ -215,7 +215,7 @@ export default function InventoryPage() {
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
                 section === 'auto-replies'
                   ? 'bg-emerald-50 text-emerald-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+                  : 'text-content-2 hover:bg-surface-subtle hover:text-content'
               }`}
             >
               <BoltIcon active={section === 'auto-replies'} />
@@ -226,7 +226,7 @@ export default function InventoryPage() {
 
         {/* ── Main content ─────────────────────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm min-h-full">
+          <div className="bg-surface-raised border border-edge rounded-2xl p-6 shadow-sm min-h-full">
 
             {/* Catalogs & Products section */}
             {section === 'inventory' && view === 'catalogs' && (

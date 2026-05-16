@@ -1,50 +1,64 @@
-import { useState } from 'react';
-import AirbnbIntegration from '../integrations/airbnb/AirbnbIntegration';
-import BookingIntegrationView from '../integrations/booking/BookingIntegrationView';
+import { useState, useEffect } from 'react';
+import AirbnbConnectionPanel from './components/connection/AirbnbConnectionPanel';
+import BookingConnectionPanel from './components/connection/BookingConnectionPanel';
 import { useChannexProperties } from './hooks/useChannexProperties';
 import PropertiesList from './components/PropertiesList';
-import PropertyDetail from './components/PropertyDetail';
+import PropertyDetail from './components/shared/PropertyDetail';
 import PropertySetupWizard from './components/PropertySetupWizard';
 import type { ChannexProperty } from './hooks/useChannexProperties';
+import Button from '../components/ui/Button';
+import { useLanguage } from '../context/LanguageContext';
+import { useMigoProperties } from './hooks/useMigoProperties';
+import PoolsList from './components/pools/PoolsList';
+import PoolDetail from './components/pools/PoolDetail';
+import PoolCreateForm from './components/pools/PoolCreateForm';
+import PoolEditModal from './components/pools/PoolEditModal';
+import type { MigoProperty } from './api/migoPropertyApi';
 
-type SubTab = 'properties' | 'airbnb' | 'booking';
+type SubTab = 'properties' | 'airbnb' | 'booking' | 'pools';
 
 interface Props {
   businessId: string;
+  initialTab?: SubTab;
 }
 
-export default function ChannexHub({ businessId }: Props) {
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>('properties');
+export default function ChannexHub({ businessId, initialTab = 'properties' }: Props) {
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>(initialTab);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<ChannexProperty | null>(null);
+  const { t } = useLanguage();
 
-  const [forcedChannels, setForcedChannels] = useState<Set<SubTab>>(new Set());
-  const [showConnectDropdown, setShowConnectDropdown] = useState(false);
-
-  const { properties, loading, error } = useChannexProperties(businessId);
-
-  const hasAirbnb = properties.some((p) => p.connected_channels.includes('airbnb') || p.connection_status === 'active');
-  const hasBooking = properties.some((p) => p.connected_channels.includes('booking'));
-
-  const subTabs: { id: SubTab; label: string }[] = [
-    { id: 'properties', label: 'Properties' },
-    ...(hasAirbnb || forcedChannels.has('airbnb') ? [{ id: 'airbnb' as SubTab, label: 'Airbnb' }] : []),
-    ...(hasBooking || forcedChannels.has('booking') ? [{ id: 'booking' as SubTab, label: 'Booking.com' }] : []),
+  const SUB_TABS: { id: SubTab; label: string }[] = [
+    { id: 'properties', label: t('channex.tab.properties') },
+    { id: 'airbnb',     label: t('channex.tab.airbnb') },
+    { id: 'booking',    label: t('channex.tab.booking') },
+    { id: 'pools',      label: t('channex.tab.pools') },
   ];
 
+  // Sync active tab when the parent navigates to a different channex sub-route
+  useEffect(() => {
+    setActiveSubTab(initialTab);
+  }, [initialTab]);
+
+  const { properties, loading, error } = useChannexProperties(businessId);
+  const { pools, loading: poolsLoading, error: poolsError } = useMigoProperties(businessId);
+  const [showPoolCreate, setShowPoolCreate] = useState(false);
+  const [selectedPool, setSelectedPool] = useState<MigoProperty | null>(null);
+  const [editingPool, setEditingPool] = useState<MigoProperty | null>(null);
+
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
       {/* Header */}
-      <div className="border-b border-gray-200 px-6 py-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-          Channex Channel Manager
+      <div className="border-b border-edge px-6 py-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-2">
+          {t('channex.manager')}
         </p>
-        <h1 className="text-lg font-semibold text-gray-900">Migo UIT · Property Hub</h1>
+        <h1 className="text-lg font-semibold text-content">{t('channex.propertyHub')}</h1>
       </div>
 
       {/* Sub-tab bar */}
-      <div className="flex items-end gap-0 border-b border-gray-200 px-6">
-        {subTabs.map((tab) => (
+      <div className="flex items-end gap-0 border-b border-edge px-6">
+        {SUB_TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -52,54 +66,13 @@ export default function ChannexHub({ businessId }: Props) {
             className={[
               'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
               activeSubTab === tab.id
-                ? 'border-indigo-500 text-indigo-700 bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                ? 'border-brand-light text-brand bg-surface-raised'
+                : 'border-transparent text-content-2 hover:text-content hover:border-edge',
             ].join(' ')}
           >
             {tab.label}
           </button>
         ))}
-
-        {/* "+" Connect integration button */}
-        <div className="relative ml-auto flex items-center py-1.5">
-          <button
-            type="button"
-            onClick={() => setShowConnectDropdown((v) => !v)}
-            className="flex items-center gap-1 rounded-lg border border-dashed border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
-          >
-            + Connect
-          </button>
-
-          {showConnectDropdown && (
-            <>
-              {/* Transparent backdrop — closes dropdown on outside click */}
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowConnectDropdown(false)}
-              />
-              <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-                {([
-                  { id: 'airbnb' as SubTab, label: 'Airbnb', icon: '🏠' },
-                  { id: 'booking' as SubTab, label: 'Booking.com', icon: '🏨' },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => {
-                      setForcedChannels((prev) => new Set([...prev, opt.id]));
-                      setActiveSubTab(opt.id);
-                      setShowConnectDropdown(false);
-                    }}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    <span>{opt.icon}</span>
-                    <span>{opt.label}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Content */}
@@ -119,22 +92,24 @@ export default function ChannexHub({ businessId }: Props) {
               </div>
             ) : selectedProperty ? (
               <div className="px-6 py-6">
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   onClick={() => setSelectedProperty(null)}
-                  className="mb-4 text-sm text-indigo-600 hover:text-indigo-800"
+                  className="mb-4"
                 >
                   ← Back to properties
-                </button>
+                </Button>
                 <PropertyDetail property={selectedProperty} tenantId={businessId} />
               </div>
             ) : (
               <div className="px-6 py-6">
                 {loading && (
-                  <p className="text-sm text-gray-500">Loading properties…</p>
+                  <p className="text-sm text-content-2">Loading properties…</p>
                 )}
                 {error && (
-                  <p className="text-sm text-red-600">{error}</p>
+                  <p className="text-sm text-danger-text">{error}</p>
                 )}
                 {!loading && !error && (
                   <PropertiesList
@@ -149,17 +124,69 @@ export default function ChannexHub({ businessId }: Props) {
         )}
 
         {activeSubTab === 'airbnb' && (
-          <div className="h-full">
-            <AirbnbIntegration businessId={businessId} />
+          <div className="px-6 py-6">
+            <AirbnbConnectionPanel
+              tenantId={businessId}
+              onNavigateToProperties={() => setActiveSubTab('properties')}
+            />
           </div>
         )}
 
         {activeSubTab === 'booking' && (
-          <div className="h-full">
-            <BookingIntegrationView businessId={businessId} />
+          <div className="px-6 py-6">
+            <BookingConnectionPanel
+              tenantId={businessId}
+              onNavigateToProperties={() => setActiveSubTab('properties')}
+            />
+          </div>
+        )}
+
+        {activeSubTab === 'pools' && (
+          <div className="px-6 py-6">
+            {showPoolCreate ? (
+              <PoolCreateForm
+                tenantId={businessId}
+                onCreated={(pool) => {
+                  setShowPoolCreate(false);
+                  setSelectedPool(pool);
+                }}
+                onCancel={() => setShowPoolCreate(false)}
+              />
+            ) : selectedPool ? (
+              <PoolDetail
+                pool={selectedPool}
+                tenantId={businessId}
+                onBack={() => setSelectedPool(null)}
+                onUpdated={(updated) => setSelectedPool(updated)}
+              />
+            ) : (
+              <>
+                {poolsLoading && <p className="text-sm text-content-2">Loading pools…</p>}
+                {poolsError && <p className="text-sm text-danger-text">{poolsError}</p>}
+                {!poolsLoading && !poolsError && (
+                  <PoolsList
+                    pools={pools}
+                    onSelect={(pool) => setSelectedPool(pool)}
+                    onNew={() => setShowPoolCreate(true)}
+                    onEdit={(pool) => setEditingPool(pool)}
+                  />
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
+
+      {editingPool && (
+        <PoolEditModal
+          pool={editingPool}
+          onSaved={(updated) => {
+            setEditingPool(null);
+            if (selectedPool?.id === updated.id) setSelectedPool(updated);
+          }}
+          onClose={() => setEditingPool(null)}
+        />
+      )}
     </div>
   );
 }

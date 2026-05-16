@@ -3,7 +3,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Observable } from 'rxjs';
 import {
   CHANNEX_EVENTS,
+  MIGO_PROPERTY_EVENTS,
   type ChannexBaseEvent,
+  type MigoPropertyAvailabilityAlertEvent,
 } from './channex.types';
 
 // ─── Controller ───────────────────────────────────────────────────────────────
@@ -86,9 +88,24 @@ export class ChannexEventsController {
       const bookingHandler = makeForwarder('booking_new');
       const unmappedHandler = makeForwarder('booking_unmapped_room');
 
+      const availabilityAlertHandler = (
+        payload: MigoPropertyAvailabilityAlertEvent,
+      ): void => {
+        if (payload.tenantId !== tenantId) return;
+
+        this.logger.debug(
+          `[SSE] Forwarding type=availability_alert tenantId=${tenantId}`,
+        );
+
+        subscriber.next({
+          data: { type: 'availability_alert', ...payload },
+        } as MessageEvent);
+      };
+
       this.emitter.on(CHANNEX_EVENTS.CONNECTION_STATUS_CHANGE, statusHandler);
       this.emitter.on(CHANNEX_EVENTS.BOOKING_NEW, bookingHandler);
       this.emitter.on(CHANNEX_EVENTS.BOOKING_UNMAPPED_ROOM, unmappedHandler);
+      this.emitter.on(MIGO_PROPERTY_EVENTS.AVAILABILITY_ALERT, availabilityAlertHandler);
 
       // Teardown — called by NestJS when the HTTP response is closed (client gone).
       return () => {
@@ -96,6 +113,7 @@ export class ChannexEventsController {
         this.emitter.off(CHANNEX_EVENTS.CONNECTION_STATUS_CHANGE, statusHandler);
         this.emitter.off(CHANNEX_EVENTS.BOOKING_NEW, bookingHandler);
         this.emitter.off(CHANNEX_EVENTS.BOOKING_UNMAPPED_ROOM, unmappedHandler);
+        this.emitter.off(MIGO_PROPERTY_EVENTS.AVAILABILITY_ALERT, availabilityAlertHandler);
       };
     });
   }

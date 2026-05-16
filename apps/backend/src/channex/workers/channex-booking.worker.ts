@@ -3,6 +3,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChannexService } from '../channex.service';
 import { ChannexPropertyService } from '../channex-property.service';
 import { FirebaseService } from '../../firebase/firebase.service';
+import { MigoPropertyService } from '../../migo-property/migo-property.service';
+import { ChannexARIService } from '../channex-ari.service';
+import { expandDateRange } from '../utils/date-range';
 import {
   BookingRevisionTransformer,
   type FirestoreReservationDoc,
@@ -32,6 +35,8 @@ export class ChannexBookingWorker {
     private readonly propertyService: ChannexPropertyService,
     private readonly firebase: FirebaseService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly migoPropertyService: MigoPropertyService,
+    private readonly ariService: ChannexARIService,
   ) {}
 
   async handleWithRetry(payload: ChannexWebhookFullPayload): Promise<void> {
@@ -205,6 +210,8 @@ export class ChannexBookingWorker {
 
     const db = this.firebase.getFirestore();
 
+    // Still read the property doc for the ota_listing_id (airbnb_listing_id).
+    // The nested properties sub-collection is read-only here — no longer written.
     const propertyDocRef = db
       .collection(INTEGRATIONS_COLLECTION)
       .doc(firestoreDocId)
@@ -215,25 +222,113 @@ export class ChannexBookingWorker {
     reservationDoc.ota_listing_id =
       (propertyDocSnap.data()?.airbnb_listing_id as string | undefined) ?? null;
 
-    const bookingRef = db
-      .collection(INTEGRATIONS_COLLECTION)
-      .doc(firestoreDocId)
-      .collection(PROPERTIES_SUB_COLLECTION)
-      .doc(propertyId)
-      .collection(BOOKINGS_SUB_COLLECTION)
-      .doc(bookingId);
-
     if (bookingUniqueId) {
       reservationDoc.reservation_id = bookingUniqueId;
     }
 
-    await this.firebase.set(bookingRef, reservationDoc, { merge: true });
+    // ── Flat bookings collection with idempotency ─────────────────────────────
+    // New path: channex_integrations/{tenantId}/bookings/{firestoreAutoId}
+    // Idempotency key: channex_booking_id (= bookingId, the Channex booking UUID).
+    // Webhook retries for the same booking merge into the existing doc rather than
+    // creating a duplicate. New bookings get a Firestore auto-ID as pms_booking_id.
+    //
+    // Old path (commented out, kept for reference):
+    //   .collection(PROPERTIES_SUB_COLLECTION).doc(propertyId)
+    //   .collection(BOOKINGS_SUB_COLLECTION).doc(bookingId)
+    const bookingsRef = db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(firestoreDocId)
+      .collection(BOOKINGS_SUB_COLLECTION);
+
+    const existing = await bookingsRef
+      .where('channex_booking_id', '==', bookingId)
+      .where('propertyId', '==', propertyId)
+      .limit(1)
+      .get();
+
+    // Capture pre-merge dates for booking_modification night union
+    let previousCheckIn: string | null = null;
+    let previousCheckOut: string | null = null;
+    if (!existing.empty) {
+      const prevData = existing.docs[0].data() as {
+        check_in?: string;
+        check_out?: string;
+      };
+      previousCheckIn = prevData.check_in ?? null;
+      previousCheckOut = prevData.check_out ?? null;
+    }
+
+    if (!existing.empty) {
+      // Booking already exists — merge update (modification or cancellation).
+      // Do NOT overwrite pms_booking_id; preserve the original auto-ID.
+      reservationDoc.propertyId = propertyId;
+      await this.firebase.set(existing.docs[0].ref, reservationDoc, { merge: true });
+    } else {
+      // First time we see this booking — create with Firestore auto-ID.
+      const newRef = bookingsRef.doc();
+      reservationDoc.pms_booking_id = newRef.id;
+      reservationDoc.propertyId = propertyId;
+      await this.firebase.set(newRef, reservationDoc);
+    }
 
     this.logger.log(
       `[BOOKING-WORKER] ✓ Reservation upserted — ` +
         `event=${event} bookingId=${bookingId} bookingRef=${bookingUniqueId ?? bookingId} ` +
         `status=${reservationDoc.booking_status} tenantId=${tenantId}`,
     );
+
+    // ── Cross-channel ARI fan-out ─────────────────────────────────────────────
+    if (
+      (event === 'booking_new' ||
+        event === 'booking_cancellation' ||
+        event === 'booking_modification') &&
+      reservationDoc.room_type_id &&
+      reservationDoc.check_in &&
+      reservationDoc.check_out
+    ) {
+      const newNights = expandDateRange(reservationDoc.check_in, reservationDoc.check_out);
+
+      const affectedNights =
+        event === 'booking_modification' && previousCheckIn && previousCheckOut
+          ? [...new Set([...expandDateRange(previousCheckIn, previousCheckOut), ...newNights])]
+          : newNights;
+
+      this.ariService
+        .syncAriForAffectedNights(
+          firestoreDocId,
+          propertyId,
+          reservationDoc.room_type_id,
+          affectedNights,
+        )
+        .catch((err) =>
+          this.logger.error(
+            `[BOOKING-WORKER] syncAriForAffectedNights failed — ` +
+              `event=${event} propertyId=${propertyId}: ${(err as Error).message}`,
+          ),
+        );
+    }
+
+    // ── Pool availability update (MigoProperty) ──────────────────────────────
+    const migoPropertyId =
+      (propertyDocSnap.data()?.migo_property_id as string | null) ?? null;
+
+    if (migoPropertyId) {
+      if (event === 'booking_new') {
+        this.migoPropertyService.decrementAvailability(migoPropertyId).catch((err) => {
+          this.logger.error(
+            `[BOOKING-WORKER] decrementAvailability failed — ` +
+              `migoPropertyId=${migoPropertyId}: ${(err as Error).message}`,
+          );
+        });
+      } else if (event === 'booking_cancellation') {
+        this.migoPropertyService.incrementAvailability(migoPropertyId).catch((err) => {
+          this.logger.error(
+            `[BOOKING-WORKER] incrementAvailability failed — ` +
+              `migoPropertyId=${migoPropertyId}: ${(err as Error).message}`,
+          );
+        });
+      }
+    }
 
     if (revisionId) {
       await this.channex.acknowledgeBookingRevision(revisionId);

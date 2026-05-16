@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useLanguage } from './context/LanguageContext';
 import { useIntegrationId } from './hooks/useIntegrationId';
 import { useIntegrationStatus } from './hooks/useIntegrationStatus';
 import { useMessages } from './hooks/useMessages';
@@ -7,23 +8,28 @@ import type { SetupStep } from './hooks/useWhatsAppConnect';
 import ConnectionGateway from './components/ConnectionGateway';
 import StatusDisplay from './components/StatusDisplay';
 import ChatConsole from './components/ChatConsole';
-import CatalogView from './components/CatalogView';
 import BusinessToggle from './components/BusinessToggle';
 import ConversationList from './components/ConversationList';
-import DisconnectButton from './components/ResetButton';
 import { CartPanel } from './components/CartPanel';
 import ChannelTabs, { type Channel } from './components/ChannelTabs';
 import MessengerConnect from './components/MessengerConnect';
 import InstagramConnect from './components/InstagramConnect';
 import InstagramInbox from './components/InstagramInbox';
 import ChannexHub from './channex/ChannexHub';
+import DashboardView from './components/dashboard/DashboardView';
 
 // ── Phase 4: business IDs loaded dynamically from the backend ─────────────────
 // Fallback to the fixture IDs while fetch is in flight so the UI renders
 // immediately; once the response arrives the toggle updates.
 const FALLBACK_BUSINESS_IDS = ['787167007221172', 'demo-business-002'];
 
-export default function App() {
+interface AppProps {
+  view?: 'dashboard' | 'mensajes';
+  initialChannel?: Channel;
+}
+
+export default function App({ view = 'dashboard', initialChannel }: AppProps) {
+  const { t } = useLanguage();
   // ── Dynamic business list (Phase 4) ─────────────────────────────────────────
   const [businessIds, setBusinessIds] = useState<string[]>(FALLBACK_BUSINESS_IDS);
   const [businessId, setBusinessId] = useState<string>(FALLBACK_BUSINESS_IDS[0]);
@@ -44,7 +50,7 @@ export default function App() {
   }, []);
 
   // ── Channel navigation ────────────────────────────────────────────────────────
-  const [activeChannel, setActiveChannel] = useState<Channel>('whatsapp');
+  const [activeChannel, setActiveChannel] = useState<Channel>(initialChannel ?? 'whatsapp');
   const [integrationsRefreshNonce, setIntegrationsRefreshNonce] = useState(0);
 
   // ── WhatsApp integration (filtered to META provider) ─────────────────────────
@@ -57,6 +63,7 @@ export default function App() {
   const {
     status: waStatus,
     metaData: waMetaData,
+    catalog: waCatalog,
     isLoading: isLoadingWaStatus,
   } = useIntegrationStatus(waIntegrationId, integrationsRefreshNonce);
 
@@ -90,14 +97,6 @@ export default function App() {
   const igConversations = useConversations(igMessages);
 
   // ── Derived channel-aware values ──────────────────────────────────────────────
-  const integrationId  = activeChannel === 'whatsapp' ? waIntegrationId
-    : activeChannel === 'messenger'  ? msgrIntegrationId
-    : activeChannel === 'instagram'  ? igIntegrationId
-    : undefined;
-  const status         = activeChannel === 'whatsapp' ? waStatus
-    : activeChannel === 'messenger'  ? msgrStatus
-    : activeChannel === 'instagram'  ? igStatus
-    : undefined;
   const activeMetaData = activeChannel === 'whatsapp' ? waMetaData
     : activeChannel === 'messenger'  ? msgrMetaData
     : activeChannel === 'instagram'  ? igMetaData
@@ -153,228 +152,137 @@ export default function App() {
   // Same signal: backend writes the document only after WEBHOOKS_SUBSCRIBED.
   const isIgConnected = igIntegrationId !== null;
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-start justify-center p-6">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-7xl space-y-6">
-
-        {/* ── Header + Business Toggle ─────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Migo UIT</h1>
-            <p className="text-gray-500 text-sm mt-0.5">
-              Multi-channel Business Messaging dashboard.
-            </p>
-          </div>
-          <BusinessToggle
-            businessIds={businessIds}
-            selected={businessId}
-            onChange={(id) => setBusinessId(id)}
-          />
-        </div>
-
-        {/* ── Channel Tabs ─────────────────────────────────────────────────── */}
-        <div className="border border-gray-200 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-              Catalog Setup (Business Global)
-            </h2>
-            <p className="text-xs text-gray-500">
-              Shared catalog for WhatsApp and Messenger.
-            </p>
-          </div>
-
-            {integrationId ? (
-            <CatalogView
-                businessId={businessId}
-                status={status || 'IDLE'}
-                activeCatalogId={activeCatalogId}
-                onCatalogLinked={() =>
-                  setIntegrationsRefreshNonce((prev) => prev + 1)
-                }
-            />
-          ) : (
-            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                Connect at least one channel to configure the centralized catalog for this business.
-            </div>
-          )}
-        </div>
-
-        <ChannelTabs active={activeChannel} onChange={setActiveChannel} />
-
-        {/* ── HTTPS guard — Meta Live Mode requires a secure origin ────────── */}
-        {window.location.protocol === 'http:' && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800 leading-relaxed">
-            <strong className="font-semibold">Insecure connection.</strong>{' '}
-            Meta&apos;s Facebook Login requires HTTPS. Open{' '}
-            <code className="font-mono bg-amber-100 px-1 rounded">
-              https://localhost:5173
-            </code>{' '}
-            or your ngrok HTTPS URL — the Connect button will not work over plain HTTP.
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/*  WHATSAPP CHANNEL                                                 */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {activeChannel === 'whatsapp' && (
-          <>
-            {/* ── Connection Status ────────────────────────────────────────── */}
-            <StatusDisplay status={waStatus} isLoading={isLoading} setupStep={setupStep} />
-
-            {/* ── Connection gateway (hidden once active or token pending) ──── */}
-            {!showWaDashboard && (
-              <ConnectionGateway
-                businessId={businessId}
-                currentStatus={waStatus}
-                onSetupStepChange={handleSetupStepChange}
-              />
-            )}
-
-            {waStatus === 'ERROR' && (
-              <p className="text-xs text-red-500 text-center -mt-2">
-                Connection failed. Retry above or contact support.
-              </p>
-            )}
-
-            {/* ── Active + pending dashboard ─────────────────────────────────── */}
-            {showWaDashboard && (
-              <>
-                {/*
-                  3-column dashboard panel
-                  ─────────────────────────────────────────────────────────────
-                  Col 1 (w-72)   Cart Panel     — real-time active cart viewer
-                  Col 2 (w-52)   Conversations  — contact list
-                  Col 3 (flex-1) Chat           — message thread
-                */}
-                <div className="flex border border-gray-200 rounded-xl overflow-hidden h-[600px] overflow-x-auto">
-                  <div className="w-72 shrink-0 border-r border-gray-200 flex flex-col">
-                    <CartPanel
-                      integrationId={waIntegrationId}
-                      contactWaId={activeContact}
-                    />
-                  </div>
-
-                  <ConversationList
-                    contacts={waConversations}
-                    activeContact={activeContact}
-                    onSelect={setActiveContact}
-                  />
-
-                  <div className="flex-1 min-w-0 p-4 flex flex-col">
-                    <ChatConsole
-                      businessId={businessId}
-                      messages={waMessages}
-                      status={waStatus}
-                      activeChannel={activeChannel}
-                      activeContact={activeContact}
-                    />
-                  </div>
-                </div>
-
-                {isWaActive && <DisconnectButton businessId={businessId} />}
-              </>
-            )}
-          </>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/*  MESSENGER CHANNEL                                                */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {activeChannel === 'messenger' && (
-          <>
-            {/* Loading state while Firestore resolves */}
-            {isResolvingMsgr && (
-              <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
-                <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
-                Checking Messenger integration...
-              </div>
-            )}
-
-            {/* Not connected — show onboarding */}
-            {!isResolvingMsgr && !isMsgrConnected && (
-              <MessengerConnect businessId={businessId} />
-            )}
-
-            {/* Connected — 2-column chat view (no Cart, no Catalog) */}
-            {!isResolvingMsgr && isMsgrConnected && (
-              <>
-                {/* Slim status indicator */}
-                <StatusDisplay
-                  status={msgrStatus}
-                  isLoading={isLoadingMsgrStatus}
-                  setupStep="idle"
-                />
-
-                {/*
-                  2-column Messenger dashboard
-                  ─────────────────────────────────────────────────────────────
-                  Cart and Catalog panels are WhatsApp-specific features.
-                  Messenger shows Conversations + Chat only.
-                */}
-                <div className="flex border border-gray-200 rounded-xl overflow-hidden h-[600px] overflow-x-auto">
-                  <ConversationList
-                    contacts={msgrConversations}
-                    activeContact={activeContact}
-                    onSelect={setActiveContact}
-                  />
-
-                  <div className="flex-1 min-w-0 p-4 flex flex-col">
-                    <ChatConsole
-                      businessId={businessId}
-                      messages={msgrMessages}
-                      status={msgrStatus}
-                      activeChannel={activeChannel}
-                      activeContact={activeContact}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-          </>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/*  INSTAGRAM CHANNEL                                               */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {activeChannel === 'instagram' && (
-          <>
-            {/* Loading state while Firestore resolves */}
-            {isResolvingIg && (
-              <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
-                <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
-                Checking Instagram integration...
-              </div>
-            )}
-
-            {/* Not connected — show onboarding */}
-            {!isResolvingIg && !isIgConnected && (
-              <InstagramConnect businessId={businessId} />
-            )}
-
-            {/* Connected — Accordion inbox (Phase 4) */}
-            {!isResolvingIg && isIgConnected && (
-              <>
-                <StatusDisplay
-                  status={igStatus}
-                  isLoading={isLoadingIgStatus}
-                  setupStep="idle"
-                />
-                <InstagramInbox igMessages={igMessages} igIntegrationId={igIntegrationId!} />
-              </>
-            )}
-          </>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/*  CHANNEX HUB (Properties + Airbnb + Booking.com sub-tabs)        */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {activeChannel === 'channex' && (
-          <div className="mt-4">
-            <ChannexHub businessId={businessId} />
-          </div>
-        )}
-
+  /* ── Shared header bar (both views) ──────────────────────────────────────── */
+  const header = (
+    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-edge bg-surface-raised">
+      <div>
+        <h1 className="text-lg font-bold text-content">
+          {view === 'mensajes' ? t('app.messages') : t('app.dashboard')}
+        </h1>
+        <p className="text-content-3 text-xs mt-0.5">
+          {view === 'mensajes' ? t('app.subtitle.messages') : t('app.subtitle.dashboard')}
+        </p>
       </div>
+      <BusinessToggle
+        businessIds={businessIds}
+        selected={businessId}
+        onChange={(id) => setBusinessId(id)}
+      />
+    </div>
+  );
+
+  /* ── helpers: single-channel panels (reused in both single and multi views) ── */
+  const whatsappPanel = (
+    <>
+      {showWaDashboard ? (
+        <div className="flex flex-1 overflow-hidden border-t border-edge">
+          <div className="w-72 shrink-0 border-r border-edge flex flex-col">
+            <CartPanel integrationId={waIntegrationId} contactWaId={activeContact} />
+          </div>
+          <ConversationList contacts={waConversations} activeContact={activeContact} onSelect={setActiveContact} />
+          <div className="flex-1 min-w-0 p-4 flex flex-col">
+            <ChatConsole businessId={businessId} messages={waMessages} status={waStatus} activeChannel="whatsapp" activeContact={activeContact} />
+          </div>
+        </div>
+      ) : (
+        <div className="p-6 space-y-4">
+          <StatusDisplay status={waStatus} isLoading={isLoading} setupStep={setupStep} />
+          <ConnectionGateway businessId={businessId} currentStatus={waStatus} onSetupStepChange={handleSetupStepChange} />
+        </div>
+      )}
+    </>
+  );
+
+  const messengerPanel = (
+    <>
+      {isResolvingMsgr ? (
+        <div className="flex items-center justify-center py-16 text-content-3 text-sm gap-2">
+          <span className="w-4 h-4 border-2 border-edge border-t-brand rounded-full animate-spin" />
+          {t('app.verifying.messenger')}
+        </div>
+      ) : !isMsgrConnected ? (
+        <div className="p-6"><MessengerConnect businessId={businessId} /></div>
+      ) : (
+        <div className="flex flex-1 overflow-hidden border-t border-edge">
+          <ConversationList contacts={msgrConversations} activeContact={activeContact} onSelect={setActiveContact} />
+          <div className="flex-1 min-w-0 p-4 flex flex-col">
+            <ChatConsole businessId={businessId} messages={msgrMessages} status={msgrStatus} activeChannel="messenger" activeContact={activeContact} />
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const instagramPanel = (
+    <>
+      {isResolvingIg ? (
+        <div className="flex items-center justify-center py-16 text-content-3 text-sm gap-2">
+          <span className="w-4 h-4 border-2 border-edge border-t-brand rounded-full animate-spin" />
+          {t('app.verifying.instagram')}
+        </div>
+      ) : !isIgConnected ? (
+        <div className="p-6"><InstagramConnect businessId={businessId} /></div>
+      ) : (
+        <div className="p-6 space-y-4">
+          <StatusDisplay status={igStatus} isLoading={isLoadingIgStatus} setupStep="idle" />
+          <InstagramInbox igMessages={igMessages} igIntegrationId={igIntegrationId!} />
+        </div>
+      )}
+    </>
+  );
+
+  /* ── MENSAJES VIEW — single channel (came from sidebar item) ─────────────── */
+  if (view === 'mensajes' && initialChannel) {
+    return (
+      <div className="flex flex-col h-full min-h-screen bg-surface">
+        {header}
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {initialChannel === 'whatsapp'  && whatsappPanel}
+          {initialChannel === 'messenger' && messengerPanel}
+          {initialChannel === 'instagram' && instagramPanel}
+          {initialChannel === 'channex'   && <div className="p-6"><ChannexHub businessId={businessId} /></div>}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── MENSAJES VIEW — all channels with tabs (/mensajes without ?channel) ─── */
+  if (view === 'mensajes') {
+    return (
+      <div className="flex flex-col h-full min-h-screen bg-surface">
+        {header}
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <ChannelTabs active={activeChannel} onChange={setActiveChannel} />
+          {activeChannel === 'whatsapp'  && whatsappPanel}
+          {activeChannel === 'messenger' && messengerPanel}
+          {activeChannel === 'instagram' && instagramPanel}
+          {activeChannel === 'channex'   && <div className="p-6"><ChannexHub businessId={businessId} /></div>}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── DASHBOARD VIEW ───────────────────────────────────────────────────────── */
+  return (
+    <div className="flex flex-col min-h-screen bg-surface">
+      {header}
+      <DashboardView
+        businessId={businessId}
+        isWaActive={isWaActive}
+        waMessages={waMessages}
+        waConversations={waConversations}
+        isMsgrConnected={isMsgrConnected}
+        msgrMessages={msgrMessages}
+        msgrConversations={msgrConversations}
+        isIgConnected={isIgConnected}
+        igMessages={igMessages}
+        igConversations={igConversations}
+        catalog={waCatalog}
+        activeCatalogId={activeCatalogId}
+        catalogIntegrationId={waIntegrationId ?? msgrIntegrationId}
+        catalogStatus={waStatus ?? msgrStatus ?? 'IDLE'}
+        onCatalogLinked={() => setIntegrationsRefreshNonce((prev) => prev + 1)}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { IntegrationStatus } from '../../types/integration';
 import type { SetupStep } from '../../hooks/useWhatsAppConnect';
+import Button from '../ui/Button';
 
 interface Props {
   businessId: string;
@@ -239,20 +240,14 @@ export default function ConnectButton({
 
   return (
     <div className="space-y-2">
-      <button
+      <Button
+        variant="primary"
         onClick={handleClick}
         disabled={isDisabled}
-        className={[
-          'w-full py-3 px-6 rounded-xl font-semibold text-white transition-colors',
-          isDisabled
-            ? 'bg-gray-300 cursor-not-allowed'
-            : currentStatus === 'ERROR' || setupStep === 'error'
-              ? 'bg-red-500 hover:bg-red-600 active:bg-red-700'
-              : 'bg-green-500 hover:bg-green-600 active:bg-green-700',
-        ].join(' ')}
+        className="w-full"
       >
         {buttonLabel}
-      </button>
+      </Button>
 
       {limitReached && (
         <p className="text-xs text-amber-600 text-center font-medium">
