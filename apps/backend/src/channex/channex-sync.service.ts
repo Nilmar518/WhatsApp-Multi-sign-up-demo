@@ -660,6 +660,54 @@ export class ChannexSyncService {
     return { channelId, mapped, alreadyMapped };
   }
 
+  /**
+   * POST /channex/properties/:propertyId/load-reservations
+   *
+   * Triggers Channex to replay all future OTA reservations for the channel
+   * linked to this property as booking_new webhook events.
+   *
+   * Resolves the channel_id from Firestore — works for both Airbnb and BDC
+   * properties since both are stored under channex_integrations/.../properties/.
+   *
+   * Non-fatal: if Channex rejects the request, loadFutureReservations logs the
+   * error internally and this method still returns { status: 'triggered' }.
+   * A 404 is thrown only when the Firestore doc or channel_id is missing.
+   */
+  async triggerLoadReservations(propertyId: string): Promise<{ status: string }> {
+    this.logger.log(
+      `[LOAD-RESERVATIONS] Triggered — propertyId=${propertyId}`,
+    );
+
+    const db = this.firebase.getFirestore();
+    const snap = await db
+      .collectionGroup('properties')
+      .where('channex_property_id', '==', propertyId)
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      throw new NotFoundException(
+        `No integration document found for Channex property ID: ${propertyId}`,
+      );
+    }
+
+    const channelId = snap.docs[0].data().channex_channel_id as string | undefined;
+
+    if (!channelId) {
+      throw new NotFoundException(
+        `No OTA channel connected yet for property: ${propertyId}. Complete the OAuth flow first.`,
+      );
+    }
+
+    await this.channex.loadFutureReservations(channelId);
+
+    this.logger.log(
+      `[LOAD-RESERVATIONS] ✓ Pull triggered — propertyId=${propertyId} channelId=${channelId}`,
+    );
+
+    return { status: 'triggered' };
+  }
+
   // ─── Connection Health ────────────────────────────────────────────────────
 
   /**

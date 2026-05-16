@@ -239,6 +239,19 @@ export class ChannexBdcSyncService {
       `[BDC_SYNC] ✓ E — Channel mappings applied — rooms=${Object.keys(roomMappings).length} rates=${ratePlanMappings.length}`,
     );
 
+    // ── Step E.5: Re-assign channel property to first isolated property ───────
+    // BDC channels are created under the base property (used only for the IFrame
+    // popup). Channex delivers booking webhooks to the channel's assigned property.
+    // We must update property_id to the first isolated property before activation
+    // so webhooks route there instead of to the base property (which has no webhook).
+    const webhookTargetPropertyId = succeeded[0].channexPropertyId;
+    await this.channex.updateChannel(channexChannelId, {
+      property_id: webhookTargetPropertyId,
+    });
+    this.logger.log(
+      `[BDC_SYNC] ✓ E.5 — Channel re-assigned to isolated property — propertyId=${webhookTargetPropertyId}`,
+    );
+
     // ── Step F: Activate BDC channel ─────────────────────────────────────────
     try {
       await this.channex.activateChannelAction(channexChannelId);

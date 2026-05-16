@@ -306,6 +306,24 @@ export async function pullPropertyBookings(
   );
 }
 
+// ─── Reservation sync ─────────────────────────────────────────────────────────
+
+/**
+ * POST /api/channex/properties/:propertyId/load-reservations
+ *
+ * Asks Channex to replay all future OTA reservations as booking_new webhook
+ * events. Different from pullPropertyBookings (feed-based) — this triggers a
+ * full historical replay for properties with no prior webhook delivery.
+ * Always resolves — errors are logged server-side; a resolved promise means
+ * the pull was triggered, not necessarily that reservations arrived yet.
+ */
+export async function loadReservations(propertyId: string): Promise<void> {
+  await apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/load-reservations`,
+    { method: 'POST' },
+  );
+}
+
 // ─── Manual Bookings ──────────────────────────────────────────────────────────
 
 export interface CreateManualBookingPayload {
