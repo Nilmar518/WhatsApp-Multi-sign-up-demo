@@ -54,8 +54,8 @@ export default function AuthGate({ children }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-edge border-t-brand animate-spin" />
+      <div className="min-h-screen bg-surface-sidebar flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-brand animate-spin" />
       </div>
     );
   }

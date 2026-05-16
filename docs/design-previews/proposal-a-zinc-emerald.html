@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Propuesta A — Zinc & Emerald</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── DESIGN TOKENS ─── */
+    :root {
+      --font: 'DM Sans', system-ui, sans-serif;
+
+      /* Surfaces */
+      --bg-page:      #fafafa;   /* zinc-50  */
+      --bg-elevated:  #ffffff;   /* white    */
+      --bg-subtle:    #f4f4f5;   /* zinc-100 */
+      --bg-sidebar:   #18181b;   /* zinc-900 */
+      --bg-sidebar-hover: #27272a;
+      --bg-sidebar-active: #3f3f46;
+
+      /* Text */
+      --text-primary:   #18181b; /* zinc-900 */
+      --text-secondary: #71717a; /* zinc-500 */
+      --text-muted:     #a1a1aa; /* zinc-400 */
+      --text-on-dark:   #fafafa;
+      --text-sidebar:   #d4d4d8; /* zinc-300 */
+      --text-sidebar-muted: #71717a;
+
+      /* Brand — emerald */
+      --brand:         #10b981; /* emerald-500 */
+      --brand-hover:   #059669; /* emerald-600 */
+      --brand-active:  #047857; /* emerald-700 */
+      --brand-subtle:  #ecfdf5; /* emerald-50  */
+      --brand-text:    #065f46; /* emerald-900 */
+
+      /* Borders */
+      --border:        #e4e4e7; /* zinc-200 */
+      --border-strong: #a1a1aa; /* zinc-400 */
+
+      /* Semantic */
+      --success:     #10b981;
+      --success-bg:  #ecfdf5;
+      --error:       #ef4444;
+      --error-bg:    #fef2f2;
+      --warning:     #f59e0b;
+      --warning-bg:  #fffbeb;
+      --info:        #0ea5e9;
+      --info-bg:     #f0f9ff;
+
+      /* Channels */
+      --ch-whatsapp:  #25d366;
+      --ch-messenger: #0866ff;
+      --ch-instagram: #e1306c;
+      --ch-channex:   #7c3aed;
+
+      /* Shadow */
+      --shadow-sm:  0 1px 2px rgba(0,0,0,.06);
+      --shadow-md:  0 4px 12px rgba(0,0,0,.08);
+      --shadow-lg:  0 8px 24px rgba(0,0,0,.10);
+
+      /* Radius */
+      --r-sm:  6px;
+      --r-md:  10px;
+      --r-lg:  14px;
+      --r-xl:  18px;
+      --r-full: 9999px;
+
+      /* Sidebar width */
+      --sidebar-w: 220px;
+      --sidebar-collapsed: 56px;
+    }
+
+    [data-theme="dark"] {
+      --bg-page:      #18181b;
+      --bg-elevated:  #27272a;
+      --bg-subtle:    #3f3f46;
+      --bg-sidebar:   #09090b;
+      --bg-sidebar-hover: #18181b;
+      --bg-sidebar-active: #27272a;
+
+      --text-primary:   #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-muted:     #71717a;
+
+      --brand-subtle:  #022c22;
+      --brand-text:    #6ee7b7;
+
+      --border:        #3f3f46;
+      --border-strong: #71717a;
+
+      --success-bg: #022c22;
+      --error-bg:   #2d0a0a;
+      --warning-bg: #1c1200;
+      --info-bg:    #0c1a26;
+
+      --shadow-sm:  0 1px 2px rgba(0,0,0,.3);
+      --shadow-md:  0 4px 12px rgba(0,0,0,.4);
+      --shadow-lg:  0 8px 24px rgba(0,0,0,.5);
+    }
+
+    /* ─── RESET & BASE ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      transition: background .2s, color .2s;
+    }
+
+    /* ─── LAYOUT ─── */
+    .shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--bg-sidebar);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 12px;
+      gap: 4px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      transition: width .2s;
+    }
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px 16px;
+      border-bottom: 1px solid #27272a;
+      margin-bottom: 8px;
+    }
+    .sidebar-logo-icon {
+      width: 32px; height: 32px;
+      background: var(--brand);
+      border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .sidebar-logo-icon svg { width: 18px; height: 18px; fill: #fff; }
+    .sidebar-logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-on-dark);
+      letter-spacing: -.3px;
+    }
+    .sidebar-logo-text span { color: var(--brand); }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-sidebar-muted);
+      padding: 12px 10px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: var(--r-md);
+      cursor: pointer;
+      color: var(--text-sidebar);
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: background .15s, color .15s;
+      position: relative;
+    }
+    .nav-item:hover { background: var(--bg-sidebar-hover); color: var(--text-on-dark); }
+    .nav-item.active {
+      background: var(--bg-sidebar-active);
+      color: var(--text-on-dark);
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 50%;
+      transform: translateY(-50%);
+      width: 3px; height: 18px;
+      background: var(--brand);
+      border-radius: 0 2px 2px 0;
+    }
+    .nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--brand);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: var(--r-full);
+      padding: 1px 6px;
+      line-height: 16px;
+    }
+    .sidebar-bottom {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid #27272a;
+    }
+    .nav-item.danger:hover { background: #2d0a0a; color: #f87171; }
+
+    /* Theme toggle in sidebar */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: var(--r-md);
+      cursor: pointer;
+      color: var(--text-sidebar);
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: background .15s;
+      border: none;
+      background: none;
+      width: 100%;
+    }
+    .theme-toggle:hover { background: var(--bg-sidebar-hover); color: var(--text-on-dark); }
+    .toggle-pill {
+      margin-left: auto;
+      width: 34px; height: 18px;
+      background: #3f3f46;
+      border-radius: var(--r-full);
+      position: relative;
+      transition: background .2s;
+    }
+    .toggle-pill::after {
+      content: '';
+      position: absolute;
+      left: 2px; top: 2px;
+      width: 14px; height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+    }
+    [data-theme="dark"] .toggle-pill { background: var(--brand); }
+    [data-theme="dark"] .toggle-pill::after { transform: translateX(16px); }
+
+    /* ─── MAIN CONTENT ─── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    /* Topbar */
+    .topbar {
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .topbar-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .topbar-breadcrumb {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .topbar-breadcrumb span { color: var(--text-primary); }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .avatar {
+      width: 32px; height: 32px;
+      background: var(--brand-subtle);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--brand-hover);
+      cursor: pointer;
+      border: 2px solid var(--brand);
+    }
+
+    /* Content */
+    .content {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ─── SECTION TITLE ─── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* ─── CARDS ─── */
+    .card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      transition: background .2s, border-color .2s;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .card-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -.5px;
+    }
+    .card-delta {
+      font-size: 12px;
+      color: var(--success);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+    .card-delta.down { color: var(--error); }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    /* ─── CHANNEL TABS ─── */
+    .channel-tabs {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .tabs-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+    }
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 14px 16px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .tab:hover { color: var(--text-primary); }
+    .tab.active-wa  { color: var(--ch-whatsapp);  border-bottom-color: var(--ch-whatsapp); }
+    .tab.active-ms  { color: var(--ch-messenger); border-bottom-color: var(--ch-messenger); }
+    .tab.active-ig  { color: var(--ch-instagram); border-bottom-color: var(--ch-instagram); }
+    .tab.active-cx  { color: var(--ch-channex);   border-bottom-color: var(--ch-channex); }
+    .tab-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .tab-content {
+      padding: 20px;
+      color: var(--text-secondary);
+      font-size: 13.5px;
+    }
+
+    /* ─── BUTTONS ─── */
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: var(--r-md);
+      font-family: var(--font);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--brand);
+      color: #fff;
+      border-color: var(--brand);
+    }
+    .btn-primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+    .btn-primary:active { background: var(--brand-active); }
+
+    .btn-secondary {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover { background: var(--border); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--brand);
+      border-color: var(--brand);
+    }
+    .btn-outline:hover { background: var(--brand-subtle); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border-color: transparent;
+    }
+    .btn-ghost:hover { background: var(--bg-subtle); color: var(--text-primary); }
+
+    .btn-danger {
+      background: var(--error-bg);
+      color: var(--error);
+      border-color: transparent;
+    }
+    .btn-danger:hover { background: var(--error); color: #fff; }
+
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: var(--r-sm); }
+    .btn-lg { padding: 12px 24px; font-size: 15px; border-radius: var(--r-xl); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ─── BADGES ─── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: var(--r-full);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 18px;
+    }
+    .badge-success { background: var(--success-bg); color: var(--brand-hover); border: 1px solid #a7f3d0; }
+    .badge-error   { background: var(--error-bg);   color: var(--error);       border: 1px solid #fecaca; }
+    .badge-warning { background: var(--warning-bg); color: #b45309;            border: 1px solid #fde68a; }
+    .badge-info    { background: var(--info-bg);    color: var(--info);        border: 1px solid #bae6fd; }
+    .badge-neutral { background: var(--bg-subtle);  color: var(--text-secondary); border: 1px solid var(--border); }
+
+    [data-theme="dark"] .badge-success { border-color: #065f46; }
+    [data-theme="dark"] .badge-error   { border-color: #7f1d1d; }
+    [data-theme="dark"] .badge-warning { border-color: #78350f; }
+    [data-theme="dark"] .badge-info    { border-color: #0c4a6e; }
+
+    /* Channel chips */
+    .chip-wa  { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .chip-ms  { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .chip-ig  { background: #fce7f3; color: #9d174d; border: 1px solid #fbcfe8; }
+    .chip-cx  { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
+    [data-theme="dark"] .chip-wa  { background: #052e16; color: #4ade80; border-color: #166534; }
+    [data-theme="dark"] .chip-ms  { background: #1e3a5f; color: #93c5fd; border-color: #1e40af; }
+    [data-theme="dark"] .chip-ig  { background: #4a0020; color: #f9a8d4; border-color: #9d174d; }
+    [data-theme="dark"] .chip-cx  { background: #2e1065; color: #c4b5fd; border-color: #5b21b6; }
+
+    /* ─── PALETTE SWATCHES ─── */
+    .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+    .swatch {
+      width: 48px; height: 48px;
+      border-radius: var(--r-md);
+      border: 1.5px solid rgba(0,0,0,.08);
+      position: relative;
+      cursor: default;
+    }
+    .swatch-label {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ─── FORM ELEMENTS ─── */
+    .form-row { display: flex; flex-direction: column; gap: 4px; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .form-input {
+      padding: 9px 12px;
+      background: var(--bg-elevated);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-md);
+      font-family: var(--font);
+      font-size: 13.5px;
+      color: var(--text-primary);
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(16,185,129,.12); }
+    .form-input::placeholder { color: var(--text-muted); }
+
+    /* ─── TOAST ─── */
+    .toast {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--r-lg);
+      border: 1px solid;
+      box-shadow: var(--shadow-md);
+      max-width: 340px;
+    }
+    .toast-success { background: var(--success-bg); border-color: #a7f3d0; color: #065f46; }
+    .toast-error   { background: var(--error-bg);   border-color: #fecaca; color: #991b1b; }
+    .toast-info    { background: var(--info-bg);     border-color: #bae6fd; color: #075985; }
+    [data-theme="dark"] .toast-success { border-color: #065f46; color: #6ee7b7; }
+    [data-theme="dark"] .toast-error   { border-color: #7f1d1d; color: #f87171; }
+    [data-theme="dark"] .toast-info    { border-color: #0c4a6e; color: #7dd3fc; }
+    .toast-icon { font-size: 17px; margin-top: 1px; }
+    .toast-body { flex: 1; }
+    .toast-title { font-weight: 600; font-size: 13.5px; }
+    .toast-msg   { font-size: 12.5px; opacity: .8; margin-top: 2px; }
+
+    /* ─── TYPOGRAPHY SCALE ─── */
+    .type-row { display: flex; flex-direction: column; gap: 6px; }
+    .type-sample { color: var(--text-primary); }
+
+    /* ─── TWO COLUMN GRID ─── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+
+    /* ─── SECTION DIVIDER ─── */
+    .section { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ─── BANNER ─── */
+    .banner {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border-radius: var(--r-xl);
+      padding: 20px 24px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 20px rgba(16,185,129,.3);
+    }
+    .banner h2 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .banner p  { font-size: 13px; opacity: .85; }
+
+    /* ─── PROPOSAL BADGE ─── */
+    .proposal-badge {
+      position: fixed;
+      top: 12px; right: 12px;
+      background: var(--brand);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: var(--r-full);
+      letter-spacing: .04em;
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="proposal-badge">PROPUESTA A — Zinc &amp; Emerald</div>
+
+  <div class="shell">
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.37A9.93 9.93 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.64 13.36l-.9.9c-.37.37-.91.5-1.4.33a14.4 14.4 0 0 1-4.12-2.82 14.4 14.4 0 0 1-2.82-4.12c-.17-.49-.04-1.03.33-1.4l.9-.9a.75.75 0 0 1 1.06 0l1.5 1.5c.29.29.29.77 0 1.06l-.55.55a10.7 10.7 0 0 0 3.42 3.42l.55-.55c.29-.29.77-.29 1.06 0l1.5 1.5a.75.75 0 0 1-.03 1.03z"/></svg>
+        </div>
+        <div class="sidebar-logo-text">Migo<span>UI</span></div>
+      </div>
+
+      <div class="nav-section-label">Principal</div>
+      <a class="nav-item active" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Mensajes
+        <span class="nav-badge">12</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        Inventario
+      </a>
+
+      <div class="nav-section-label">Integraciones</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.37A9.93 9.93 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg>
+        WhatsApp
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        Channex
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Airbnb
+      </a>
+
+      <div class="nav-section-label">Configuración</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        Configuración
+      </a>
+
+      <div class="sidebar-bottom">
+        <button class="theme-toggle" onclick="toggleTheme()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          Modo oscuro
+          <div class="toggle-pill"></div>
+        </button>
+        <a class="nav-item" style="margin-top:4px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+          Mi cuenta
+        </a>
+        <a class="nav-item danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Cerrar sesión
+        </a>
+      </div>
+    </nav>
+
+    <!-- MAIN -->
+    <div class="main">
+      <!-- Topbar -->
+      <div class="topbar">
+        <div>
+          <div class="topbar-breadcrumb">Dashboard / <span>Vista general</span></div>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-sm btn-primary">+ Conectar canal</button>
+          <div class="avatar">NL</div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+
+        <!-- Banner -->
+        <div class="banner">
+          <div>
+            <h2>Bienvenido de vuelta, Nilmar</h2>
+            <p>Tienes 3 integraciones activas y 12 mensajes sin leer.</p>
+          </div>
+          <button class="btn btn-lg" style="background:#fff; color:var(--brand-hover); border:none;">Ver mensajes</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="section">
+          <div class="section-title">Métricas del día</div>
+          <div class="stats-row">
+            <div class="card">
+              <div class="card-title">Mensajes enviados</div>
+              <div class="card-value">1,284</div>
+              <div class="card-delta">↑ 12% vs. ayer</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Tasa de entrega</div>
+              <div class="card-value">98.4%</div>
+              <div class="card-delta">↑ 0.2%</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Negocios activos</div>
+              <div class="card-value">7</div>
+              <div class="card-delta">sin cambios</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Reservas Channex</div>
+              <div class="card-value">34</div>
+              <div class="card-delta down">↓ 3 vs. ayer</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Channel Tabs -->
+        <div class="section">
+          <div class="section-title">Canales conectados</div>
+          <div class="channel-tabs">
+            <div class="tabs-bar">
+              <div class="tab active-wa">
+                <div class="tab-dot" style="background:var(--ch-whatsapp)"></div>
+                WhatsApp
+              </div>
+              <div class="tab active-ms" style="color:var(--text-muted);border-bottom-color:transparent">
+                <div class="tab-dot" style="background:var(--ch-messenger)"></div>
+                Messenger
+              </div>
+              <div class="tab active-ig" style="color:var(--text-muted);border-bottom-color:transparent">
+                <div class="tab-dot" style="background:var(--ch-instagram)"></div>
+                Instagram
+              </div>
+              <div class="tab active-cx" style="color:var(--text-muted);border-bottom-color:transparent">
+                <div class="tab-dot" style="background:var(--ch-channex)"></div>
+                Channex
+              </div>
+            </div>
+            <div class="tab-content">
+              WABA ID: <strong>102938471029</strong> &nbsp;·&nbsp; Número: <strong>+1 305 000 0000</strong> &nbsp;·&nbsp;
+              <span class="badge badge-success">Activo</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buttons + Badges -->
+        <div class="grid-2">
+          <div class="card section">
+            <div class="section-title">Botones</div>
+            <div class="btn-row">
+              <button class="btn btn-primary">Primario</button>
+              <button class="btn btn-secondary">Secundario</button>
+              <button class="btn btn-outline">Outline</button>
+              <button class="btn btn-ghost">Ghost</button>
+              <button class="btn btn-danger">Eliminar</button>
+              <button class="btn btn-primary" disabled>Deshabilitado</button>
+            </div>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn btn-sm btn-primary">Small</button>
+              <button class="btn btn-primary">Default</button>
+              <button class="btn btn-lg btn-primary">Large</button>
+            </div>
+          </div>
+
+          <div class="card section">
+            <div class="section-title">Badges &amp; chips de canal</div>
+            <div class="btn-row">
+              <span class="badge badge-success">Activo</span>
+              <span class="badge badge-error">Error</span>
+              <span class="badge badge-warning">Pendiente</span>
+              <span class="badge badge-info">Info</span>
+              <span class="badge badge-neutral">Inactivo</span>
+            </div>
+            <div class="btn-row" style="margin-top:10px">
+              <span class="badge chip-wa">WhatsApp</span>
+              <span class="badge chip-ms">Messenger</span>
+              <span class="badge chip-ig">Instagram</span>
+              <span class="badge chip-cx">Channex</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form + Toast -->
+        <div class="grid-2">
+          <div class="card section">
+            <div class="section-title">Formulario</div>
+            <div class="form-row">
+              <label class="form-label">Nombre del negocio</label>
+              <input class="form-input" type="text" placeholder="Ej. Hotel Playa Norte" />
+            </div>
+            <div class="form-row" style="margin-top:10px">
+              <label class="form-label">Teléfono WhatsApp</label>
+              <input class="form-input" type="text" placeholder="+1 305 000 0000" />
+            </div>
+            <div style="margin-top:14px" class="btn-row">
+              <button class="btn btn-primary">Guardar</button>
+              <button class="btn btn-ghost">Cancelar</button>
+            </div>
+          </div>
+
+          <div class="card section">
+            <div class="section-title">Notificaciones (Toasts)</div>
+            <div class="toast toast-success">
+              <span class="toast-icon">✓</span>
+              <div class="toast-body">
+                <div class="toast-title">Integración activa</div>
+                <div class="toast-msg">WhatsApp conectado correctamente al negocio.</div>
+              </div>
+            </div>
+            <div class="toast toast-error" style="margin-top:8px">
+              <span class="toast-icon">✕</span>
+              <div class="toast-body">
+                <div class="toast-title">Error de conexión</div>
+                <div class="toast-msg">No se pudo verificar el token de acceso.</div>
+              </div>
+            </div>
+            <div class="toast toast-info" style="margin-top:8px">
+              <span class="toast-icon">i</span>
+              <div class="toast-body">
+                <div class="toast-title">Webhook actualizado</div>
+                <div class="toast-msg">La URL de Channex fue sincronizada.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Palette reference -->
+        <div class="card section">
+          <div class="section-title">Paleta de tokens — Propuesta A</div>
+          <div style="display:flex; gap:32px; flex-wrap:wrap; padding-bottom:24px">
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;font-weight:600">BRAND (Emerald)</div>
+              <div class="swatches">
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#ecfdf5"></div>
+                  <div class="swatch-label">50</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#6ee7b7"></div>
+                  <div class="swatch-label">300</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#10b981"></div>
+                  <div class="swatch-label">500 ★</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#059669"></div>
+                  <div class="swatch-label">600</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#065f46"></div>
+                  <div class="swatch-label">900</div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;font-weight:600">NEUTRAL (Zinc)</div>
+              <div class="swatches">
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#fafafa;border:1.5px solid #e4e4e7"></div>
+                  <div class="swatch-label">50</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#e4e4e7"></div>
+                  <div class="swatch-label">200</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#71717a"></div>
+                  <div class="swatch-label">500</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#27272a"></div>
+                  <div class="swatch-label">800</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#09090b"></div>
+                  <div class="swatch-label">950</div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;font-weight:600">SEMÁNTICA</div>
+              <div class="swatches">
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#10b981"></div>
+                  <div class="swatch-label">success</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#ef4444"></div>
+                  <div class="swatch-label">error</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#f59e0b"></div>
+                  <div class="swatch-label">warning</div>
+                </div>
+                <div style="position:relative;margin-bottom:24px">
+                  <div class="swatch" style="background:#0ea5e9"></div>
+                  <div class="swatch-label">info</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typography -->
+        <div class="card section">
+          <div class="section-title">Tipografía — DM Sans</div>
+          <div class="type-row">
+            <div class="type-sample" style="font-size:28px;font-weight:700;letter-spacing:-.5px">Dashboard de integraciones</div>
+            <div class="type-sample" style="font-size:20px;font-weight:600;letter-spacing:-.3px">Sección: Canales activos</div>
+            <div class="type-sample" style="font-size:16px;font-weight:600">Título de tarjeta o modal</div>
+            <div class="type-sample" style="font-size:14px;font-weight:400;color:var(--text-secondary)">Texto de cuerpo principal. Información secundaria y descripción de estados en la plataforma.</div>
+            <div class="type-sample" style="font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em">LABEL DE SECCIÓN · ETIQUETA PEQUEÑA</div>
+            <div class="type-sample" style="font-size:13px;font-family:monospace;color:var(--text-secondary);background:var(--bg-subtle);padding:6px 10px;border-radius:var(--r-sm);display:inline-block">WABA_ID: 102938471029</div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /shell -->
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+    }
+  </script>
+</body>
+</html>

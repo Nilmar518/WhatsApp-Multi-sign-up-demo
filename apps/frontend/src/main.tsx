@@ -9,6 +9,7 @@ import AuthGate from './auth/AuthGate';
 import MainLayout from './layout/MainLayout';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
 const FALLBACK_BID = '787167007221172';
@@ -76,12 +77,14 @@ function AppShell() {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <LanguageProvider>
-        <AuthGate>
-          <AppShell />
-        </AuthGate>
-      </LanguageProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <LanguageProvider>
+          <AuthGate>
+            <AppShell />
+          </AuthGate>
+        </LanguageProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

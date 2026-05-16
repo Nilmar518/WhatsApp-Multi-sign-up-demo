@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Opción B · Actividad</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --font: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --bg-page:    #f8fafc;
+      --bg-el:      #ffffff;
+      --bg-subtle:  #f1f5f9;
+      --bg-sidebar: #0f172a;
+      --bg-sb-hover:#1e293b;
+      --bg-sb-act:  #1e293b;
+      --text-1:     #0f172a;
+      --text-2:     #64748b;
+      --text-3:     #94a3b8;
+      --text-inv:   #f1f5f9;
+      --text-sb:    #cbd5e1;
+      --text-sb-m:  #64748b;
+      --brand:      #7c3aed;
+      --brand-h:    #6d28d9;
+      --brand-s:    #f5f3ff;
+      --brand-l:    #ddd6fe;
+      --brand-d:    #4c1d95;
+      --border:     #e2e8f0;
+      --ok:         #22c55e;
+      --ok-bg:      #f0fdf4;
+      --ok-t:       #166534;
+      --danger:     #ef4444;
+      --danger-bg:  #fef2f2;
+      --danger-t:   #991b1b;
+      --caution:    #f59e0b;
+      --caution-bg: #fffbeb;
+      --caution-t:  #92400e;
+      --notice:     #0ea5e9;
+      --notice-bg:  #f0f9ff;
+      --notice-t:   #075985;
+      --ch-wa:  #25d366;
+      --ch-ms:  #0866ff;
+      --ch-ig:  #e1306c;
+      --ch-cx:  #7c3aed;
+      --sh-sm:  0 1px 3px rgba(15,23,42,.07), 0 1px 2px rgba(15,23,42,.04);
+      --sh-md:  0 4px 14px rgba(15,23,42,.10);
+      --sidebar-w: 220px;
+    }
+    [data-theme="dark"] {
+      --bg-page:    #0f172a;
+      --bg-el:      #1e293b;
+      --bg-subtle:  #334155;
+      --bg-sidebar: #020617;
+      --bg-sb-hover:#0f172a;
+      --bg-sb-act:  #1e293b;
+      --text-1:     #f1f5f9;
+      --text-2:     #94a3b8;
+      --text-3:     #64748b;
+      --brand-s:    #1e1b4b;
+      --brand-l:    #4c1d95;
+      --brand-d:    #c4b5fd;
+      --border:     #1e293b;
+      --ok-bg:      #052e16;
+      --ok-t:       #86efac;
+      --danger-bg:  #1f0707;
+      --danger-t:   #fca5a5;
+      --caution-bg: #1c1200;
+      --caution-t:  #fde68a;
+      --notice-bg:  #0c1a26;
+      --notice-t:   #7dd3fc;
+      --sh-sm:      0 1px 3px rgba(0,0,0,.4);
+      --sh-md:      0 4px 14px rgba(0,0,0,.5);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--bg-page); color: var(--text-1); font-size: 14px; line-height: 1.5; transition: background .2s, color .2s; }
+
+    .shell { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: var(--sidebar-w); min-height: 100vh; background: var(--bg-sidebar);
+      display: flex; flex-direction: column; padding: 16px 12px; gap: 2px;
+      flex-shrink: 0; position: sticky; top: 0; height: 100vh;
+    }
+    .logo { display: flex; align-items: center; gap: 8px; padding: 0 6px 16px; border-bottom: 1px solid #1e293b; margin-bottom: 8px; }
+    .logo-icon { width: 30px; height: 30px; border-radius: 7px; background: var(--brand); display: flex; align-items: center; justify-content: center; }
+    .logo-text { font-weight: 700; font-size: 13px; color: var(--text-inv); }
+    .logo-text span { color: #a78bfa; }
+    .nav-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--text-sb-m); padding: 10px 8px 4px; }
+    .nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--text-sb); cursor: pointer; border-left: 2px solid transparent; transition: background .15s, color .15s; }
+    .nav-item:hover { background: var(--bg-sb-hover); color: var(--text-inv); }
+    .nav-item.active { background: var(--bg-sb-act); color: var(--text-inv); border-left-color: var(--brand); }
+    .nav-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg-el); gap: 16px; }
+    .topbar-title h1 { font-size: 16px; font-weight: 700; }
+    .topbar-title p { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+    .theme-btn { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-subtle); color: var(--text-2); font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+
+    .content { flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--text-3); margin-bottom: -8px; }
+
+    /* ── INTEGRATION CARDS (2×2 grid) ── */
+    .integration-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .int-card {
+      background: var(--bg-el); border: 1px solid var(--border); border-radius: 12px;
+      padding: 18px 20px; box-shadow: var(--sh-sm); display: flex; flex-direction: column; gap: 14px;
+      position: relative; overflow: hidden;
+    }
+    .int-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 12px 12px 0 0;
+    }
+    .int-card.wa::before  { background: var(--ch-wa); }
+    .int-card.ms::before  { background: var(--ch-ms); }
+    .int-card.ig::before  { background: var(--ch-ig); }
+    .int-card.cx::before  { background: var(--ch-cx); }
+    .int-header { display: flex; align-items: flex-start; justify-content: space-between; }
+    .int-brand { display: flex; align-items: center; gap: 10px; }
+    .int-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .int-name { font-size: 14px; font-weight: 700; }
+    .int-desc { font-size: 11px; color: var(--text-3); }
+    .status-pill { display: flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .pill-ok { background: var(--ok-bg); color: var(--ok-t); }
+    .pill-off { background: var(--bg-subtle); color: var(--text-3); }
+    .pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .pill-ok .pill-dot { background: var(--ok); }
+    .pill-off .pill-dot { background: var(--text-3); }
+
+    .int-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .int-stat { background: var(--bg-subtle); border-radius: 8px; padding: 8px 10px; text-align: center; }
+    .int-stat-val { font-size: 17px; font-weight: 800; }
+    .int-stat-lbl { font-size: 10px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+
+    .int-stat-placeholder { background: var(--bg-subtle); border-radius: 8px; padding: 8px 10px; text-align: center; opacity: .4; }
+
+    .int-footer { display: flex; align-items: center; justify-content: space-between; }
+    .int-last { font-size: 11px; color: var(--text-3); }
+    .btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; font-family: var(--font); transition: opacity .15s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-ghost { background: var(--bg-subtle); color: var(--text-2); }
+
+    /* Channex specific */
+    .cx-channels { display: flex; gap: 8px; }
+    .cx-tag { display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+    .cx-tag.airbnb { background: #fff1f0; color: #ff5a5f; }
+    .cx-tag.booking { background: #eff6ff; color: #003580; }
+    .cx-props { font-size: 11px; color: var(--text-3); }
+
+    /* ── MAIN CONTENT AREA ── */
+    .main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 14px; }
+    .panel { background: var(--bg-el); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; box-shadow: var(--sh-sm); }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .panel-title { font-size: 13px; font-weight: 700; }
+    .panel-action { font-size: 11px; font-weight: 600; color: var(--brand); cursor: pointer; }
+
+    /* Activity Feed */
+    .feed { display: flex; flex-direction: column; gap: 0; }
+    .feed-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); position: relative; }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; position: relative; }
+    .feed-ch { position: absolute; bottom: -2px; right: -2px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--bg-el); display: flex; align-items: center; justify-content: center; }
+    .feed-body { flex: 1; min-width: 0; }
+    .feed-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .feed-name { font-size: 13px; font-weight: 600; }
+    .feed-time { font-size: 10px; color: var(--text-3); white-space: nowrap; }
+    .feed-msg { font-size: 12px; color: var(--text-2); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .feed-tag { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+    .badge-unread { background: var(--brand); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+
+    /* Right sidebar */
+    .right-col { display: flex; flex-direction: column; gap: 14px; }
+
+    /* Quick stats */
+    .qstat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .qstat { background: var(--bg-subtle); border-radius: 8px; padding: 10px 12px; }
+    .qstat-val { font-size: 20px; font-weight: 800; }
+    .qstat-lbl { font-size: 10px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+
+    /* Channel bar chart */
+    .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; }
+    .bar-label { font-size: 11px; font-weight: 600; color: var(--text-2); width: 72px; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 8px; background: var(--bg-subtle); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; }
+    .bar-val { font-size: 11px; font-weight: 700; color: var(--text-2); width: 28px; text-align: right; flex-shrink: 0; }
+
+    /* Catalog mini */
+    .cat-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .cat-row:last-child { border-bottom: none; }
+    .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .cat-name { flex: 1; font-size: 12px; font-weight: 500; }
+    .cat-count { font-size: 11px; font-weight: 700; color: var(--text-2); }
+
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2.2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+      </div>
+      <div class="logo-text">Migo<span>UI</span></div>
+    </div>
+    <div class="nav-label">Principal</div>
+    <div class="nav-item active">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Mensajes
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      Inventario
+    </div>
+    <div class="nav-label">Integraciones</div>
+    <div class="nav-item">
+      <div class="nav-dot" style="background:var(--ch-wa)"></div>
+      WhatsApp
+    </div>
+    <div class="nav-item">
+      <div class="nav-dot" style="background:var(--ch-ms)"></div>
+      Messenger
+    </div>
+    <div class="nav-item">
+      <div class="nav-dot" style="background:var(--ch-ig)"></div>
+      Instagram
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Channex
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Dashboard</h1>
+        <p>Resumen de integraciones y actividad del negocio.</p>
+      </div>
+      <button class="theme-btn" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'">
+        ☀ / ☾ Tema
+      </button>
+    </div>
+
+    <div class="content">
+
+      <!-- INTEGRATION STATUS 2x2 -->
+      <div class="section-label">Estado de integraciones</div>
+      <div class="integration-grid">
+
+        <!-- WhatsApp -->
+        <div class="int-card wa">
+          <div class="int-header">
+            <div class="int-brand">
+              <div class="int-icon" style="background:#dcfce7">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--ch-wa)"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.116 1.534 5.845L0 24l6.334-1.51A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.888 0-3.655-.5-5.186-1.374l-.371-.22-3.763.897.944-3.663-.242-.38A9.95 9.95 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+              </div>
+              <div>
+                <div class="int-name">WhatsApp</div>
+                <div class="int-desc">Meta Business API</div>
+              </div>
+            </div>
+            <div class="status-pill pill-ok">
+              <div class="pill-dot"></div>
+              Activo
+            </div>
+          </div>
+          <div class="int-stats">
+            <div class="int-stat">
+              <div class="int-stat-val" style="color:var(--ch-wa)">142</div>
+              <div class="int-stat-lbl">Mensajes</div>
+            </div>
+            <div class="int-stat">
+              <div class="int-stat-val">21</div>
+              <div class="int-stat-lbl">Conversac.</div>
+            </div>
+            <div class="int-stat">
+              <div class="int-stat-val" style="color:var(--danger)">3</div>
+              <div class="int-stat-lbl">Sin leer</div>
+            </div>
+          </div>
+          <div class="int-footer">
+            <span class="int-last">Último mensaje hace 4 min</span>
+            <button class="btn btn-ghost">Abrir →</button>
+          </div>
+        </div>
+
+        <!-- Messenger -->
+        <div class="int-card ms">
+          <div class="int-header">
+            <div class="int-brand">
+              <div class="int-icon" style="background:#dbeafe">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--ch-ms)"><path d="M12 0C5.373 0 0 4.975 0 11.111c0 3.497 1.745 6.616 4.472 8.652V24l4.086-2.242c1.09.301 2.246.464 3.442.464 6.627 0 12-4.975 12-11.111C24 4.974 18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z"/></svg>
+              </div>
+              <div>
+                <div class="int-name">Messenger</div>
+                <div class="int-desc">Facebook Pages</div>
+              </div>
+            </div>
+            <div class="status-pill pill-ok">
+              <div class="pill-dot"></div>
+              Activo
+            </div>
+          </div>
+          <div class="int-stats">
+            <div class="int-stat">
+              <div class="int-stat-val" style="color:var(--ch-ms)">105</div>
+              <div class="int-stat-lbl">Mensajes</div>
+            </div>
+            <div class="int-stat">
+              <div class="int-stat-val">13</div>
+              <div class="int-stat-lbl">Conversac.</div>
+            </div>
+            <div class="int-stat">
+              <div class="int-stat-val" style="color:var(--danger)">1</div>
+              <div class="int-stat-lbl">Sin leer</div>
+            </div>
+          </div>
+          <div class="int-footer">
+            <span class="int-last">Último mensaje hace 18 min</span>
+            <button class="btn btn-ghost">Abrir →</button>
+          </div>
+        </div>
+
+        <!-- Instagram -->
+        <div class="int-card ig">
+          <div class="int-header">
+            <div class="int-brand">
+              <div class="int-icon" style="background:#fce7f3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--ch-ig)"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+              </div>
+              <div>
+                <div class="int-name">Instagram</div>
+                <div class="int-desc">Instagram DMs</div>
+              </div>
+            </div>
+            <div class="status-pill pill-off">
+              <div class="pill-dot"></div>
+              Sin conectar
+            </div>
+          </div>
+          <div class="int-stats" style="opacity:.35;pointer-events:none">
+            <div class="int-stat-placeholder int-stat">
+              <div class="int-stat-val">—</div>
+              <div class="int-stat-lbl">Mensajes</div>
+            </div>
+            <div class="int-stat-placeholder int-stat">
+              <div class="int-stat-val">—</div>
+              <div class="int-stat-lbl">Conversac.</div>
+            </div>
+            <div class="int-stat-placeholder int-stat">
+              <div class="int-stat-val">—</div>
+              <div class="int-stat-lbl">Sin leer</div>
+            </div>
+          </div>
+          <div class="int-footer">
+            <span class="int-last">No conectado</span>
+            <button class="btn btn-primary">Conectar →</button>
+          </div>
+        </div>
+
+        <!-- Channex -->
+        <div class="int-card cx">
+          <div class="int-header">
+            <div class="int-brand">
+              <div class="int-icon" style="background:var(--brand-s)">
+                <svg width="20" height="20" fill="none" stroke="var(--brand)" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </div>
+              <div>
+                <div class="int-name">Channex</div>
+                <div class="int-desc">Channel Manager</div>
+              </div>
+            </div>
+            <div class="status-pill pill-ok">
+              <div class="pill-dot"></div>
+              Activo
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:11px;color:var(--text-2);font-weight:600">Canales OTA activos</span>
+              <span style="font-size:11px;color:var(--text-3)">2 propiedades</span>
+            </div>
+            <div class="cx-channels">
+              <div class="cx-tag airbnb">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#ff5a5f"><path d="M12 .5C5.7.5.5 5.7.5 12S5.7 23.5 12 23.5 23.5 18.3 23.5 12 18.3.5 12 .5zm4.6 14.8c-.3.7-.9 1.2-1.6 1.4-.3.1-.6.1-.9.1-.6 0-1.2-.2-1.7-.5l-.4-.3-.4.3c-.5.3-1.1.5-1.7.5-.3 0-.6 0-.9-.1-.7-.2-1.3-.7-1.6-1.4-.4-1 0-2.1.9-2.6L12 9.5l3.7 3.2c.9.5 1.3 1.6.9 2.6z"/></svg>
+                Airbnb
+              </div>
+              <div class="cx-tag booking">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#003580"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+                Booking.com
+              </div>
+            </div>
+          </div>
+          <div class="int-footer">
+            <span class="int-last">2 propiedades registradas</span>
+            <button class="btn btn-ghost">Ver Hub →</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ACTIVITY + SIDEBAR -->
+      <div class="main-grid">
+
+        <!-- Activity feed -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Actividad reciente</span>
+            <span class="panel-action">Ver todas las conversaciones →</span>
+          </div>
+          <div class="feed">
+
+            <div class="feed-item">
+              <div class="feed-avatar" style="background:#16a34a">
+                MR
+                <div class="feed-ch" style="background:var(--ch-wa)">
+                  <svg width="7" height="7" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+                </div>
+              </div>
+              <div class="feed-body">
+                <div class="feed-top">
+                  <span class="feed-name">María Rodríguez</span>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span class="badge-unread">2</span>
+                    <span class="feed-time">hace 4 min</span>
+                  </div>
+                </div>
+                <div class="feed-msg">¿Tienen disponibilidad para el 15 de junio? Somos 4 personas.</div>
+              </div>
+            </div>
+
+            <div class="feed-item">
+              <div class="feed-avatar" style="background:#2563eb">
+                JL
+                <div class="feed-ch" style="background:var(--ch-ms)">
+                  <svg width="7" height="7" viewBox="0 0 24 24" fill="#fff"><path d="M12 0C5.373 0 0 4.975 0 11.111c0 3.497 1.745 6.616 4.472 8.652V24l4.086-2.242c1.09.301 2.246.464 3.442.464 6.627 0 12-4.975 12-11.111C24 4.974 18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z"/></svg>
+                </div>
+              </div>
+              <div class="feed-body">
+                <div class="feed-top">
+                  <span class="feed-name">Juan López</span>
+                  <span class="feed-time">hace 18 min</span>
+                </div>
+                <div class="feed-msg">Perfecto, confirmo la reserva. Muchas gracias!</div>
+              </div>
+            </div>
+
+            <div class="feed-item">
+              <div class="feed-avatar" style="background:#f97316">
+                AC
+                <div class="feed-ch" style="background:var(--ch-wa)">
+                  <svg width="7" height="7" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+                </div>
+              </div>
+              <div class="feed-body">
+                <div class="feed-top">
+                  <span class="feed-name">Ana Castro</span>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span class="badge-unread">5</span>
+                    <span class="feed-time">hace 32 min</span>
+                  </div>
+                </div>
+                <div class="feed-msg">Hola, vi su catálogo y me interesa el producto "Kit Premium"...</div>
+              </div>
+            </div>
+
+            <div class="feed-item">
+              <div class="feed-avatar" style="background:#0891b2">
+                PG
+                <div class="feed-ch" style="background:var(--ch-ms)">
+                  <svg width="7" height="7" viewBox="0 0 24 24" fill="#fff"><path d="M12 0C5.373 0 0 4.975 0 11.111c0 3.497 1.745 6.616 4.472 8.652V24l4.086-2.242c1.09.301 2.246.464 3.442.464 6.627 0 12-4.975 12-11.111C24 4.974 18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z"/></svg>
+                </div>
+              </div>
+              <div class="feed-body">
+                <div class="feed-top">
+                  <span class="feed-name">Pedro García</span>
+                  <span class="feed-time">hace 1h</span>
+                </div>
+                <div class="feed-msg">Gracias por la información! Ya hice la reserva.</div>
+              </div>
+            </div>
+
+            <div class="feed-item">
+              <div class="feed-avatar" style="background:#7c3aed">
+                LS
+                <div class="feed-ch" style="background:var(--ch-wa)">
+                  <svg width="7" height="7" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+                </div>
+              </div>
+              <div class="feed-body">
+                <div class="feed-top">
+                  <span class="feed-name">Laura Sánchez</span>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span class="badge-unread">1</span>
+                    <span class="feed-time">hace 2h</span>
+                  </div>
+                </div>
+                <div class="feed-msg">¿El precio del alojamiento incluye el desayuno?</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Right column -->
+        <div class="right-col">
+
+          <!-- Quick stats -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Resumen del día</span>
+            </div>
+            <div class="qstat-grid">
+              <div class="qstat">
+                <div class="qstat-val" style="color:var(--brand)">247</div>
+                <div class="qstat-lbl">Mensajes</div>
+              </div>
+              <div class="qstat">
+                <div class="qstat-val" style="color:var(--notice)">34</div>
+                <div class="qstat-lbl">Conversac.</div>
+              </div>
+              <div class="qstat">
+                <div class="qstat-val" style="color:var(--danger)">9</div>
+                <div class="qstat-lbl">Sin leer</div>
+              </div>
+              <div class="qstat">
+                <div class="qstat-val" style="color:var(--ok)">2/3</div>
+                <div class="qstat-lbl">Canales activos</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Channel distribution bar chart -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Mensajes por canal hoy</span>
+            </div>
+            <div class="bar-chart">
+              <div class="bar-row">
+                <span class="bar-label">WhatsApp</span>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width:57%;background:var(--ch-wa)"></div>
+                </div>
+                <span class="bar-val">142</span>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Messenger</span>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width:43%;background:var(--ch-ms)"></div>
+                </div>
+                <span class="bar-val">105</span>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Instagram</span>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width:0%;background:var(--ch-ig)"></div>
+                </div>
+                <span class="bar-val" style="color:var(--text-3)">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Catalog mini -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Catálogo</span>
+              <span class="panel-action">Gestionar →</span>
+            </div>
+            <div>
+              <div class="cat-row">
+                <div class="cat-dot" style="background:var(--ok)"></div>
+                <span class="cat-name">Activos</span>
+                <span class="cat-count">112</span>
+              </div>
+              <div class="cat-row">
+                <div class="cat-dot" style="background:var(--caution)"></div>
+                <span class="cat-name">Sin stock</span>
+                <span class="cat-count">16</span>
+              </div>
+              <div class="cat-row">
+                <div class="cat-dot" style="background:var(--text-3)"></div>
+                <span class="cat-name">Inactivos</span>
+                <span class="cat-count">4</span>
+              </div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:var(--text-3)">128 productos en total</span>
+              <span style="font-size:11px;font-weight:700;color:var(--brand)">Catálogo Principal</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>
