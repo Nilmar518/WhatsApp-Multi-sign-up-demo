@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getPropertyBookings, pullPropertyBookings, cancelManualBooking, type Reservation } from '../../api/channexHubApi';
+import { getPropertyBookings, pullPropertyBookings, cancelManualBooking, loadReservations, type Reservation } from '../../api/channexHubApi';
 import Button from '../../../components/ui/Button';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -163,6 +163,8 @@ export default function ReservationsPanel({
   const [syncResult, setSyncResult] = useState<{ synced: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [importState, setImportState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [importError, setImportError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function load(silent = false) {
@@ -191,6 +193,18 @@ export default function ReservationsPanel({
       setError(err instanceof Error ? err.message : 'Sync failed');
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleImportReservations() {
+    setImportState('loading');
+    setImportError(null);
+    try {
+      await loadReservations(propertyId);
+      setImportState('success');
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Import failed. Please try again.');
+      setImportState('error');
     }
   }
 
@@ -294,6 +308,34 @@ export default function ReservationsPanel({
           <p className="mt-1 text-xs text-content-3">
             Bookings from Airbnb and Booking.com will appear here automatically.
           </p>
+          <div className="mt-5">
+            <p className="mb-3 text-xs text-content-3">
+              Already have reservations on your OTA? Import them now.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleImportReservations()}
+              disabled={importState === 'loading'}
+              className="inline-flex items-center gap-2 rounded-lg border border-edge bg-surface px-4 py-2 text-sm font-medium text-content shadow-sm transition hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importState === 'loading' ? (
+                <>
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-edge border-t-brand" />
+                  Importing…
+                </>
+              ) : (
+                'Import Past Reservations'
+              )}
+            </button>
+            {importState === 'success' && (
+              <p className="mt-3 text-xs font-medium text-ok-text">
+                Import started — reservations will appear here in a few seconds.
+              </p>
+            )}
+            {importState === 'error' && (
+              <p className="mt-3 text-xs font-medium text-danger-text">{importError}</p>
+            )}
+          </div>
         </div>
       )}
 

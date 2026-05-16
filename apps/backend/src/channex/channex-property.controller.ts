@@ -418,6 +418,33 @@ export class ChannexPropertyController {
   }
 
   /**
+   * POST /channex/properties/:propertyId/load-reservations
+   *
+   * Triggers Channex to replay existing future OTA reservations for this
+   * property as booking_new webhook events. Idempotent — safe to call multiple
+   * times. Always returns 200 { status: 'triggered' } unless the property is
+   * not found in Firestore.
+   *
+   * Body:    none
+   * Returns: { status: 'triggered' }
+   * Status:  200 OK
+   *
+   * Possible errors:
+   *   404 Not Found — property has no Firestore doc or no channel connected yet
+   */
+  @Post(':propertyId/load-reservations')
+  @HttpCode(HttpStatus.OK)
+  async loadReservations(
+    @Param('propertyId') propertyId: string,
+  ): Promise<{ status: string }> {
+    this.logger.log(
+      `[CTRL] POST /channex/properties/${propertyId}/load-reservations`,
+    );
+
+    return this.syncService.triggerLoadReservations(propertyId);
+  }
+
+  /**
    * DELETE /channex/properties/:propertyId
    *
    * Soft-deletes the integration by setting `connection_status = 'error'` in
