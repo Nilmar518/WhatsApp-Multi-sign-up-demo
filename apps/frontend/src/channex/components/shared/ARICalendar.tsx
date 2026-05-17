@@ -268,6 +268,19 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
     return selectionStart <= end ? [selectionStart, end] : [end, selectionStart];
   }, [selectionStart, selectionEnd]);
 
+  const isRangeBlocked = useMemo(() => {
+    if (!selectedRange) return false;
+    const [start, end] = selectedRange;
+    let cur = new Date(`${start}T00:00:00Z`);
+    const endDate = new Date(`${end}T00:00:00Z`);
+    while (cur <= endDate) {
+      const rpValues: DayRatePlanSnapshot[] = Object.values(snapshot[isoDate(cur)]?.ratePlans ?? {});
+      if (rpValues.some((rp) => rp.stopSell)) return true;
+      cur = addDays(cur, 1);
+    }
+    return false;
+  }, [selectedRange, snapshot]);
+
   const isSelected = useCallback(
     (ds: string) => Boolean(selectedRange && ds >= selectedRange[0] && ds <= selectedRange[1]),
     [selectedRange],
@@ -329,7 +342,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
         ...(rate !== '' ? { rate: String(rate) } : {}),
         ...(minStay !== '' ? { minStay: Number(minStay) } : {}),
         ...(maxStay !== '' ? { maxStay: Number(maxStay) } : {}),
-        ...(stopSell ? { stopSell } : {}),
+        ...(stopSell ? { stopSell: isRangeBlocked ? false : true } : {}),
         ...(closedToArrival ? { closedToArrival } : {}),
         ...(closedToDeparture ? { closedToDeparture } : {}),
       },
@@ -360,7 +373,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
       }
 
       const restrictUpdates = batchQueue
-        .filter((e) => e.ratePlanId && (e.rate !== undefined || e.minStay !== undefined || e.maxStay !== undefined || e.stopSell || e.closedToArrival || e.closedToDeparture))
+        .filter((e) => e.ratePlanId && (e.rate !== undefined || e.minStay !== undefined || e.maxStay !== undefined || e.stopSell !== undefined || e.closedToArrival || e.closedToDeparture))
         .map((e) => ({
           rate_plan_id: e.ratePlanId,
           date_from: e.dateFrom,
@@ -368,7 +381,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
           ...(e.rate !== undefined ? { rate: e.rate } : {}),
           ...(e.minStay !== undefined ? { min_stay_arrival: e.minStay } : {}),
           ...(e.maxStay !== undefined ? { max_stay: e.maxStay } : {}),
-          ...(e.stopSell ? { stop_sell: true } : {}),
+          ...(e.stopSell !== undefined ? { stop_sell: e.stopSell } : {}),
           ...(e.closedToArrival ? { closed_to_arrival: true } : {}),
           ...(e.closedToDeparture ? { closed_to_departure: true } : {}),
         }));
@@ -823,7 +836,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-content-2">Restrictions</p>
                 {[
-                  { id: 'stop_sell', label: 'Stop Sell', value: stopSell, set: setStopSell },
+                  { id: 'stop_sell', label: isRangeBlocked ? 'Sell (quitar bloqueo)' : 'Stop Sell', value: stopSell, set: setStopSell },
                   { id: 'cta', label: 'Closed to Arrival', value: closedToArrival, set: setClosedToArrival },
                   { id: 'ctd', label: 'Closed to Departure', value: closedToDeparture, set: setClosedToDeparture },
                 ].map(({ id, label, value, set }) => (

@@ -66,5 +66,5 @@ export default function AuthGate({ children }: Props) {
     return <ChangePasswordForm onDone={() => setMustChangePassword(false)} />;
   }
 
-  return <>{children}</>;
+  return <div>{children}</div>;
 }

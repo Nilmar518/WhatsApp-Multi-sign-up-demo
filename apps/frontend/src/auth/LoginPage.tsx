@@ -73,7 +73,7 @@ export default function LoginPage() {
 
           <Button type="submit" disabled={loading} className="w-full justify-center mt-1">
             {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-            {loading ? t('auth.loggingIn') : t('auth.login')}
+            <span>{loading ? t('auth.loggingIn') : t('auth.login')}</span>
           </Button>
         </form>
       </div>
