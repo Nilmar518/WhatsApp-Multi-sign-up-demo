@@ -4,6 +4,7 @@ import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import { ChannexService } from './channex.service';
 import { StoredRoomType, StoredRatePlan } from './channex-ari.service';
 import { ChannexConnectionStatus, ChannexWebhookPayload } from './channex.types';
+import { ListingPreviewProperty, SyncNameOverrides } from './channex-sync.service';
 
 const COLLECTION = 'channex_integrations';
 const BDC_EVENT_MASK =
@@ -69,7 +70,56 @@ export class ChannexBdcSyncService {
     private readonly secrets: SecretManagerService,
   ) {}
 
-  async syncBdc(propertyId: string, tenantId: string, channelId?: string): Promise<BdcSyncResult> {
+  async getBdcListingPreview(propertyId: string, channelId?: string): Promise<ListingPreviewProperty[]> {
+    let channexChannelId: string;
+    if (channelId) {
+      channexChannelId = channelId;
+    } else {
+      const channels = await this.channex.getChannels(propertyId);
+      const bdcChannel = channels.find(
+        (c) =>
+          c.attributes?.channel === 'BookingCom' ||
+          c.attributes?.channel_design_id === 'booking_com',
+      );
+      if (!bdcChannel) {
+        throw new HttpException(
+          'No Booking.com channel found for this property.',
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
+      channexChannelId = bdcChannel.id;
+    }
+
+    const channelDetails = await this.channex.getChannelDetails(channexChannelId);
+    const raw = await this.channex.getMappingDetails(channelDetails.channel, channelDetails.settings);
+    const entries = this.parseMappingDetails(raw);
+
+    const roomsMap = new Map<string, BdcMappingEntry[]>();
+    for (const entry of entries) {
+      const group = roomsMap.get(entry.otaRoomId) ?? [];
+      roomsMap.set(entry.otaRoomId, [...group, entry]);
+    }
+
+    const result: ListingPreviewProperty[] = [];
+    for (const [otaRoomId, roomEntries] of roomsMap) {
+      const first = roomEntries[0];
+      result.push({
+        id: otaRoomId,
+        propertyName: first.otaRoomTitle,
+        rooms: [
+          {
+            id: otaRoomId,
+            roomName: first.otaRoomTitle,
+            rates: roomEntries.map((e) => ({ id: e.otaRateId, rateName: e.otaRateTitle })),
+          },
+        ],
+      });
+    }
+
+    return result;
+  }
+
+  async syncBdc(propertyId: string, tenantId: string, channelId?: string, nameOverrides?: SyncNameOverrides): Promise<BdcSyncResult> {
     this.logger.log(`[BDC_SYNC] ▶ Starting — parentPropertyId=${propertyId} tenantId=${tenantId}`);
 
     // ── Step 0: Resolve BDC channel ID ────────────────────────────────────────
@@ -138,8 +188,9 @@ export class ChannexBdcSyncService {
       try {
         // ── Step A: Create isolated Channex property ─────────────────────────
         currentStep = 'A';
+        const override = nameOverrides?.[otaRoomId];
         const propResp = await this.channex.createProperty({
-          title: first.otaRoomTitle,
+          title: override?.propertyName ?? first.otaRoomTitle,
           currency: parentDoc.currency,
           timezone: parentDoc.timezone,
           property_type: 'apartment',
@@ -158,7 +209,7 @@ export class ChannexBdcSyncService {
         currentStep = 'B';
         const rtResp = await this.channex.createRoomType({
           property_id: newPropertyId,
-          title: first.otaRoomTitle,
+          title: override?.roomName ?? first.otaRoomTitle,
           count_of_rooms: 1,
           occ_adults: first.maxPersons,
           occ_children: 0,
@@ -174,10 +225,11 @@ export class ChannexBdcSyncService {
         currentStep = 'C';
         const ratePlanIds: string[] = [];
         for (const rateEntry of roomEntries) {
+          const rateName = override?.rates?.[rateEntry.otaRateId] ?? rateEntry.otaRateTitle;
           const rpResp = await this.channex.createRatePlan({
             property_id: newPropertyId,
             room_type_id: roomTypeId,
-            title: rateEntry.otaRateTitle,
+            title: rateName,
             options: [{ occupancy: rateEntry.maxPersons, is_primary: true, rate: 0 }],
           });
           const ratePlanId = rpResp.data.id;

@@ -611,22 +611,24 @@ export class ChannexARIService {
 
     const db = this.firebase.getFirestore();
 
-    // 1. Try the new flat collection first
+    // 1. Try the new flat collection first, filtered by propertyId.
+    // orderBy is omitted to avoid requiring a composite Firestore index; results
+    // are sorted in memory immediately after.
     const newSnap = await db
       .collection(INTEGRATIONS_COLLECTION)
       .doc(tenantId)
       .collection('bookings')
-      .orderBy('check_in', 'desc')
+      .where('propertyId', '==', propertyId)
       .limit(limit)
       .get();
 
     if (!newSnap.empty) {
-      const results: FirestoreReservationDoc[] = newSnap.docs.map(
-        (d) => ({ ...d.data(), id: d.id }) as unknown as FirestoreReservationDoc,
-      );
+      const results: FirestoreReservationDoc[] = newSnap.docs
+        .map((d) => ({ ...d.data(), id: d.id }) as unknown as FirestoreReservationDoc)
+        .sort((a, b) => (b.check_in ?? '').localeCompare(a.check_in ?? ''));
 
       this.logger.log(
-        `[ARI] ✓ getPropertyBookings (flat collection) — found ${results.length} bookings`,
+        `[ARI] ✓ getPropertyBookings (flat collection) — found ${results.length} bookings for propertyId=${propertyId}`,
       );
 
       return results;
@@ -827,15 +829,26 @@ export class ChannexARIService {
       room_type_id: dto.roomTypeId,
       check_in: dto.checkIn,
       check_out: dto.checkOut,
-      gross_amount: unitPrice,        // unit price — total = gross_amount × count_of_rooms
+      gross_amount: unitPrice,
+      gross_amount_rooms: unitPrice,
       currency: dto.currency ?? 'USD',
       ota_fee: 0,
       net_payout: unitPrice,
       additional_taxes: 0,
       payment_collect: 'property',
       payment_type: 'cash',
+      occ_adults: 1,
+      occ_children: 0,
+      occ_infants: 0,
       guest_first_name: dto.guestName ?? null,
       guest_last_name: null,
+      customer_phone: dto.guestPhone ?? null,
+      customer_email: null,
+      customer_country: null,
+      notes: dto.notes ?? null,
+      channel_name: null,
+      ota_unique_id: null,
+      meal_plan: null,
       whatsapp_number: null,
       created_at: now,
       updated_at: now,

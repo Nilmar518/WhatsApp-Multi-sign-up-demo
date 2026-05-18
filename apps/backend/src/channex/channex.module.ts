@@ -9,6 +9,7 @@ import { ChannexMessagingBridgeService } from './channex-messaging-bridge.servic
 import { ChannexGroupService } from './channex-group.service';
 import { ChannexSyncService } from './channex-sync.service';
 import { ChannexBdcSyncService } from './channex-bdc-sync.service';
+import { ChannexChannelManagementService } from './channex-channel-management.service';
 import { ChannexIndexCheckerService } from './channex-index-checker.service';
 import { ChannexPropertyController } from './channex-property.controller';
 import { ChannexWebhookController } from './channex-webhook.controller';
@@ -63,6 +64,7 @@ import { ChannexMessageWorker } from './workers/channex-message.worker';
     // ── Auto-Mapping & Stage/Review pipeline ─────────────────────────────────
     ChannexSyncService,
     ChannexBdcSyncService,
+    ChannexChannelManagementService,
     // ── Startup index health check ────────────────────────────────────────────
     ChannexIndexCheckerService,
     // ── Guards ───────────────────────────────────────────────────────────────

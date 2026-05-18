@@ -21,12 +21,15 @@ import { ChannexOAuthService } from './channex-oauth.service';
 import {
   ChannexSyncService,
   IsolatedSyncResult,
+  ListingPreviewProperty,
   StageSyncResult,
   CommitMappingInput,
   CommitMappingResult,
+  SyncNameOverrides,
 } from './channex-sync.service';
 import { ChannexBdcSyncService, BdcSyncResult } from './channex-bdc-sync.service';
 import { ChannexGroupService } from './channex-group.service';
+import { ChannexChannelManagementService, StoredChannelDoc } from './channex-channel-management.service';
 import { CreateChannexPropertyDto } from './dto/create-channex-property.dto';
 import { GetListingCalendarQueryDto } from './dto/get-listing-calendar.query.dto';
 import { ReplyToThreadDto } from './dto/reply-to-thread.dto';
@@ -63,6 +66,7 @@ export class ChannexPropertyController {
     private readonly bdcSyncService: ChannexBdcSyncService,
     private readonly channexService: ChannexService,
     private readonly groupService: ChannexGroupService,
+    private readonly channelMgmtService: ChannexChannelManagementService,
   ) {}
 
   /**
@@ -252,18 +256,56 @@ export class ChannexPropertyController {
   async syncProperty(
     @Param('propertyId') propertyId: string,
     @Body('tenantId') tenantId: string,
+    @Body('channelId') channelId?: string,
+    @Body('nameOverrides') nameOverrides?: SyncNameOverrides,
   ): Promise<IsolatedSyncResult> {
     this.logger.log(
-      `[CTRL] POST /channex/properties/${propertyId}/sync — tenantId=${tenantId}`,
+      `[CTRL] POST /channex/properties/${propertyId}/sync — tenantId=${tenantId} channelId=${channelId ?? 'auto'}`,
     );
 
-    const result = await this.syncService.autoSyncProperty(propertyId, tenantId);
+    const result = await this.syncService.autoSyncProperty(propertyId, tenantId, channelId, nameOverrides);
 
     this.logger.log(
       `[CTRL] ✓ Sync complete — succeeded=${result.succeeded.length} failed=${result.failed.length}`,
     );
 
     return result;
+  }
+
+  /**
+   * GET /channex/properties/:propertyId/airbnb-preview?channelId=X&tenantId=Y
+   *
+   * Returns the listing structure (property/room/rate names) for the given Airbnb channel
+   * without executing any sync side-effects. Used by the naming modal to pre-populate fields.
+   */
+  @Get(':propertyId/airbnb-preview')
+  async getAirbnbPreview(
+    @Param('propertyId') propertyId: string,
+    @Query('channelId') channelId: string | undefined,
+    @Query('tenantId') tenantId: string,
+  ): Promise<ListingPreviewProperty[]> {
+    this.logger.log(
+      `[CTRL] GET /channex/properties/${propertyId}/airbnb-preview — channelId=${channelId ?? 'auto'} tenantId=${tenantId}`,
+    );
+    return this.syncService.getAirbnbListingPreview(propertyId, channelId);
+  }
+
+  /**
+   * GET /channex/properties/:propertyId/bdc-preview?channelId=X&tenantId=Y
+   *
+   * Returns the room/rate structure for the given BDC channel without syncing.
+   * Used by the naming modal to pre-populate fields before BDC sync.
+   */
+  @Get(':propertyId/bdc-preview')
+  async getBdcPreview(
+    @Param('propertyId') propertyId: string,
+    @Query('channelId') channelId: string | undefined,
+    @Query('tenantId') tenantId: string,
+  ): Promise<ListingPreviewProperty[]> {
+    this.logger.log(
+      `[CTRL] GET /channex/properties/${propertyId}/bdc-preview — channelId=${channelId ?? 'auto'} tenantId=${tenantId}`,
+    );
+    return this.bdcSyncService.getBdcListingPreview(propertyId, channelId);
   }
 
   /**
@@ -389,6 +431,78 @@ export class ChannexPropertyController {
   }
 
   /**
+   * GET /channex/properties/channels?tenantId=X
+   *
+   * Returns all OTA channels for the tenant.
+   * Firestore-first: on first call, fetches from Channex and persists the result.
+   * Subsequent calls serve from the Firestore cache.
+   *
+   * Query:   tenantId — Migo tenant ID
+   * Returns: StoredChannelDoc[]
+   * Status:  200 OK
+   */
+  @Get('channels')
+  async getChannels(
+    @Query('tenantId') tenantId: string,
+  ): Promise<StoredChannelDoc[]> {
+    this.logger.log(`[CTRL] GET /channex/properties/channels — tenantId=${tenantId}`);
+
+    if (!tenantId) {
+      throw new BadRequestException('tenantId query parameter is required.');
+    }
+
+    return this.channelMgmtService.getChannelsForTenant(tenantId);
+  }
+
+  /**
+   * POST /channex/properties/channels/:channelId/activate?tenantId=X
+   *
+   * Activates the given OTA channel in Channex and updates Firestore.
+   * Returns 200 { status: 'ok' } or 500 if Channex does not confirm success.
+   */
+  @Post('channels/:channelId/activate')
+  @HttpCode(HttpStatus.OK)
+  async activateChannel(
+    @Param('channelId') channelId: string,
+    @Query('tenantId') tenantId: string,
+  ): Promise<{ status: string }> {
+    this.logger.log(
+      `[CTRL] POST /channex/properties/channels/${channelId}/activate — tenantId=${tenantId}`,
+    );
+
+    if (!tenantId) {
+      throw new BadRequestException('tenantId query parameter is required.');
+    }
+
+    await this.channelMgmtService.activateChannel(channelId, tenantId);
+    return { status: 'ok' };
+  }
+
+  /**
+   * POST /channex/properties/channels/:channelId/deactivate?tenantId=X
+   *
+   * Deactivates the given OTA channel in Channex and updates Firestore.
+   * Returns 200 { status: 'ok' } or 500 if Channex does not confirm success.
+   */
+  @Post('channels/:channelId/deactivate')
+  @HttpCode(HttpStatus.OK)
+  async deactivateChannel(
+    @Param('channelId') channelId: string,
+    @Query('tenantId') tenantId: string,
+  ): Promise<{ status: string }> {
+    this.logger.log(
+      `[CTRL] POST /channex/properties/channels/${channelId}/deactivate — tenantId=${tenantId}`,
+    );
+
+    if (!tenantId) {
+      throw new BadRequestException('tenantId query parameter is required.');
+    }
+
+    await this.channelMgmtService.deactivateChannel(channelId, tenantId);
+    return { status: 'ok' };
+  }
+
+  /**
    * GET /channex/properties/bdc-channels?tenantId=X
    *
    * Returns all Booking.com channels that belong to this tenant's Channex
@@ -449,12 +563,13 @@ export class ChannexPropertyController {
     @Param('propertyId') propertyId: string,
     @Body('tenantId') tenantId: string,
     @Body('channelId') channelId?: string,
+    @Body('nameOverrides') nameOverrides?: SyncNameOverrides,
   ): Promise<BdcSyncResult> {
     this.logger.log(
       `[CTRL] POST /channex/properties/${propertyId}/sync-bdc — tenantId=${tenantId} channelId=${channelId ?? 'auto'}`,
     );
 
-    const result = await this.bdcSyncService.syncBdc(propertyId, tenantId, channelId);
+    const result = await this.bdcSyncService.syncBdc(propertyId, tenantId, channelId, nameOverrides);
 
     this.logger.log(
       `[CTRL] ✓ BDC sync complete — succeeded=${result.succeeded.length} failed=${result.failed.length}`,

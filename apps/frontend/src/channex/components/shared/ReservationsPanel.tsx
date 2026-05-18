@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getPropertyBookings, pullPropertyBookings, cancelManualBooking, loadReservations, type Reservation } from '../../api/channexHubApi';
 import Button from '../../../components/ui/Button';
+import ReservationDetailModal from './ReservationDetailModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,14 +58,31 @@ function nights(checkIn: string, checkOut: string): number | null {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ReservationCard({ r, onCancel, cancellingId }: { r: Reservation; onCancel?: (pmsBookingId: string) => void; cancellingId?: string | null }) {
+function ReservationCard({
+  r,
+  onSelect,
+  onCancel,
+  cancellingId,
+}: {
+  r: Reservation;
+  onSelect: (r: Reservation) => void;
+  onCancel?: (pmsBookingId: string) => void;
+  cancellingId?: string | null;
+}) {
   const guestName = [r.guest_first_name, r.guest_last_name].filter(Boolean).join(' ')
     || r.customer_name
     || '—';
   const nightCount = r.count_of_nights ?? nights(r.check_in, r.check_out);
+  const displayAmount = (r.gross_amount_rooms ?? 0) > 0 ? r.gross_amount_rooms : r.gross_amount;
 
   return (
-    <div className="rounded-xl border border-edge bg-surface-raised px-4 py-3 shadow-sm transition-shadow hover:shadow-md">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(r)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(r); }}
+      className="rounded-xl border border-edge bg-surface-raised px-4 py-3 shadow-sm transition-shadow hover:shadow-md cursor-pointer hover:border-brand-light focus:outline-none focus:ring-2 focus:ring-brand-light"
+    >
       {/* Top row: guest + status + channel */}
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-content leading-tight">{guestName}</p>
@@ -92,21 +110,23 @@ function ReservationCard({ r, onCancel, cancellingId }: { r: Reservation; onCanc
 
       {/* Financial */}
       <div className="mt-2 flex items-center gap-3 text-xs text-content-2">
-        <span>
-          <span className="font-medium text-content">{fmt(r.net_payout, r.currency)}</span>
-          <span className="ml-1 text-content-3">net</span>
-        </span>
-        {r.ota_fee > 0 && (
+        {displayAmount > 0 && (
+          <span>
+            <span className="font-medium text-content">{fmt(displayAmount, r.currency)}</span>
+            <span className="ml-1 text-content-3">gross</span>
+          </span>
+        )}
+        {r.net_payout > 0 && r.net_payout !== displayAmount && (
           <span className="text-content-3">
-            OTA fee {fmt(r.ota_fee, r.currency)}
+            net {fmt(r.net_payout, r.currency)}
           </span>
         )}
       </div>
 
       {/* Reservation code */}
-      {r.reservation_id && (
+      {(r.ota_unique_id ?? r.reservation_id) && (
         <p className="mt-1.5 font-mono text-[10px] text-content-3 truncate">
-          {r.reservation_id}
+          {r.ota_unique_id ?? r.reservation_id}
         </p>
       )}
 
@@ -114,7 +134,7 @@ function ReservationCard({ r, onCancel, cancellingId }: { r: Reservation; onCanc
       {r.channex_booking_id === null && r.booking_status !== 'cancelled' && onCancel && r.pms_booking_id && (
         <button
           type="button"
-          onClick={() => onCancel(r.pms_booking_id!)}
+          onClick={(e) => { e.stopPropagation(); onCancel(r.pms_booking_id!); }}
           disabled={cancellingId === r.pms_booking_id}
           className="mt-2 text-xs text-danger-text hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -165,6 +185,7 @@ export default function ReservationsPanel({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [importState, setImportState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function load(silent = false) {
@@ -343,10 +364,25 @@ export default function ReservationsPanel({
       {visible.length > 0 && (
         <div className="space-y-2">
           {visible.map((r) => (
-            <ReservationCard key={r.id ?? r.reservation_id ?? r.channex_booking_id} r={r} onCancel={handleCancel} cancellingId={cancellingId} />
+            <ReservationCard
+              key={r.id ?? r.reservation_id ?? r.channex_booking_id}
+              r={r}
+              onSelect={setSelectedReservation}
+              onCancel={handleCancel}
+              cancellingId={cancellingId}
+            />
           ))}
         </div>
       )}
+
+      <ReservationDetailModal
+        reservation={selectedReservation}
+        onClose={() => setSelectedReservation(null)}
+        onNoShow={(reservation) => {
+          // No show backend integration to be implemented — placeholder for now
+          console.warn('[ReservationsPanel] No show triggered for', reservation.ota_unique_id ?? reservation.reservation_id);
+        }}
+      />
     </div>
   );
 }

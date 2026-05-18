@@ -27,7 +27,8 @@ export interface FirestoreReservationDoc {
   check_out: string;
 
   // Financial
-  gross_amount: number;            // Raw `amount` from Channex
+  gross_amount: number;            // Raw `amount` from Channex (top-level)
+  gross_amount_rooms: number;      // Sum of rooms[*].amount — more reliable for BDC
   currency: string;                // ISO 4217
   ota_fee: number;                 // ota_commission — Airbnb's cut
   net_payout: number;              // gross_amount - ota_fee
@@ -39,11 +40,31 @@ export interface FirestoreReservationDoc {
   payment_collect: string;
   payment_type: string;
 
+  // Occupancy
+  occ_adults: number;
+  occ_children: number;
+  occ_infants: number;
+
   // Guest PII — OTA-gated:
   //   guest_first_name  always present
   //   guest_last_name   Airbnb may suppress until 48h before check-in
   guest_first_name: string | null;
   guest_last_name: string | null;
+
+  // Customer contact info (BDC provides via customer object)
+  customer_phone: string | null;
+  customer_email: string | null;
+  customer_country: string | null;
+
+  // Booking notes (meal plan, smoking preference, OTA notes)
+  notes: string | null;
+
+  // OTA-specific identifiers
+  channel_name: string | null;     // e.g. "BookingCom"
+  ota_unique_id: string | null;    // e.g. "BDC-5628772431"
+
+  // Room-level extras (lead room)
+  meal_plan: string | null;
 
   // Messaging bridge (Phase 7) — filled manually by the admin via the UI
   whatsapp_number: null;
@@ -209,15 +230,59 @@ export class BookingRevisionTransformer {
     const customerName =
       typeof booking.customer_name === 'string' ? booking.customer_name : null;
 
+    // ── Rooms financial sum (BDC delivers amount per room, not at top level) ─
+    const grossAmountRooms = rooms.reduce(
+      (sum, r) => sum + toNumber((r as Record<string, unknown>).amount, 0),
+      0,
+    );
+
+    // ── Customer contact info ──────────────────────────────────────────────
+    const customer =
+      booking.customer !== null && typeof booking.customer === 'object'
+        ? (booking.customer as Record<string, unknown>)
+        : null;
+    const customerPhone =
+      typeof customer?.phone === 'string' ? customer.phone : null;
+    const customerEmail =
+      typeof customer?.mail === 'string' ? customer.mail : null;
+    const customerCountry =
+      typeof customer?.country === 'string' ? customer.country : null;
+
+    // ── Lead room extras ───────────────────────────────────────────────────
+    const leadRoomMeta =
+      leadRoom?.meta !== null && typeof leadRoom?.meta === 'object'
+        ? (leadRoom.meta as Record<string, unknown>)
+        : null;
+    const mealPlan =
+      typeof leadRoomMeta?.meal_plan === 'string' ? leadRoomMeta.meal_plan : null;
+
+    // ── OTA-level notes ────────────────────────────────────────────────────
+    const notes =
+      typeof booking.notes === 'string' ? booking.notes : null;
+
+    // ── Occupancy ──────────────────────────────────────────────────────────
+    const occAdults = toNumber(booking.occ_adults, 0);
+    const occChildren = toNumber(booking.occ_children, 0);
+    const occInfants = toNumber(booking.occ_infants, 0);
+
     const customerNameParts = customerName
       ? splitCustomerName(customerName)
       : { firstName: null, lastName: null };
 
     const reservationId =
       (typeof booking.booking_unique_id === 'string' && booking.booking_unique_id) ||
+      (typeof booking.unique_id === 'string' && booking.unique_id) ||
       (typeof booking.ota_reservation_code === 'string' && booking.ota_reservation_code) ||
       (typeof booking.booking_id === 'string' && booking.booking_id) ||
       null;
+
+    const otaUniqueId =
+      (typeof booking.unique_id === 'string' && booking.unique_id) ||
+      (typeof booking.booking_unique_id === 'string' && booking.booking_unique_id) ||
+      null;
+
+    const channelName =
+      typeof booking.channel_name === 'string' ? booking.channel_name : null;
 
     const bookingStatus =
       (typeof booking.status === 'string' && booking.status) || payload.event;
@@ -265,6 +330,7 @@ export class BookingRevisionTransformer {
 
       // Financial
       gross_amount: grossAmount,
+      gross_amount_rooms: grossAmountRooms,
       currency,
       ota_fee: otaFee,
       net_payout: netPayout,
@@ -274,9 +340,29 @@ export class BookingRevisionTransformer {
       payment_collect: (typeof booking.payment_collect === 'string' ? booking.payment_collect : 'ota') as 'ota' | 'property',
       payment_type: (typeof booking.payment_type === 'string' ? booking.payment_type : 'bank_transfer') as string,
 
+      // Occupancy
+      occ_adults: occAdults,
+      occ_children: occChildren,
+      occ_infants: occInfants,
+
       // Guest PII
       guest_first_name: guestFirstName ?? customerNameParts.firstName,
       guest_last_name: guestLastName ?? customerNameParts.lastName,
+
+      // Customer contact
+      customer_phone: customerPhone,
+      customer_email: customerEmail,
+      customer_country: customerCountry,
+
+      // Booking notes
+      notes,
+
+      // OTA identifiers
+      channel_name: channelName,
+      ota_unique_id: otaUniqueId,
+
+      // Room extras
+      meal_plan: mealPlan,
 
       // Phase 7 placeholder
       whatsapp_number: null,

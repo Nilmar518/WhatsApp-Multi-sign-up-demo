@@ -1,13 +1,25 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useChannexProperties } from '../../hooks/useChannexProperties';
-import { syncAirbnbListings, getAirbnbSessionToken, type IsolatedSyncResult } from '../../api/channexHubApi';
+import {
+  syncAirbnbListings,
+  getAirbnbPreview,
+  getAirbnbSessionToken,
+  type IsolatedSyncResult,
+  type ListingPreviewProperty,
+  type SyncNameOverrides,
+} from '../../api/channexHubApi';
 import { useAllPropertyThreads } from '../../hooks/useChannexThreads';
 import ChannexOAuthIFrame from './ChannexOAuthIFrame';
+import ChannelManagementPanel from './ChannelManagementPanel';
+import BdcChannelSelectModal from './BdcChannelSelectModal';
+import SyncNamingModal from './SyncNamingModal';
 import NoPropertyGuide from './NoPropertyGuide';
 import PropertyCard from '../shared/PropertyCard';
 import PropertyDetail from '../shared/PropertyDetail';
 import MessagesInbox from '../shared/MessagesInbox';
 import type { ChannexProperty } from '../../hooks/useChannexProperties';
+
+type SyncStep = 'idle' | 'channelSelect' | 'loadingPreview' | 'naming' | 'syncing';
 
 interface Props {
   tenantId: string;
@@ -19,8 +31,11 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
   const { properties: airbnbProperties } = useChannexProperties(tenantId, { source: 'airbnb' });
 
   const [syncResult, setSyncResult] = useState<IsolatedSyncResult | null>(null);
-  const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncStep, setSyncStep] = useState<SyncStep>('idle');
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ListingPreviewProperty[] | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [iframeReloadToken, setIframeReloadToken] = useState(0);
   const [selectedProperty, setSelectedProperty] = useState<ChannexProperty | null>(null);
   const [isOpen, setIsOpen] = useState(true);
@@ -30,7 +45,6 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
   const airbnbPropertyIds = airbnbProperties.map((p) => p.channex_property_id);
   const { threads: allThreads, loading: threadsLoading } = useAllPropertyThreads(tenantId, airbnbPropertyIds);
 
-  // Auto-collapse once when properties first appear
   useEffect(() => {
     if (!loading && airbnbProperties.length > 0 && !hasAutoCollapsed.current) {
       setIsOpen(false);
@@ -38,26 +52,54 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
     }
   }, [loading, airbnbProperties.length]);
 
-  const handleSync = useCallback(async () => {
+  const handleChannelSelected = useCallback(async (channelId: string) => {
     if (!baseProperty) return;
-    setSyncing(true);
+    setSelectedChannelId(channelId);
+    setSyncStep('loadingPreview');
+    setPreviewError(null);
+    try {
+      const data = await getAirbnbPreview(baseProperty.channex_property_id, tenantId, channelId);
+      setPreview(data);
+      setSyncStep('naming');
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Failed to load listing preview.');
+      setSyncStep('idle');
+    }
+  }, [baseProperty, tenantId]);
+
+  const handleNamingConfirmed = useCallback(async (nameOverrides: SyncNameOverrides) => {
+    if (!baseProperty || !selectedChannelId) return;
+    setSyncStep('syncing');
     setSyncError(null);
     setSyncResult(null);
     try {
-      const result = await syncAirbnbListings(baseProperty.channex_property_id, tenantId);
+      const result = await syncAirbnbListings(
+        baseProperty.channex_property_id,
+        tenantId,
+        selectedChannelId,
+        nameOverrides,
+      );
       setSyncResult(result);
     } catch (err) {
       setSyncError(err instanceof Error ? err.message : 'Sync failed. Please try again.');
     } finally {
-      setSyncing(false);
+      setSyncStep('idle');
     }
-  }, [baseProperty, tenantId]);
+  }, [baseProperty, tenantId, selectedChannelId]);
 
   const handleReconnect = useCallback(() => {
     setSyncResult(null);
     setSyncError(null);
     setIframeReloadToken((t) => t + 1);
   }, []);
+
+  const handleCloseModals = useCallback(() => {
+    setSyncStep('idle');
+    setPreview(null);
+    setSelectedChannelId(null);
+  }, []);
+
+  const syncing = syncStep === 'syncing';
 
   if (selectedProperty) {
     return (
@@ -76,8 +118,8 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
 
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
       <div className="rounded-2xl border border-edge bg-surface-raised overflow-hidden">
-        {/* Accordion header — always visible */}
         <button
           type="button"
           onClick={() => setIsOpen((v) => !v)}
@@ -112,7 +154,6 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
           </svg>
         </button>
 
-        {/* Collapsible body */}
         {isOpen && (
           <div className="border-t border-edge px-6 pb-6 pt-4">
             {loading && <p className="text-sm text-content-2">Loading properties…</p>}
@@ -129,6 +170,12 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
                   channel="ABB"
                   getToken={getAirbnbSessionToken}
                 />
+
+                {previewError && (
+                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <span className="font-semibold">Preview error: </span>{previewError}
+                  </div>
+                )}
 
                 {syncError && (
                   <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -171,11 +218,11 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
                   </button>
                   <button
                     type="button"
-                    disabled={syncing}
-                    onClick={() => void handleSync()}
+                    disabled={syncing || syncStep === 'loadingPreview'}
+                    onClick={() => setSyncStep('channelSelect')}
                     className={[
                       'inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors',
-                      syncing
+                      syncing || syncStep === 'loadingPreview'
                         ? 'cursor-not-allowed bg-surface-subtle text-content-3'
                         : 'bg-rose-600 text-white hover:bg-rose-700',
                     ].join(' ')}
@@ -184,6 +231,11 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
                       <>
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-rose-200 border-t-white" />
                         Syncing listings…
+                      </>
+                    ) : syncStep === 'loadingPreview' ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-content-3 border-t-content-2" />
+                        Loading preview…
                       </>
                     ) : (
                       'Sync Listings'
@@ -195,6 +247,26 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
           </div>
         )}
       </div>
+
+      <ChannelManagementPanel tenantId={tenantId} />
+      </div>
+
+      {syncStep === 'channelSelect' && (
+        <BdcChannelSelectModal
+          tenantId={tenantId}
+          channelType="airbnb"
+          onConfirm={(channelId) => void handleChannelSelected(channelId)}
+          onClose={handleCloseModals}
+        />
+      )}
+
+      {syncStep === 'naming' && preview && (
+        <SyncNamingModal
+          preview={preview}
+          onConfirm={(overrides) => void handleNamingConfirmed(overrides)}
+          onClose={handleCloseModals}
+        />
+      )}
 
       {airbnbProperties.length > 0 && (
         <>

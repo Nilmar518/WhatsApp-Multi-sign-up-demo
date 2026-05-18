@@ -1,25 +1,35 @@
 import { useState, useEffect } from 'react';
-import { getBdcChannels, type BdcChannel } from '../../api/channexHubApi';
+import { getChannels, type StoredChannel } from '../../api/channexHubApi';
 
 interface Props {
   tenantId: string;
+  channelType: 'airbnb' | 'booking';
   onConfirm: (channelId: string) => void;
   onClose: () => void;
 }
 
-export default function BdcChannelSelectModal({ tenantId, onConfirm, onClose }: Props) {
-  const [channels, setChannels] = useState<BdcChannel[]>([]);
+function matchesType(ch: StoredChannel, channelType: 'airbnb' | 'booking'): boolean {
+  const code = ch.channel_code.trim().toLowerCase();
+  if (channelType === 'airbnb') return code === 'abb' || code.includes('airbnb');
+  return code === 'bookingcom' || code === 'booking_com' || code.includes('booking');
+}
+
+export default function BdcChannelSelectModal({ tenantId, channelType, onConfirm, onClose }: Props) {
+  const [channels, setChannels] = useState<StoredChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
+  const title = channelType === 'airbnb' ? 'Select Airbnb Channel' : 'Select Booking.com Channel';
+
   const fetchChannels = () => {
     setLoading(true);
     setError(null);
-    getBdcChannels(tenantId)
+    getChannels(tenantId)
       .then((data) => {
-        setChannels(data);
-        if (data.length === 1) setSelected(data[0].id);
+        const filtered = data.filter((ch) => matchesType(ch, channelType));
+        setChannels(filtered);
+        if (filtered.length === 1) setSelected(filtered[0].channel_id);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load channels.'))
       .finally(() => setLoading(false));
@@ -28,13 +38,13 @@ export default function BdcChannelSelectModal({ tenantId, onConfirm, onClose }: 
   useEffect(() => {
     fetchChannels();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId]);
+  }, [tenantId, channelType]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-sm rounded-2xl border border-edge bg-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-edge px-5 py-4">
-          <h2 className="text-base font-semibold text-content">Select Booking.com Channel</h2>
+          <h2 className="text-base font-semibold text-content">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -69,20 +79,20 @@ export default function BdcChannelSelectModal({ tenantId, onConfirm, onClose }: 
           )}
 
           {!loading && !error && channels.length === 0 && (
-            <p className="text-sm text-content-2">No Booking.com channels found.</p>
+            <p className="text-sm text-content-2">No channels found. Connect a channel via the IFrame first.</p>
           )}
 
           {!loading && !error && channels.length > 0 && (
             <ul className="space-y-2">
               {channels.map((ch) => (
-                <li key={ch.id}>
+                <li key={ch.channel_id}>
                   <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-edge px-4 py-3 hover:bg-surface-subtle transition-colors has-[:checked]:border-brand has-[:checked]:bg-brand/5">
                     <input
                       type="radio"
-                      name="bdc-channel"
-                      value={ch.id}
-                      checked={selected === ch.id}
-                      onChange={() => setSelected(ch.id)}
+                      name="channel-select"
+                      value={ch.channel_id}
+                      checked={selected === ch.channel_id}
+                      onChange={() => setSelected(ch.channel_id)}
                       className="accent-brand"
                     />
                     <span className="text-sm font-medium text-content">{ch.title}</span>
@@ -113,7 +123,7 @@ export default function BdcChannelSelectModal({ tenantId, onConfirm, onClose }: 
                   : 'cursor-not-allowed bg-surface-subtle text-content-3',
               ].join(' ')}
             >
-              Sync
+              Next
             </button>
           )}
         </div>

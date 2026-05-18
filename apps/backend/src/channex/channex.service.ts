@@ -1834,6 +1834,61 @@ export class ChannexService {
   }
 
   /**
+   * POST /api/v1/channels/{channelId}/activate
+   *
+   * User-triggered channel enable via the management panel.
+   * Distinct from activateChannel() (which uses PUT is_active=true for the sync pipeline).
+   * Response: { meta: { message: 'Success' } }
+   */
+  async enableChannel(channelId: string): Promise<void> {
+    this.logger.log(`[CHANNEX] Enabling channel (POST /activate) — channelId=${channelId}`);
+
+    try {
+      const response = await this.defLogger.request<{ meta: { message: string } }>({
+        method: 'POST',
+        url: `${this.baseUrl}/channels/${encodeURIComponent(channelId)}/activate`,
+        headers: this.buildAuthHeaders(),
+        data: {},
+      });
+
+      if (response?.meta?.message !== 'Success') {
+        throw new Error(`Channex activate returned unexpected message: ${response?.meta?.message}`);
+      }
+
+      this.logger.log(`[CHANNEX] ✓ Channel enabled — channelId=${channelId}`);
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
+   * POST /api/v1/channels/{channelId}/deactivate
+   *
+   * User-triggered channel disable via the management panel.
+   * Response: { meta: { message: 'Success' } }
+   */
+  async disableChannel(channelId: string): Promise<void> {
+    this.logger.log(`[CHANNEX] Disabling channel (POST /deactivate) — channelId=${channelId}`);
+
+    try {
+      const response = await this.defLogger.request<{ meta: { message: string } }>({
+        method: 'POST',
+        url: `${this.baseUrl}/channels/${encodeURIComponent(channelId)}/deactivate`,
+        headers: this.buildAuthHeaders(),
+        data: { send_notification: false },
+      });
+
+      if (response?.meta?.message !== 'Success') {
+        throw new Error(`Channex deactivate returned unexpected message: ${response?.meta?.message}`);
+      }
+
+      this.logger.log(`[CHANNEX] ✓ Channel disabled — channelId=${channelId}`);
+    } catch (err) {
+      this.normaliseError(err);
+    }
+  }
+
+  /**
    * Known Channex application UUIDs.
    * These are stable identifiers assigned by Channex — use instead of application_code.
    */

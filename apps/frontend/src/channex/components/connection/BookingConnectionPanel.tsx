@@ -5,16 +5,23 @@ import { useChannexProperties } from '../../hooks/useChannexProperties';
 import {
   getAirbnbSessionToken,
   syncBdcListings,
+  getBdcPreview,
   type BdcSyncResult,
+  type ListingPreviewProperty,
+  type SyncNameOverrides,
 } from '../../api/channexHubApi';
 import { useAllPropertyThreads } from '../../hooks/useChannexThreads';
 import PropertyCard from '../shared/PropertyCard';
 import PropertyDetail from '../shared/PropertyDetail';
 import MessagesInbox from '../shared/MessagesInbox';
 import ChannexOAuthIFrame from './ChannexOAuthIFrame';
+import ChannelManagementPanel from './ChannelManagementPanel';
 import NoPropertyGuide from './NoPropertyGuide';
 import BdcChannelSelectModal from './BdcChannelSelectModal';
+import SyncNamingModal from './SyncNamingModal';
 import type { ChannexProperty } from '../../hooks/useChannexProperties';
+
+type SyncStep = 'idle' | 'channelSelect' | 'loadingPreview' | 'naming' | 'syncing';
 
 interface Props {
   tenantId: string;
@@ -25,16 +32,17 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
   const { properties: allProperties, loading } = useChannexProperties(tenantId);
   const { properties: bookingProperties } = useChannexProperties(tenantId, { source: 'booking' });
   const [selectedProperty, setSelectedProperty] = useState<ChannexProperty | null>(null);
-  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<BdcSyncResult | null>(null);
   const [isOpen, setIsOpen] = useState(true);
-  const [showChannelModal, setShowChannelModal] = useState(false);
+  const [syncStep, setSyncStep] = useState<SyncStep>('idle');
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ListingPreviewProperty[] | null>(null);
   const [iframeReloadToken, setIframeReloadToken] = useState(0);
   const hasAutoCollapsed = useRef(false);
 
   const baseProperty = allProperties[0] ?? null;
-  const isLocked = syncing;
   const bookingPropertyIds = bookingProperties.map((p) => p.channex_property_id);
   const { threads: allThreads, loading: threadsLoading } = useAllPropertyThreads(tenantId, bookingPropertyIds);
 
@@ -45,27 +53,54 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
     }
   }, [loading, bookingProperties.length]);
 
-  const handleSyncConfirmed = useCallback(async (channelId: string) => {
+  const handleChannelSelected = useCallback(async (channelId: string) => {
     if (!baseProperty) return;
-    setShowChannelModal(false);
-    setSyncing(true);
+    setSelectedChannelId(channelId);
+    setSyncStep('loadingPreview');
+    setPreviewError(null);
+    try {
+      const data = await getBdcPreview(baseProperty.channex_property_id, tenantId, channelId);
+      setPreview(data);
+      setSyncStep('naming');
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Failed to load room preview.');
+      setSyncStep('idle');
+    }
+  }, [baseProperty, tenantId]);
+
+  const handleNamingConfirmed = useCallback(async (nameOverrides: SyncNameOverrides) => {
+    if (!baseProperty || !selectedChannelId) return;
+    setSyncStep('syncing');
     setError(null);
     setSyncResult(null);
     try {
-      const result = await syncBdcListings(baseProperty.channex_property_id, tenantId, channelId);
+      const result = await syncBdcListings(
+        baseProperty.channex_property_id,
+        tenantId,
+        selectedChannelId,
+        nameOverrides,
+      );
       setSyncResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed.');
     } finally {
-      setSyncing(false);
+      setSyncStep('idle');
     }
-  }, [baseProperty, tenantId]);
+  }, [baseProperty, tenantId, selectedChannelId]);
 
   const handleReconnect = useCallback(() => {
     setError(null);
     setSyncResult(null);
     setIframeReloadToken((t) => t + 1);
   }, []);
+
+  const handleCloseModals = useCallback(() => {
+    setSyncStep('idle');
+    setPreview(null);
+    setSelectedChannelId(null);
+  }, []);
+
+  const syncing = syncStep === 'syncing';
 
   if (selectedProperty) {
     return (
@@ -84,6 +119,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
 
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
       <div className="rounded-2xl border border-edge bg-surface-raised overflow-hidden">
         {/* Accordion header */}
         <button
@@ -138,6 +174,12 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
                   getToken={getAirbnbSessionToken}
                 />
 
+                {previewError && (
+                  <div className="mt-3 rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
+                    <span className="font-semibold">Preview error: </span>{previewError}
+                  </div>
+                )}
+
                 {error && (
                   <div className="mt-3 rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
                     <span className="font-semibold">Error: </span>{error}
@@ -145,8 +187,26 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
                 )}
 
                 {syncResult && (
-                  <div className="mt-3 rounded-xl border border-ok-text/20 bg-ok-bg px-4 py-3 text-sm font-medium text-ok-text">
-                    Sync complete — {syncResult.roomTypesCreated} room type(s) and {syncResult.ratePlansCreated} rate plan(s) synced.
+                  <div
+                    className={[
+                      'mt-3 rounded-xl border px-4 py-3 text-sm',
+                      syncResult.failed.length === 0
+                        ? 'border-ok-text/20 bg-ok-bg text-ok-text'
+                        : 'border-yellow-200 bg-yellow-50 text-yellow-800',
+                    ].join(' ')}
+                  >
+                    <p className="font-semibold">
+                      {syncResult.succeeded.length} room{syncResult.succeeded.length !== 1 ? 's' : ''} synced
+                      {syncResult.failed.length > 0 && `, ${syncResult.failed.length} failed`}
+                    </p>
+                    {syncResult.succeeded.map((s) => (
+                      <p key={s.channexPropertyId} className="mt-0.5">• {s.otaRoomTitle}</p>
+                    ))}
+                    {syncResult.failed.map((f) => (
+                      <p key={f.otaRoomId} className="mt-0.5 text-red-700">
+                        • {f.otaRoomTitle}: {f.reason} (step {f.step})
+                      </p>
+                    ))}
                   </div>
                 )}
 
@@ -160,11 +220,11 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
                   </button>
                   <button
                     type="button"
-                    disabled={isLocked}
-                    onClick={() => setShowChannelModal(true)}
+                    disabled={syncing || syncStep === 'loadingPreview'}
+                    onClick={() => setSyncStep('channelSelect')}
                     className={[
                       'inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors',
-                      isLocked
+                      syncing || syncStep === 'loadingPreview'
                         ? 'cursor-not-allowed bg-surface-subtle text-content-3'
                         : 'bg-brand text-white hover:opacity-80',
                     ].join(' ')}
@@ -173,6 +233,11 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
                       <>
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                         Syncing…
+                      </>
+                    ) : syncStep === 'loadingPreview' ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-content-3 border-t-content-2" />
+                        Loading preview…
                       </>
                     ) : (
                       'Sync Rooms & Rates'
@@ -185,11 +250,23 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
         )}
       </div>
 
-      {showChannelModal && (
+      <ChannelManagementPanel tenantId={tenantId} />
+      </div>
+
+      {syncStep === 'channelSelect' && (
         <BdcChannelSelectModal
           tenantId={tenantId}
-          onConfirm={handleSyncConfirmed}
-          onClose={() => setShowChannelModal(false)}
+          channelType="booking"
+          onConfirm={(channelId) => void handleChannelSelected(channelId)}
+          onClose={handleCloseModals}
+        />
+      )}
+
+      {syncStep === 'naming' && preview && (
+        <SyncNamingModal
+          preview={preview}
+          onConfirm={(overrides) => void handleNamingConfirmed(overrides)}
+          onClose={handleCloseModals}
         />
       )}
 

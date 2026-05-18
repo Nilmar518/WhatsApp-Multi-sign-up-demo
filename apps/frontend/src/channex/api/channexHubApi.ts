@@ -268,14 +268,25 @@ export interface Reservation {
   check_in: string;
   check_out: string;
   gross_amount: number;
+  gross_amount_rooms: number;
   currency: string;
   ota_fee: number;
   net_payout: number;
   additional_taxes: number;
   payment_collect: string;
   payment_type: string;
+  occ_adults: number;
+  occ_children: number;
+  occ_infants: number;
   guest_first_name: string | null;
   guest_last_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
+  customer_country: string | null;
+  notes: string | null;
+  channel_name: string | null;
+  ota_unique_id: string | null;
+  meal_plan: string | null;
   whatsapp_number: null;
   created_at: string;
   updated_at: string;
@@ -445,10 +456,16 @@ export interface IsolatedSyncResult {
 export async function syncAirbnbListings(
   propertyId: string,
   tenantId: string,
+  channelId?: string,
+  nameOverrides?: SyncNameOverrides,
 ): Promise<IsolatedSyncResult> {
   return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/sync`, {
     method: 'POST',
-    body: JSON.stringify({ tenantId }),
+    body: JSON.stringify({
+      tenantId,
+      ...(channelId ? { channelId } : {}),
+      ...(nameOverrides ? { nameOverrides } : {}),
+    }),
   });
 }
 
@@ -464,22 +481,101 @@ export async function getBdcChannels(tenantId: string): Promise<BdcChannel[]> {
   return apiFetch(`${BASE}/properties/bdc-channels?${params}`);
 }
 
-export interface BdcSyncResult {
+export interface IsolatedBdcResult {
+  otaRoomId: string;
+  otaRoomTitle: string;
   channexPropertyId: string;
+  roomTypeId: string;
+  ratePlanIds: string[];
+  webhookId: string | null;
+}
+
+export interface IsolatedBdcFailure {
+  otaRoomId: string;
+  otaRoomTitle: string;
+  step: 'A' | 'B' | 'C' | 'D' | 'E';
+  reason: string;
+}
+
+export interface BdcSyncResult {
   channexChannelId: string;
-  webhookId: string | undefined;
-  roomTypesCreated: number;
-  ratePlansCreated: number;
-  mappingsCreated: number;
+  succeeded: IsolatedBdcResult[];
+  failed: IsolatedBdcFailure[];
+}
+
+// ─── Listing Preview (naming modal) ──────────────────────────────────────────
+
+export interface ListingPreviewRate { id: string; rateName: string; }
+export interface ListingPreviewRoom { id: string; roomName: string; rates: ListingPreviewRate[]; }
+export interface ListingPreviewProperty { id: string; propertyName: string; rooms: ListingPreviewRoom[]; }
+export interface SyncNameOverride { propertyName?: string; roomName?: string; rates?: Record<string, string>; }
+export type SyncNameOverrides = Record<string, SyncNameOverride>;
+
+export async function getAirbnbPreview(
+  propertyId: string,
+  tenantId: string,
+  channelId?: string,
+): Promise<ListingPreviewProperty[]> {
+  const params = new URLSearchParams({ tenantId });
+  if (channelId) params.set('channelId', channelId);
+  return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/airbnb-preview?${params}`);
+}
+
+export async function getBdcPreview(
+  propertyId: string,
+  tenantId: string,
+  channelId?: string,
+): Promise<ListingPreviewProperty[]> {
+  const params = new URLSearchParams({ tenantId });
+  if (channelId) params.set('channelId', channelId);
+  return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/bdc-preview?${params}`);
+}
+
+// ─── Channel Management ───────────────────────────────────────────────────────
+
+export interface StoredChannel {
+  channel_id: string;
+  title: string;
+  channel_code: string;
+  status: string;
+  is_active: boolean;
+  synced_at: string;
+  updated_at?: string;
+}
+
+export async function getChannels(tenantId: string): Promise<StoredChannel[]> {
+  const params = new URLSearchParams({ tenantId });
+  return apiFetch(`${BASE}/properties/channels?${params}`);
+}
+
+export async function activateChannel(channelId: string, tenantId: string): Promise<void> {
+  const params = new URLSearchParams({ tenantId });
+  await apiFetch(
+    `${BASE}/properties/channels/${encodeURIComponent(channelId)}/activate?${params}`,
+    { method: 'POST' },
+  );
+}
+
+export async function deactivateChannel(channelId: string, tenantId: string): Promise<void> {
+  const params = new URLSearchParams({ tenantId });
+  await apiFetch(
+    `${BASE}/properties/channels/${encodeURIComponent(channelId)}/deactivate?${params}`,
+    { method: 'POST' },
+  );
 }
 
 export async function syncBdcListings(
   propertyId: string,
   tenantId: string,
   channelId?: string,
+  nameOverrides?: SyncNameOverrides,
 ): Promise<BdcSyncResult> {
   return apiFetch(`${BASE}/properties/${encodeURIComponent(propertyId)}/sync-bdc`, {
     method: 'POST',
-    body: JSON.stringify({ tenantId, ...(channelId ? { channelId } : {}) }),
+    body: JSON.stringify({
+      tenantId,
+      ...(channelId ? { channelId } : {}),
+      ...(nameOverrides ? { nameOverrides } : {}),
+    }),
   });
 }

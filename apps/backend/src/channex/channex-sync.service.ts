@@ -135,6 +135,36 @@ export interface IsolatedSyncResult {
   failed: IsolatedListingFailure[];
 }
 
+// ─── Listing Preview (pre-sync naming modal) ──────────────────────────────
+
+export interface ListingPreviewRate {
+  id: string;
+  rateName: string;
+}
+
+export interface ListingPreviewRoom {
+  id: string;
+  roomName: string;
+  rates: ListingPreviewRate[];
+}
+
+export interface ListingPreviewProperty {
+  id: string;
+  propertyName: string;
+  rooms: ListingPreviewRoom[];
+}
+
+/** Maps OTA entity ID → custom names. Missing keys fall back to listing defaults. */
+export interface SyncNameOverride {
+  propertyName?: string;
+  roomName?: string;
+  rates?: Record<string, string>;
+}
+
+export type SyncNameOverrides = Record<string, SyncNameOverride>;
+
+// ─── Internal ────────────────────────────────────────────────────────────────
+
 interface ValidatedListingSeed {
   listingId: string;
   listingTitle: string;
@@ -257,17 +287,48 @@ export class ChannexSyncService {
    * @param propertyId  Parent Channex property UUID (OAuth was completed here)
    * @param tenantId    Migo tenant ID (logging only)
    */
+  /**
+   * Returns the listing structure for the given Airbnb channel without syncing.
+   * Used by the frontend naming modal to pre-populate property/room/rate names.
+   */
+  async getAirbnbListingPreview(
+    propertyId: string,
+    channelId?: string,
+  ): Promise<ListingPreviewProperty[]> {
+    const resolvedChannelId = channelId ?? await this.resolveAirbnbChannelId(propertyId);
+    const seeds = await this.preflightValidateListings(resolvedChannelId);
+
+    return seeds.map((seed) => ({
+      id: seed.listingId,
+      propertyName: seed.listingTitle,
+      rooms: [
+        {
+          id: seed.listingId,
+          roomName: seed.listingTitle,
+          rates: [
+            {
+              id: seed.listingId,
+              rateName: `${seed.listingTitle} — Standard`,
+            },
+          ],
+        },
+      ],
+    }));
+  }
+
   async autoSyncProperty(
     propertyId: string,
     tenantId: string,
+    channelId?: string,
+    nameOverrides?: SyncNameOverrides,
   ): Promise<IsolatedSyncResult> {
     this.logger.log(
       `[SYNC:1:1] Starting — parentPropertyId=${propertyId} tenantId=${tenantId}`,
     );
 
     // ── Step 0: Resolve Airbnb channel + validated listing seeds ─────────
-    const channelId = await this.resolveAirbnbChannelId(propertyId);
-    const validatedSeeds = await this.preflightValidateListings(channelId);
+    const resolvedChannelId = channelId ?? await this.resolveAirbnbChannelId(propertyId);
+    const validatedSeeds = await this.preflightValidateListings(resolvedChannelId);
 
     // Read parent doc for timezone / groupId / currency fallback
     const parentDoc = await this.resolveParentIntegrationDoc(propertyId);
@@ -283,8 +344,9 @@ export class ChannexSyncService {
       try {
         // ── Step A: Create isolated Channex property ─────────────────────
         currentStep = 'A';
+        const override = nameOverrides?.[seed.listingId];
         const propResp = await this.channex.createProperty({
-          title: seed.listingTitle,
+          title: override?.propertyName ?? seed.listingTitle,
           currency: seed.currency ?? parentDoc.currency,
           timezone: parentDoc.timezone,
           property_type: 'apartment',
@@ -303,7 +365,7 @@ export class ChannexSyncService {
         currentStep = 'B';
         const rtResp = await this.channex.createRoomType({
           property_id: newPropertyId,
-          title: seed.listingTitle,
+          title: override?.roomName ?? seed.listingTitle,
           count_of_rooms: 1,
           default_occupancy: seed.capacity,
           occ_adults: seed.capacity,
@@ -317,10 +379,11 @@ export class ChannexSyncService {
 
         // ── Step C: Create Rate Plan under new property ───────────────────
         currentStep = 'C';
+        const rateName = override?.rates?.[seed.listingId] ?? `${seed.listingTitle} — Standard`;
         const rpResp = await this.channex.createRatePlan({
           property_id: newPropertyId,
           room_type_id: roomTypeId,
-          title: `${seed.listingTitle} — Standard`,
+          title: rateName,
           currency: seed.currency,
           options: [
             {
@@ -338,7 +401,7 @@ export class ChannexSyncService {
         // ── Step D: Inject Channel Mapping on the parent Airbnb channel ───
         currentStep = 'D';
         const { alreadyMapped, channelRatePlanId } =
-          await this.channex.createChannelMapping(channelId, {
+          await this.channex.createChannelMapping(resolvedChannelId, {
             rate_plan_id: ratePlanId,
             settings: { listing_id: seed.listingId },
           });
@@ -366,7 +429,7 @@ export class ChannexSyncService {
           channexPropertyId: newPropertyId,
           roomTypeId,
           ratePlanId,
-          channelId,
+          channelId: resolvedChannelId,
           channelRatePlanId: channelRatePlanId ?? ratePlanId,
           defaultPrice: seed.price,
           currency: seed.currency,
@@ -407,8 +470,8 @@ export class ChannexSyncService {
     if (succeeded.length > 0) {
       // Activate the parent Airbnb channel (non-fatal — at least one listing provisioned)
       try {
-        await this.channex.activateChannelAction(channelId);
-        this.logger.log(`[SYNC:1:1] ✓ Channel activated — channelId=${channelId}`);
+        await this.channex.activateChannelAction(resolvedChannelId);
+        this.logger.log(`[SYNC:1:1] ✓ Channel activated — channelId=${resolvedChannelId}`);
       } catch (err) {
         this.logger.warn(
           `[SYNC:1:1] Channel activation failed (non-fatal): ${(err as Error).message}`,
@@ -416,11 +479,11 @@ export class ChannexSyncService {
       }
 
       // Pull historical Airbnb reservations (non-fatal)
-      await this.channex.loadFutureReservations(channelId);
+      await this.channex.loadFutureReservations(resolvedChannelId);
 
       // Seed 2-year ARI window for each successfully provisioned property
       for (const listing of succeeded) {
-        await this.unlockCalendarAndSeedAri(channelId, listing.channexPropertyId, [
+        await this.unlockCalendarAndSeedAri(resolvedChannelId, listing.channexPropertyId, [
           {
             roomTypeId: listing.roomTypeId,
             ratePlanId: listing.ratePlanId,
@@ -432,7 +495,7 @@ export class ChannexSyncService {
     }
 
     // ── Persist results to Firestore ─────────────────────────────────────
-    await this.persistIsolatedSyncResults(propertyId, channelId, succeeded, failed);
+    await this.persistIsolatedSyncResults(propertyId, resolvedChannelId, succeeded, failed);
 
     this.logger.log(
       `[SYNC:1:1] ✓ Complete — parentPropertyId=${propertyId} succeeded=${succeeded.length} failed=${failed.length}`,
