@@ -14,6 +14,9 @@ type InnerTab = 'rooms' | 'ari' | 'reservations' | 'messages';
 interface Props {
   property: ChannexProperty;
   tenantId: string;
+  initialTab?: InnerTab;
+  initialBookingId?: string;
+  initialThreadId?: string;
 }
 
 function HealthRow({ label, ok, detail }: { label: string; ok: boolean; detail?: string }) {
@@ -28,9 +31,9 @@ function HealthRow({ label, ok, detail }: { label: string; ok: boolean; detail?:
   );
 }
 
-export default function PropertyDetail({ property, tenantId }: Props) {
+export default function PropertyDetail({ property, tenantId, initialTab, initialBookingId, initialThreadId }: Props) {
   const { t } = useLanguage();
-  const [innerTab, setInnerTab] = useState<InnerTab>('rooms');
+  const [innerTab, setInnerTab] = useState<InnerTab>(initialTab ?? 'rooms');
   const [syncing, setSyncing] = useState(false);
   const { threads, loading: threadsLoading } = usePropertyThreads(tenantId, property.channex_property_id);
   const [healthResult, setHealthResult] = useState<ConnectionHealthResult | null>(null);
@@ -54,7 +57,7 @@ export default function PropertyDetail({ property, tenantId }: Props) {
     <div>
       {/* Property header */}
       <div className="mb-5 rounded-2xl border border-edge bg-surface-raised px-5 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-content">{property.title}</h2>
             <p className="mt-0.5 font-mono text-xs text-content-2">{property.channex_property_id}</p>
@@ -121,7 +124,7 @@ export default function PropertyDetail({ property, tenantId }: Props) {
       </div>
 
       {/* Inner tabs */}
-      <div className="mb-4 flex gap-0 border-b border-edge">
+      <div className="mb-4 flex overflow-x-auto whitespace-nowrap gap-0 border-b border-edge">
         {([
           { id: 'rooms' as InnerTab, label: t('channex.detail.tab.rooms') },
           { id: 'ari' as InnerTab, label: t('channex.detail.tab.ari') },
@@ -163,6 +166,7 @@ export default function PropertyDetail({ property, tenantId }: Props) {
         <ReservationsPanel
           propertyId={property.channex_property_id}
           tenantId={tenantId}
+          initialBookingId={initialBookingId}
         />
       )}
 
@@ -171,6 +175,7 @@ export default function PropertyDetail({ property, tenantId }: Props) {
           tenantId={tenantId}
           threads={threads}
           loading={threadsLoading}
+          initialThreadId={initialThreadId}
         />
       )}
     </div>

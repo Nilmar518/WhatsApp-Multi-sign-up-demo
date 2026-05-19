@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import type { Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 
@@ -9,6 +9,7 @@ export interface ChannexThread {
   tenantId: string;
   guestName: string;
   lastMessage: string | null;
+  lastMessageSender: 'host' | 'guest' | null;
   updatedAt: Timestamp | null;
   bookingId: string | null;
   isInquiry: boolean;
@@ -17,14 +18,72 @@ export interface ChannexThread {
   checkoutDate: string | null;
 }
 
-function mapDoc(doc: { id: string; data(): Record<string, unknown> }, fallbackPropertyId: string, fallbackTenantId: string): ChannexThread {
+function resolveGuestName(d: Record<string, unknown>): string {
+  const stored = d.guestName as string | undefined;
+  if (stored && stored !== 'Unknown Guest') return stored;
+  const bd = d.bookingDetails as Record<string, unknown> | undefined;
+  const fromBooking = bd?.guest_name as string | undefined;
+  if (fromBooking && fromBooking !== 'Unknown Guest') return fromBooking;
+  return 'Unknown Guest';
+}
+
+function nameFromBookingDoc(d: Record<string, unknown>): string | null {
+  const customerName = (d.customer_name as string | null | undefined)?.trim();
+  if (customerName) return customerName;
+  const first = ((d.guest_first_name as string | null | undefined) ?? '').trim();
+  const last = ((d.guest_last_name as string | null | undefined) ?? '').trim();
+  const full = [first, last].filter(Boolean).join(' ');
+  return full || null;
+}
+
+async function enrichWithBookingNames(
+  threads: ChannexThread[],
+  tenantId: string,
+): Promise<Map<string, string>> {
+  const toEnrich = threads.filter((t) => t.guestName === 'Unknown Guest' && t.bookingId);
+  if (!toEnrich.length) return new Map();
+
+  const results = await Promise.all(
+    toEnrich.map(async (t) => {
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, 'channex_integrations', tenantId, 'bookings'),
+            where('channex_booking_id', '==', t.bookingId),
+            limit(1),
+          ),
+        );
+        if (!snap.empty) {
+          const name = nameFromBookingDoc(snap.docs[0].data() as Record<string, unknown>);
+          if (name) return { id: t.id, name };
+        }
+      } catch {
+        // silently skip — thread keeps 'Unknown Guest'
+      }
+      return null;
+    }),
+  );
+
+  const map = new Map<string, string>();
+  for (const r of results) {
+    if (r) map.set(r.id, r.name);
+  }
+  return map;
+}
+
+function mapDoc(
+  doc: { id: string; data(): Record<string, unknown> },
+  fallbackPropertyId: string,
+  fallbackTenantId: string,
+): ChannexThread {
   const d = doc.data();
   return {
     id: doc.id,
     propertyId: (d.propertyId as string) ?? fallbackPropertyId,
     tenantId: (d.tenantId as string) ?? fallbackTenantId,
-    guestName: (d.guestName as string) ?? 'Unknown Guest',
+    guestName: resolveGuestName(d),
     lastMessage: (d.lastMessage as string | null) ?? null,
+    lastMessageSender: (d.lastMessageSender as 'host' | 'guest' | null) ?? null,
     updatedAt: (d.updatedAt as Timestamp | null) ?? null,
     bookingId: (d.bookingId as string | null) ?? null,
     isInquiry: (d.isInquiry as boolean) ?? false,
@@ -38,6 +97,7 @@ function mapDoc(doc: { id: string; data(): Record<string, unknown> }, fallbackPr
 export function usePropertyThreads(tenantId: string, propertyId: string) {
   const [threads, setThreads] = useState<ChannexThread[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nameOverrides, setNameOverrides] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (!tenantId || !propertyId) {
@@ -63,7 +123,27 @@ export function usePropertyThreads(tenantId: string, propertyId: string) {
     return () => unsub();
   }, [tenantId, propertyId]);
 
-  return { threads, loading };
+  // Stable key: only threads still showing Unknown Guest with a bookingId
+  const unknownKey = threads
+    .filter((t) => t.guestName === 'Unknown Guest' && t.bookingId)
+    .map((t) => t.id)
+    .join(',');
+
+  useEffect(() => {
+    if (!unknownKey || !tenantId) return;
+    void enrichWithBookingNames(threads, tenantId).then((overrides) => {
+      if (overrides.size > 0) {
+        setNameOverrides((prev) => new Map([...prev, ...overrides]));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unknownKey, tenantId]);
+
+  const enrichedThreads = threads.map((t) =>
+    nameOverrides.has(t.id) ? { ...t, guestName: nameOverrides.get(t.id)! } : t,
+  );
+
+  return { threads: enrichedThreads, loading };
 }
 
 /**
@@ -74,8 +154,8 @@ export function usePropertyThreads(tenantId: string, propertyId: string) {
 export function useAllPropertyThreads(tenantId: string, propertyIds: string[]) {
   const [threadsByProperty, setThreadsByProperty] = useState<Map<string, ChannexThread[]>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [nameOverrides, setNameOverrides] = useState<Map<string, string>>(new Map());
 
-  // Stable dep: sorted join so array order / reference changes don't re-trigger
   const idsKey = [...propertyIds].sort().join(',');
 
   useEffect(() => {
@@ -116,9 +196,28 @@ export function useAllPropertyThreads(tenantId: string, propertyIds: string[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, idsKey]);
 
-  const threads = Array.from(threadsByProperty.values())
+  const allThreads = Array.from(threadsByProperty.values())
     .flat()
     .sort((a, b) => (b.updatedAt?.toMillis() ?? 0) - (a.updatedAt?.toMillis() ?? 0));
 
-  return { threads, loading };
+  const unknownKey = allThreads
+    .filter((t) => t.guestName === 'Unknown Guest' && t.bookingId)
+    .map((t) => t.id)
+    .join(',');
+
+  useEffect(() => {
+    if (!unknownKey || !tenantId) return;
+    void enrichWithBookingNames(allThreads, tenantId).then((overrides) => {
+      if (overrides.size > 0) {
+        setNameOverrides((prev) => new Map([...prev, ...overrides]));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unknownKey, tenantId]);
+
+  const enrichedThreads = allThreads.map((t) =>
+    nameOverrides.has(t.id) ? { ...t, guestName: nameOverrides.get(t.id)! } : t,
+  );
+
+  return { threads: enrichedThreads, loading };
 }

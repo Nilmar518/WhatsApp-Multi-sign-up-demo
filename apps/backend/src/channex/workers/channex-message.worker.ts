@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { FirebaseService } from '../../firebase/firebase.service';
 import { ChannexPropertyService } from '../channex-property.service';
 import type { ChannexWebhookFullPayload } from '../channex.types';
+import { normalizeSender } from '../utils/normalize-sender';
 
 const INTEGRATIONS_COLLECTION = 'channex_integrations';
 const PROPERTIES_SUB_COLLECTION = 'properties';
@@ -87,7 +88,8 @@ export class ChannexMessageWorker {
         ? ((msg.meta as Record<string, unknown>).name as string)
         : 'Unknown Guest';
     const messageText = typeof msg.message === 'string' ? msg.message : '';
-    const sender = typeof msg.sender === 'string' ? msg.sender : 'unknown';
+    const rawSender = typeof msg.sender === 'string' ? msg.sender : 'guest';
+    const sender = normalizeSender(rawSender);
     const timestamp = typeof msg.timestamp === 'string' ? msg.timestamp : undefined;
     const bookingDetails =
       typeof msg.booking_details === 'object' && msg.booking_details !== null
@@ -238,18 +240,18 @@ export class ChannexMessageWorker {
 
     const batch = db.batch();
 
-    batch.set(
-      threadRef,
-      {
-        propertyId,
-        tenantId,
-        bookingId,
-        guestName,
-        lastMessage: messageText,
-        updatedAt: serverNow,
-      },
-      { merge: true },
-    );
+    const threadPatch: Record<string, unknown> = {
+      propertyId,
+      tenantId,
+      bookingId,
+      lastMessage: messageText,
+      lastMessageSender: sender,
+      updatedAt: serverNow,
+    };
+    if (guestName !== 'Unknown Guest') {
+      threadPatch.guestName = guestName;
+    }
+    batch.set(threadRef, threadPatch, { merge: true });
 
     batch.set(messageRef, {
       propertyId,

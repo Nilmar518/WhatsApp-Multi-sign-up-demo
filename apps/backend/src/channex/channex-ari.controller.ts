@@ -7,6 +7,7 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -301,6 +302,32 @@ export class ChannexARIController {
       `[CTRL] GET /bookings — propertyId=${propertyId} tenantId=${tenantId} limit=${limit}`,
     );
     return this.ariService.getPropertyBookings(propertyId, tenantId, limit);
+  }
+
+  /**
+   * GET /channex/properties/:propertyId/bookings/:bookingId?tenantId=X
+   *
+   * Returns a single reservation by its Channex booking ID, plus the OTA
+   * channel code. Used by the Messages inbox "Ver Reserva" button.
+   * Returns 404 if no booking is found.
+   */
+  @Get('bookings/:bookingId')
+  async getBookingById(
+    @Param('propertyId') propertyId: string,
+    @Param('bookingId') bookingId: string,
+    @Query('tenantId') tenantId: string,
+  ): Promise<{ reservation: FirestoreReservationDoc; propertyChannelCode: string | null }> {
+    this.logger.log(
+      `[CTRL] GET /bookings/${bookingId} — propertyId=${propertyId} tenantId=${tenantId}`,
+    );
+
+    const result = await this.ariService.getBookingById(propertyId, bookingId, tenantId);
+
+    if (!result) {
+      throw new NotFoundException(`Booking ${bookingId} not found for propertyId=${propertyId}`);
+    }
+
+    return result;
   }
 
   /**

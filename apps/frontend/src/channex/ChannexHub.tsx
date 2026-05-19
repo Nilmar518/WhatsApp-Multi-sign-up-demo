@@ -5,6 +5,7 @@ import { useChannexProperties } from './hooks/useChannexProperties';
 import PropertiesList from './components/PropertiesList';
 import PropertyDetail from './components/shared/PropertyDetail';
 import PropertySetupWizard from './components/PropertySetupWizard';
+import GlobalOverview from './components/GlobalOverview';
 import type { ChannexProperty } from './hooks/useChannexProperties';
 import Button from '../components/ui/Button';
 import { useLanguage } from '../context/LanguageContext';
@@ -14,6 +15,14 @@ import PoolDetail from './components/pools/PoolDetail';
 import PoolCreateForm from './components/pools/PoolCreateForm';
 import PoolEditModal from './components/pools/PoolEditModal';
 import type { MigoProperty } from './api/migoPropertyApi';
+
+type InnerTab = 'rooms' | 'ari' | 'reservations' | 'messages';
+
+interface DeepLink {
+  tab: InnerTab;
+  bookingId?: string;
+  threadId?: string;
+}
 
 type SubTab = 'properties' | 'airbnb' | 'booking' | 'pools';
 
@@ -26,6 +35,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
   const [activeSubTab, setActiveSubTab] = useState<SubTab>(initialTab);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<ChannexProperty | null>(null);
+  const [deepLink, setDeepLink] = useState<DeepLink | null>(null);
   const { t } = useLanguage();
 
   const SUB_TABS: { id: SubTab; label: string }[] = [
@@ -49,7 +59,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-edge bg-surface-raised shadow-sm">
       {/* Header */}
-      <div className="border-b border-edge px-6 py-4">
+      <div className="border-b border-edge px-3 sm:px-6 py-4">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-2">
           {t('channex.manager')}
         </p>
@@ -57,7 +67,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
       </div>
 
       {/* Sub-tab bar */}
-      <div className="flex items-end gap-0 border-b border-edge px-6">
+      <div className="flex items-end gap-0 border-b border-edge px-3 sm:px-6 overflow-x-auto whitespace-nowrap">
         {SUB_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -80,7 +90,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
         {activeSubTab === 'properties' && (
           <>
             {showWizard ? (
-              <div className="px-6 py-6">
+              <div className="px-3 py-4 sm:px-6 sm:py-6">
                 <PropertySetupWizard
                   tenantId={businessId}
                   onComplete={(prop) => {
@@ -91,20 +101,26 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
                 />
               </div>
             ) : selectedProperty ? (
-              <div className="px-6 py-6">
+              <div className="px-3 py-4 sm:px-6 sm:py-6">
                 <Button
                   variant="ghost"
                   size="sm"
                   type="button"
-                  onClick={() => setSelectedProperty(null)}
+                  onClick={() => { setSelectedProperty(null); setDeepLink(null); }}
                   className="mb-4"
                 >
                   {t('channex.hub.backToProps')}
                 </Button>
-                <PropertyDetail property={selectedProperty} tenantId={businessId} />
+                <PropertyDetail
+                  property={selectedProperty}
+                  tenantId={businessId}
+                  initialTab={deepLink?.tab}
+                  initialBookingId={deepLink?.bookingId}
+                  initialThreadId={deepLink?.threadId}
+                />
               </div>
             ) : (
-              <div className="px-6 py-6">
+              <div className="px-3 py-4 sm:px-6 sm:py-6">
                 {loading && (
                   <p className="text-sm text-content-2">{t('channex.hub.loadingProps')}</p>
                 )}
@@ -112,11 +128,26 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
                   <p className="text-sm text-danger-text">{error}</p>
                 )}
                 {!loading && !error && (
-                  <PropertiesList
-                    properties={properties}
-                    onSelect={(prop) => setSelectedProperty(prop)}
-                    onNew={() => setShowWizard(true)}
-                  />
+                  <>
+                    <PropertiesList
+                      properties={properties}
+                      onSelect={(prop) => setSelectedProperty(prop)}
+                      onNew={() => setShowWizard(true)}
+                    />
+                    <GlobalOverview
+                      tenantId={businessId}
+                      properties={properties}
+                      propertiesLoading={loading}
+                      onOpenBooking={(prop, bookingId) => {
+                        setDeepLink({ tab: 'reservations', bookingId });
+                        setSelectedProperty(prop);
+                      }}
+                      onOpenThread={(prop, threadId) => {
+                        setDeepLink({ tab: 'messages', threadId });
+                        setSelectedProperty(prop);
+                      }}
+                    />
+                  </>
                 )}
               </div>
             )}
@@ -124,7 +155,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
         )}
 
         {activeSubTab === 'airbnb' && (
-          <div className="px-6 py-6">
+          <div className="px-3 py-4 sm:px-6 sm:py-6">
             <AirbnbConnectionPanel
               tenantId={businessId}
               onNavigateToProperties={() => setActiveSubTab('properties')}
@@ -133,7 +164,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
         )}
 
         {activeSubTab === 'booking' && (
-          <div className="px-6 py-6">
+          <div className="px-3 py-4 sm:px-6 sm:py-6">
             <BookingConnectionPanel
               tenantId={businessId}
               onNavigateToProperties={() => setActiveSubTab('properties')}
@@ -142,7 +173,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
         )}
 
         {activeSubTab === 'pools' && (
-          <div className="px-6 py-6">
+          <div className="px-3 py-4 sm:px-6 sm:py-6">
             {showPoolCreate ? (
               <PoolCreateForm
                 tenantId={businessId}

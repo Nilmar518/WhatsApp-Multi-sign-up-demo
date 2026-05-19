@@ -498,7 +498,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
   return (
     <div className="space-y-4">
       {/* Header bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-y-2">
         <div>
           <h3 className="text-base font-semibold text-content">{t('channex.ari.title')}</h3>
           <p className="text-xs text-content-2">{t('channex.ari.desc')}</p>
@@ -637,7 +637,8 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
           </div>
 
           {/* Calendar grid */}
-          <div className="relative overflow-hidden rounded-2xl border border-edge bg-surface-raised select-none" onMouseDown={(e) => e.preventDefault()}>
+          <div className="overflow-x-auto">
+          <div className="relative min-w-[420px] overflow-hidden rounded-2xl border border-edge bg-surface-raised select-none" onMouseDown={(e) => e.preventDefault()}>
             {(loadingSnapshot || loadingRooms) && (
               <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl backdrop-blur-sm bg-surface/60">
                 <div className="h-7 w-7 animate-spin rounded-full border-2 border-brand border-t-transparent" />
@@ -727,6 +728,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
               ))}
             </div>
           </div>
+          </div>
         </>
       )}
 
@@ -734,7 +736,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
       {showPanel && selectedRange && (
         <>
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => { if (!saving) setShowPanel(false); }} />
-          <div className="fixed inset-y-0 right-0 z-50 w-96 border-l border-edge bg-surface-raised p-6 shadow-2xl overflow-y-auto">
+          <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 border-l border-edge bg-surface-raised p-6 shadow-2xl overflow-y-auto">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-base font-bold text-content">{t('channex.ari.updatePanel')}</h2>
               <button type="button" onClick={() => { if (!saving) setShowPanel(false); }} className="text-content-3 hover:text-content-2 disabled:opacity-50" disabled={saving}>✕</button>

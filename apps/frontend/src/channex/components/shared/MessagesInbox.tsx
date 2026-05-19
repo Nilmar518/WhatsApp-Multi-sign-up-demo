@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Timestamp } from 'firebase/firestore';
 import { useThreadMessages } from '../../hooks/useChannexMessages';
-import { replyToThread } from '../../api/channexHubApi';
+import { replyToThread, getBookingById } from '../../api/channexHubApi';
+import type { Reservation } from '../../api/channexHubApi';
 import type { ChannexThread } from '../../hooks/useChannexThreads';
 import { useLanguage } from '../../../context/LanguageContext';
+import ReservationDetailModal from './ReservationDetailModal';
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
 
@@ -27,15 +29,36 @@ function formatMessageTime(ts: Timestamp | null): string {
 interface ConversationPaneProps {
   tenantId: string;
   thread: ChannexThread;
+  onBack: () => void;
 }
 
-function ConversationPane({ tenantId, thread }: ConversationPaneProps) {
+function ConversationPane({ tenantId, thread, onBack }: ConversationPaneProps) {
   const { t } = useLanguage();
   const { messages, loading } = useThreadMessages(tenantId, thread.propertyId, thread.id);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const [reservationStatus, setReservationStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+  const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [propertyChannelCode, setPropertyChannelCode] = useState<string | null>(null);
+  const [reservationError, setReservationError] = useState<string | null>(null);
+
+  const handleOpenBooking = useCallback(async () => {
+    if (!thread.bookingId) return;
+    setReservationStatus('loading');
+    setReservationError(null);
+    try {
+      const result = await getBookingById(thread.propertyId, thread.bookingId, tenantId);
+      setReservation(result.reservation);
+      setPropertyChannelCode(result.propertyChannelCode);
+      setReservationStatus('loaded');
+    } catch (err) {
+      setReservationError(err instanceof Error ? err.message : t('channex.messages.err.send'));
+      setReservationStatus('error');
+    }
+  }, [thread.bookingId, thread.propertyId, tenantId, t]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -70,14 +93,40 @@ function ConversationPane({ tenantId, thread }: ConversationPaneProps) {
     <div className="flex flex-col h-full min-h-0">
       {/* Thread header */}
       <div className="shrink-0 border-b border-edge px-4 py-3">
-        <p className="text-sm font-semibold text-content">{thread.guestName}</p>
-        {thread.isInquiry ? (
-          <p className="text-xs text-notice-text mt-0.5">
-            {t('channex.messages.inquiry')} · {thread.checkinDate ?? '—'} → {thread.checkoutDate ?? '—'}
-          </p>
-        ) : null}
-        {thread.listingName && (
-          <p className="text-xs text-content-3 mt-0.5">{thread.listingName}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex items-start gap-2">
+            <button
+              type="button"
+              onClick={onBack}
+              className="md:hidden shrink-0 mt-0.5 text-sm text-content-2 hover:text-content"
+            >
+              ←
+            </button>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-content truncate">{thread.guestName}</p>
+              {thread.isInquiry ? (
+                <p className="text-xs text-notice-text mt-0.5">
+                  {t('channex.messages.inquiry')} · {thread.checkinDate ?? '—'} → {thread.checkoutDate ?? '—'}
+                </p>
+              ) : null}
+              {thread.listingName && (
+                <p className="text-xs text-content-3 mt-0.5 truncate">{thread.listingName}</p>
+              )}
+            </div>
+          </div>
+          {thread.bookingId && (
+            <button
+              type="button"
+              disabled={reservationStatus === 'loading'}
+              onClick={() => void handleOpenBooking()}
+              className="shrink-0 rounded-lg border border-edge bg-surface px-3 py-1.5 text-xs font-medium text-content-2 hover:border-brand-light hover:text-brand transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {reservationStatus === 'loading' ? '…' : 'Ver Reserva'}
+            </button>
+          )}
+        </div>
+        {reservationStatus === 'error' && reservationError && (
+          <p className="mt-1 text-xs text-danger-text">{reservationError}</p>
         )}
       </div>
 
@@ -148,6 +197,18 @@ function ConversationPane({ tenantId, thread }: ConversationPaneProps) {
           </button>
         </div>
       </div>
+
+      {reservationStatus === 'loaded' && reservation && (
+        <ReservationDetailModal
+          reservation={reservation}
+          tenantId={tenantId}
+          propertyChannelCode={propertyChannelCode}
+          onClose={() => {
+            setReservationStatus('idle');
+            setReservation(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -158,9 +219,10 @@ interface Props {
   tenantId: string;
   threads: ChannexThread[];
   loading: boolean;
+  initialThreadId?: string;
 }
 
-export default function MessagesInbox({ tenantId, threads, loading }: Props) {
+export default function MessagesInbox({ tenantId, threads, loading, initialThreadId }: Props) {
   const { t } = useLanguage();
   const [selectedThread, setSelectedThread] = useState<ChannexThread | null>(null);
 
@@ -170,6 +232,18 @@ export default function MessagesInbox({ tenantId, threads, loading }: Props) {
       setSelectedThread(null);
     }
   }, [threads, selectedThread]);
+
+  const hasAutoOpenedThreadRef = useRef(false);
+  // Pre-select thread when navigating from global view
+  useEffect(() => {
+    if (!initialThreadId || threads.length === 0) return;
+    if (hasAutoOpenedThreadRef.current) return;
+    const target = threads.find((t) => t.id === initialThreadId);
+    if (target) {
+      hasAutoOpenedThreadRef.current = true;
+      setSelectedThread(target);
+    }
+  }, [initialThreadId, threads]);
 
   if (loading) {
     return (
@@ -188,9 +262,13 @@ export default function MessagesInbox({ tenantId, threads, loading }: Props) {
   }
 
   return (
-    <div className="flex h-[480px] overflow-hidden rounded-2xl border border-edge bg-surface-raised">
+    <div className="flex flex-col md:flex-row md:h-[480px] overflow-hidden rounded-2xl border border-edge bg-surface-raised">
       {/* Thread list */}
-      <div className="w-64 shrink-0 overflow-y-auto border-r border-edge">
+      <div className={[
+        'shrink-0 overflow-y-auto border-b border-edge md:border-b-0 md:border-r',
+        'w-full md:w-64',
+        selectedThread ? 'hidden md:block' : 'block',
+      ].join(' ')}>
         {threads.map((thread) => {
           const isSelected = selectedThread?.id === thread.id && selectedThread.propertyId === thread.propertyId;
           return (
@@ -225,12 +303,16 @@ export default function MessagesInbox({ tenantId, threads, loading }: Props) {
       </div>
 
       {/* Conversation pane */}
-      <div className="flex-1 min-w-0 overflow-hidden">
+      <div className={[
+        'flex-1 min-w-0 overflow-hidden',
+        selectedThread ? 'flex flex-col h-[480px] md:h-auto' : 'hidden md:flex',
+      ].join(' ')}>
         {selectedThread ? (
           <ConversationPane
             key={`${selectedThread.propertyId}-${selectedThread.id}`}
             tenantId={tenantId}
             thread={selectedThread}
+            onBack={() => setSelectedThread(null)}
           />
         ) : (
           <div className="flex h-full items-center justify-center">

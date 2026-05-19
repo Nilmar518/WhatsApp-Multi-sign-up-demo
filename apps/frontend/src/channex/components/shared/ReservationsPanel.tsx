@@ -176,6 +176,8 @@ export interface ReservationsPanelProps {
   channels?: string[];
   /** Polling interval in ms. Default 30 000. Pass 0 to disable. */
   pollInterval?: number;
+  /** If set, auto-opens the detail modal for this channex_booking_id once bookings load. */
+  initialBookingId?: string;
 }
 
 export default function ReservationsPanel({
@@ -183,6 +185,7 @@ export default function ReservationsPanel({
   tenantId,
   channels,
   pollInterval = 30_000,
+  initialBookingId,
 }: ReservationsPanelProps) {
   const { t } = useLanguage();
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -267,6 +270,19 @@ export default function ReservationsPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyId, tenantId, pollInterval]);
 
+  const hasAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!initialBookingId || reservations.length === 0) return;
+    if (hasAutoOpenedRef.current) return;
+    const target = reservations.find(
+      (r) => r.channex_booking_id === initialBookingId || r.id === initialBookingId,
+    );
+    if (target) {
+      hasAutoOpenedRef.current = true;
+      setSelectedReservation(target);
+    }
+  }, [reservations, initialBookingId]);
+
   const visible = channels?.length
     ? reservations.filter((r) => channels.includes(r.channel))
     : reservations;
@@ -286,7 +302,7 @@ export default function ReservationsPanel({
   return (
     <div>
       {/* Header row */}
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-medium text-content">
           {t(visible.length === 1 ? 'channex.reserv.count.one' : 'channex.reserv.count.many', { n: visible.length })}
         </p>

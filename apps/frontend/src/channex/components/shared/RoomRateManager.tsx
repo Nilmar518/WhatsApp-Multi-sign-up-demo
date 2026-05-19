@@ -92,7 +92,7 @@ function RoomFormFields({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.rooms.field.adults')}</label>
           <Input
@@ -336,7 +336,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
                 )}
 
                 {showRateForm === rt.room_type_id ? (
-                  <div className="flex items-center gap-2 rounded-xl border border-brand-light bg-brand-subtle px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-light bg-brand-subtle px-3 py-2">
                     <Input
                       value={newRateTitle}
                       onChange={(e) => setNewRateTitle(e.target.value)}

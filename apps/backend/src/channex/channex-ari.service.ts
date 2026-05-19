@@ -686,6 +686,79 @@ export class ChannexARIService {
     return { bookings, propertyChannelCode };
   }
 
+  async getBookingById(
+    propertyId: string,
+    bookingId: string,
+    tenantId: string,
+  ): Promise<{ reservation: FirestoreReservationDoc; propertyChannelCode: string | null } | null> {
+    const db = this.firebase.getFirestore();
+
+    const propertyDocSnap = await db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(propertyId)
+      .get();
+
+    const channexChannelId =
+      (propertyDocSnap.data()?.channex_channel_id as string | null) ?? null;
+
+    let propertyChannelCode: string | null = null;
+
+    if (channexChannelId) {
+      const channelDocSnap = await db
+        .collection(INTEGRATIONS_COLLECTION)
+        .doc(tenantId)
+        .collection('channels')
+        .doc(channexChannelId)
+        .get();
+
+      propertyChannelCode =
+        (channelDocSnap.data()?.channel_code as string | null) ?? null;
+    }
+
+    const flatSnap = await db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('bookings')
+      .where('channex_booking_id', '==', bookingId)
+      .limit(1)
+      .get();
+
+    if (!flatSnap.empty) {
+      const reservation = {
+        ...flatSnap.docs[0].data(),
+        id: flatSnap.docs[0].id,
+      } as unknown as FirestoreReservationDoc;
+
+      this.logger.log(`[ARI] getBookingById (flat) — bookingId=${bookingId} found`);
+      return { reservation, propertyChannelCode };
+    }
+
+    const nestedSnap = await db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(propertyId)
+      .collection('bookings')
+      .where('channex_booking_id', '==', bookingId)
+      .limit(1)
+      .get();
+
+    if (!nestedSnap.empty) {
+      const reservation = {
+        ...nestedSnap.docs[0].data(),
+        id: nestedSnap.docs[0].id,
+      } as unknown as FirestoreReservationDoc;
+
+      this.logger.log(`[ARI] getBookingById (nested) — bookingId=${bookingId} found`);
+      return { reservation, propertyChannelCode };
+    }
+
+    this.logger.log(`[ARI] getBookingById — bookingId=${bookingId} not found`);
+    return null;
+  }
+
   /**
    * Pulls bookings directly from the Channex REST API and upserts them to Firestore.
    *

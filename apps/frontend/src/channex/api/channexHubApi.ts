@@ -310,6 +310,17 @@ export async function getPropertyBookings(
   );
 }
 
+export async function getBookingById(
+  propertyId: string,
+  bookingId: string,
+  tenantId: string,
+): Promise<{ reservation: Reservation; propertyChannelCode: string | null }> {
+  const params = new URLSearchParams({ tenantId });
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings/${encodeURIComponent(bookingId)}?${params}`,
+  );
+}
+
 export async function pullPropertyBookings(
   propertyId: string,
   tenantId: string,

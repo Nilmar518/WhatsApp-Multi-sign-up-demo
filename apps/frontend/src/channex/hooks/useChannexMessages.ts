@@ -3,6 +3,11 @@ import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import type { Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 
+const HOST_SENDER_VALUES = new Set(['host', 'property_manager', 'host_user', 'owner', 'property']);
+function normalizeSender(raw: string): 'host' | 'guest' {
+  return HOST_SENDER_VALUES.has(raw.toLowerCase().trim()) ? 'host' : 'guest';
+}
+
 export interface ChannexMessage {
   id: string;
   text: string;
@@ -42,7 +47,7 @@ export function useThreadMessages(tenantId: string, propertyId: string, threadId
             return {
               id: doc.id,
               text: (d.text as string) ?? '',
-              sender: (d.sender as string) ?? 'unknown',
+              sender: normalizeSender((d.sender as string) ?? 'guest'),
               guestName: (d.guestName as string | null) ?? null,
               createdAt: (d.createdAt as Timestamp | null) ?? null,
             };
