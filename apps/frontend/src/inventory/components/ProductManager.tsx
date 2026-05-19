@@ -49,16 +49,6 @@ const EMPTY_FORM: ProductFormValues = {
   url: '',
 };
 
-const AVAILABILITY_OPTIONS = [
-  'in stock',
-  'out of stock',
-  'preorder',
-  'available for order',
-  'discontinued',
-] as const;
-
-const CONDITION_OPTIONS = ['new', 'refurbished', 'used'] as const;
-
 // ─── Product card ──────────────────────────────────────────────────────────────
 
 function ProductCard({

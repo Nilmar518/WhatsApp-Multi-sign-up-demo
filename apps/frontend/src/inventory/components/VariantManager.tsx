@@ -38,16 +38,6 @@ const ATTRIBUTE_PRESETS = [
   'age_group',
 ] as const;
 
-const AVAILABILITY_OPTIONS = [
-  'in stock',
-  'out of stock',
-  'preorder',
-  'available for order',
-  'discontinued',
-] as const;
-
-const CONDITION_OPTIONS = ['new', 'refurbished', 'used'] as const;
-
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<MetaVariant['status'], { cls: string; dot: string }> = {
