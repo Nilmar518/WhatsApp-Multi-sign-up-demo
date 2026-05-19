@@ -119,7 +119,7 @@ function PropertyBookingsAccordion({
             <button
               key={r.id}
               type="button"
-              onClick={() => onOpen(r.channex_booking_id ?? r.id)}
+              onClick={() => { const id = r.channex_booking_id ?? r.id; if (id) onOpen(id); }}
               className="w-full text-left rounded-lg px-3 py-2.5 hover:bg-surface-subtle transition-colors flex items-center justify-between gap-3"
             >
               <div className="min-w-0">
