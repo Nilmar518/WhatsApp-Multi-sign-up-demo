@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useChannexChannels } from '../../hooks/useChannexChannels';
 import { activateChannel, deactivateChannel } from '../../api/channexHubApi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   tenantId: string;
@@ -18,6 +19,7 @@ function channelLabel(code: string): string {
 }
 
 export default function ChannelManagementPanel({ tenantId }: Props) {
+  const { t } = useLanguage();
   const { channels, loading, error: loadError, updateChannel } = useChannexChannels(tenantId);
   const [isOpen, setIsOpen] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -70,11 +72,11 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
               </svg>
             </div>
             <div>
-              <h2 className="text-base font-semibold text-content">Channel Connections</h2>
+              <h2 className="text-base font-semibold text-content">{t('channex.chanMgmt.title')}</h2>
               <p className="text-xs text-content-2">
                 {loading
-                  ? 'Loading…'
-                  : `${channels.length} channel${channels.length === 1 ? '' : 's'} registered`}
+                  ? t('channex.chanMgmt.loading')
+                  : t(channels.length === 1 ? 'channex.chanMgmt.count.one' : 'channex.chanMgmt.count.many', { n: channels.length })}
               </p>
             </div>
           </div>
@@ -98,7 +100,7 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
         {isOpen && (
           <div className="border-t border-edge px-6 pb-6 pt-4 space-y-3">
             {loading && (
-              <p className="text-sm text-content-2">Loading channels…</p>
+              <p className="text-sm text-content-2">{t('channex.chanMgmt.loadingChannels')}</p>
             )}
 
             {!loading && loadError && (
@@ -109,7 +111,7 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
 
             {!loading && !loadError && channels.length === 0 && (
               <p className="text-sm text-content-3">
-                No channels registered yet. Connect an OTA account using the IFrame panel.
+                {t('channex.chanMgmt.empty')}
               </p>
             )}
 
@@ -138,7 +140,7 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
                             : 'bg-surface-subtle text-content-3',
                         ].join(' ')}
                       >
-                        {isActive ? 'Active' : ch.status ?? 'Inactive'}
+                        {isActive ? t('channex.chanMgmt.active') : (ch.status ?? t('channex.chanMgmt.inactive'))}
                       </span>
                     </div>
                     <p className="mt-0.5 text-xs text-content-3 font-mono truncate">
@@ -162,12 +164,12 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
                     {isPending ? (
                       <>
                         <div className="h-3 w-3 animate-spin rounded-full border-2 border-current/30 border-t-current" />
-                        {isActive ? 'Deactivating…' : 'Activating…'}
+                        {isActive ? t('channex.chanMgmt.deactivating') : t('channex.chanMgmt.activating')}
                       </>
                     ) : isActive ? (
-                      'Deactivate'
+                      t('channex.chanMgmt.deactivate')
                     ) : (
-                      'Activate'
+                      t('channex.chanMgmt.activate')
                     )}
                   </button>
                 </div>
@@ -181,9 +183,9 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
       {errorModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-surface-raised border border-edge p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-content mb-2">Action failed</h3>
+            <h3 className="text-base font-semibold text-content mb-2">{t('channex.chanMgmt.err.title')}</h3>
             <p className="text-sm text-content-2 mb-1">
-              The channel status could not be updated. Please contact your administrator.
+              {t('channex.chanMgmt.err.body')}
             </p>
             <p className="text-xs text-content-3 font-mono bg-surface-subtle rounded px-2 py-1 mb-4 break-all">
               {errorModal}
@@ -193,7 +195,7 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
               onClick={() => setErrorModal(null)}
               className="w-full rounded-xl bg-brand text-white py-2 text-sm font-semibold hover:opacity-80 transition-opacity"
             >
-              Close
+              {t('channex.chanMgmt.close')}
             </button>
           </div>
         </div>

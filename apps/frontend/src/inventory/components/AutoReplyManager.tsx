@@ -9,6 +9,7 @@ import {
   deleteRule,
 } from '../api/autoReplyApi';
 import type { ToastType } from './Toast';
+import { useLanguage } from '../../context/LanguageContext';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,7 @@ const EMPTY_FORM: FormState = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AutoReplyManager({ businessId, catalogs, onToast }: Props) {
+  const { t } = useLanguage();
   // ── Rules list ──────────────────────────────────────────────────────────────
   const [rules, setRules]       = useState<AutoReply[]>([]);
   const [loading, setLoading]   = useState(false);
@@ -82,7 +84,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
       const data = await listRules(businessId);
       setRules(data);
     } catch (err: unknown) {
-      onToast(err instanceof Error ? err.message : 'Failed to load rules', 'error');
+      onToast(err instanceof Error ? err.message : t('inventory.autoReply.err.load'), 'error');
     } finally {
       setLoading(false);
     }
@@ -106,7 +108,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
       .then((data) => { if (!cancelled) setProducts(data); })
       .catch((err: unknown) => {
         if (!cancelled)
-          onToast(err instanceof Error ? err.message : 'Failed to load products', 'error');
+          onToast(err instanceof Error ? err.message : t('inventory.autoReply.err.loadProducts'), 'error');
       })
       .finally(() => { if (!cancelled) setProductsLoading(false); });
     return () => { cancelled = true; };
@@ -172,9 +174,9 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.triggerWord.trim()) { onToast('Trigger word is required', 'error'); return; }
-    if (!form.collectionTitle.trim()) { onToast('Collection title is required', 'error'); return; }
-    if (form.retailerIds.length === 0) { onToast('Select at least one product', 'error'); return; }
+    if (!form.triggerWord.trim()) { onToast(t('inventory.autoReply.val.trigger'), 'error'); return; }
+    if (!form.collectionTitle.trim()) { onToast(t('inventory.autoReply.val.collection'), 'error'); return; }
+    if (form.retailerIds.length === 0) { onToast(t('inventory.autoReply.val.products'), 'error'); return; }
 
     setSaving(true);
     try {
@@ -188,7 +190,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
           isActive:        form.isActive,
         });
         setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-        onToast('Rule updated', 'success');
+        onToast(t('inventory.autoReply.ok.updated'), 'success');
       } else {
         const created = await createRule({
           businessId,
@@ -199,11 +201,11 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
           isActive:        form.isActive,
         });
         setRules((prev) => [...prev, created]);
-        onToast(`Rule "${created.triggerWord}" created`, 'success');
+        onToast(t('inventory.autoReply.ok.created', { word: created.triggerWord }), 'success');
       }
       closeModal();
     } catch (err: unknown) {
-      onToast(err instanceof Error ? err.message : 'Failed to save rule', 'error');
+      onToast(err instanceof Error ? err.message : t('inventory.autoReply.err.save'), 'error');
     } finally {
       setSaving(false);
     }
@@ -219,22 +221,22 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
     } catch (err: unknown) {
       // Revert
       setRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, isActive: rule.isActive } : r)));
-      onToast(err instanceof Error ? err.message : 'Failed to update rule', 'error');
+      onToast(err instanceof Error ? err.message : t('inventory.autoReply.err.toggle'), 'error');
     }
   };
 
   // ── Delete (optimistic) ─────────────────────────────────────────────────────
 
   const handleDelete = async (rule: AutoReply) => {
-    if (!confirm(`Delete rule for "${rule.triggerWord}"?`)) return;
+    if (!confirm(t('inventory.autoReply.deleteConfirm', { word: rule.triggerWord }))) return;
     setDeletingId(rule.id);
     setRules((prev) => prev.filter((r) => r.id !== rule.id));
     try {
       await deleteRule(businessId, rule.id);
-      onToast('Rule deleted', 'success');
+      onToast(t('inventory.autoReply.ok.deleted'), 'success');
     } catch (err: unknown) {
       setRules((prev) => [...prev, rule]); // Revert
-      onToast(err instanceof Error ? err.message : 'Failed to delete rule', 'error');
+      onToast(err instanceof Error ? err.message : t('inventory.autoReply.err.delete'), 'error');
     } finally {
       setDeletingId(null);
     }
@@ -257,16 +259,16 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-content">Keyword Triggers</h2>
+          <h2 className="text-base font-semibold text-content">{t('inventory.autoReply.title')}</h2>
           <p className="text-xs text-content-3 mt-0.5">
-            Auto-reply with product collections when a keyword is matched.
+            {t('inventory.autoReply.desc')}
           </p>
         </div>
         <button
           onClick={openCreate}
           className="text-sm font-medium bg-brand text-white px-3.5 py-2 rounded-lg hover:bg-brand-hover transition-colors"
         >
-          + New Rule
+          {t('inventory.autoReply.new')}
         </button>
       </div>
 
@@ -283,9 +285,9 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
       {!loading && rules.length === 0 && (
         <div className="text-center py-12 text-content-3">
           <div className="text-3xl mb-2">⚡</div>
-          <p className="text-sm font-medium">No keyword triggers yet.</p>
+          <p className="text-sm font-medium">{t('inventory.autoReply.empty.title')}</p>
           <p className="text-xs mt-1">
-            Create a rule to auto-reply with products when a keyword is received.
+            {t('inventory.autoReply.empty.desc')}
           </p>
         </div>
       )}
@@ -297,19 +299,19 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
             <thead className="bg-surface-subtle border-b border-edge">
               <tr>
                 <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">
-                  Trigger Word
+                  {t('inventory.autoReply.col.trigger')}
                 </th>
                 <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">
-                  Collection
+                  {t('inventory.autoReply.col.collection')}
                 </th>
                 <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">
-                  Products
+                  {t('inventory.autoReply.col.products')}
                 </th>
                 <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">
-                  Active
+                  {t('inventory.autoReply.col.active')}
                 </th>
                 <th className="text-right text-xs font-semibold text-content-2 px-4 py-2.5">
-                  Actions
+                  {t('inventory.autoReply.col.actions')}
                 </th>
               </tr>
             </thead>
@@ -340,7 +342,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
                   {/* Product count */}
                   <td className="px-4 py-3">
                     <span className="text-xs text-content-2">
-                      {rule.retailerIds.length} product{rule.retailerIds.length !== 1 ? 's' : ''}
+                      {t(rule.retailerIds.length === 1 ? 'inventory.autoReply.productCount.one' : 'inventory.autoReply.productCount.many', { n: rule.retailerIds.length })}
                     </span>
                   </td>
 
@@ -348,7 +350,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
                   <td className="px-4 py-3">
                     <button
                       onClick={() => void handleToggle(rule)}
-                      aria-label={rule.isActive ? 'Deactivate rule' : 'Activate rule'}
+                      aria-label={rule.isActive ? t('inventory.autoReply.deactivate') : t('inventory.autoReply.activate')}
                       className={`relative inline-flex items-center h-5 w-9 rounded-full transition-colors ${
                         rule.isActive ? 'bg-emerald-500' : 'bg-gray-300'
                       }`}
@@ -395,7 +397,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
             onClick={() => void fetchRules()}
             className="text-xs text-content-3 hover:text-content-2 transition-colors"
           >
-            ↻ Refresh
+            {t('inventory.autoReply.refresh')}
           </button>
         </div>
       )}
@@ -407,7 +409,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-edge shrink-0">
               <h3 className="text-base font-semibold text-content">
-                {editingRule ? 'Edit Rule' : 'New Rule'}
+                {editingRule ? t('inventory.autoReply.editTitle') : t('inventory.autoReply.newTitle')}
               </h3>
               <button
                 onClick={closeModal}
@@ -426,25 +428,25 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
               {/* Trigger word */}
               <div>
                 <label className="block text-xs font-semibold text-content-2 mb-1.5">
-                  Trigger Word <span className="text-red-400">*</span>
+                  {t('inventory.autoReply.field.trigger')} <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={form.triggerWord}
                   onChange={(e) => setField('triggerWord', e.target.value)}
-                  placeholder='e.g. "hola" or "ofertas"'
+                  placeholder={t('inventory.autoReply.ph.trigger')}
                   autoFocus
                   className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 />
                 <p className="text-xs text-content-3 mt-1">
-                  The incoming text that will trigger this auto-reply.
+                  {t('inventory.autoReply.help.trigger')}
                 </p>
               </div>
 
               {/* Match type */}
               <div>
                 <label className="block text-xs font-semibold text-content-2 mb-1.5">
-                  Match Type
+                  {t('inventory.autoReply.field.match')}
                 </label>
                 <div className="flex gap-2">
                   {(['EXACT', 'CONTAINS'] as const).map((type) => (
@@ -460,31 +462,31 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
                           : 'border-edge text-content-2 hover:bg-surface-subtle'
                       }`}
                     >
-                      {type === 'EXACT' ? '= Exact Match' : '⊃ Contains'}
+                      {type === 'EXACT' ? t('inventory.autoReply.match.exact') : t('inventory.autoReply.match.contains')}
                     </button>
                   ))}
                 </div>
                 <p className="text-xs text-content-3 mt-1">
                   {form.matchType === 'EXACT'
-                    ? 'The full message must equal the trigger word exactly.'
-                    : 'The message just needs to contain the trigger word anywhere.'}
+                    ? t('inventory.autoReply.help.exact')
+                    : t('inventory.autoReply.help.contains')}
                 </p>
               </div>
 
               {/* Collection title */}
               <div>
                 <label className="block text-xs font-semibold text-content-2 mb-1.5">
-                  Collection Title <span className="text-red-400">*</span>
+                  {t('inventory.autoReply.field.collection')} <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={form.collectionTitle}
                   onChange={(e) => setField('collectionTitle', e.target.value)}
-                  placeholder='e.g. "Ropa de niños"'
+                  placeholder={t('inventory.autoReply.ph.collection')}
                   className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 />
                 <p className="text-xs text-content-3 mt-1">
-                  Shown as the section header in the WhatsApp product message.
+                  {t('inventory.autoReply.help.collection')}
                 </p>
               </div>
 
@@ -495,11 +497,11 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-semibold text-content-2">
-                    Products to Include <span className="text-red-400">*</span>
+                    {t('inventory.autoReply.field.products')} <span className="text-red-400">*</span>
                   </label>
                   {form.retailerIds.length > 0 && (
                     <span className="text-xs font-medium text-emerald-600">
-                      {form.retailerIds.length} selected
+                      {t('inventory.autoReply.selected', { n: form.retailerIds.length })}
                     </span>
                   )}
                 </div>
@@ -525,7 +527,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
                 {catalogs.length === 0 ? (
                   <div className="text-center py-6 bg-surface-subtle rounded-xl border border-dashed border-edge">
                     <p className="text-xs text-content-3">
-                      No catalogs found. Create a catalog in "Catalogs & Products" first.
+                      {t('inventory.autoReply.noCatalog')}
                     </p>
                   </div>
                 ) : (
@@ -539,7 +541,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
                         type="text"
                         value={productSearch}
                         onChange={(e) => setProductSearch(e.target.value)}
-                        placeholder="Search products…"
+                        placeholder={t('inventory.autoReply.searchPh')}
                         className="w-full text-xs border border-edge rounded-lg pl-7 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                       />
                     </div>
@@ -557,8 +559,8 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
                       {!productsLoading && filteredProducts.length === 0 && (
                         <div className="py-6 text-center text-xs text-content-3">
                           {products.length === 0
-                            ? 'No products in this catalog.'
-                            : 'No products match your search.'}
+                            ? t('inventory.autoReply.noProducts')
+                            : t('inventory.autoReply.noSearch')}
                         </div>
                       )}
 
@@ -604,9 +606,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
 
                     {products.length > 0 && (
                       <p className="text-[10px] text-content-3 mt-1">
-                        {products.length} product{products.length !== 1 ? 's' : ''} in catalog
-                        {filteredProducts.length < products.length &&
-                          ` · ${filteredProducts.length} shown`}
+                        {t(products.length === 1 ? 'inventory.autoReply.count.one' : 'inventory.autoReply.count.many', { n: products.length, shown: filteredProducts.length })}
                       </p>
                     )}
                   </>
@@ -616,9 +616,9 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
               {/* Active toggle */}
               <div className="flex items-center justify-between bg-surface-subtle rounded-xl px-4 py-3">
                 <div>
-                  <p className="text-xs font-semibold text-content-2">Active</p>
+                  <p className="text-xs font-semibold text-content-2">{t('inventory.autoReply.activeLabel')}</p>
                   <p className="text-[10px] text-content-3">
-                    Inactive rules are stored but will not fire.
+                    {t('inventory.autoReply.activeHelp')}
                   </p>
                 </div>
                 <button
@@ -645,7 +645,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
                 onClick={closeModal}
                 className="text-sm font-medium text-content-2 hover:text-content px-4 py-2 rounded-lg transition-colors"
               >
-                Cancel
+                {t('inventory.autoReply.cancel')}
               </button>
               <button
                 type="submit"
@@ -653,7 +653,7 @@ export default function AutoReplyManager({ businessId, catalogs, onToast }: Prop
                 disabled={saving}
                 className="text-sm font-medium bg-brand text-white px-5 py-2 rounded-lg hover:bg-brand-hover disabled:opacity-40 transition-colors"
               >
-                {saving ? 'Saving…' : editingRule ? 'Save Changes' : 'Create Rule'}
+                {saving ? t('inventory.autoReply.saving') : editingRule ? t('inventory.autoReply.save') : t('inventory.autoReply.create')}
               </button>
             </div>
           </div>

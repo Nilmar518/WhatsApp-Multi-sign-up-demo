@@ -1,4 +1,5 @@
 import type { ChannexProperty } from '../../hooks/useChannexProperties';
+import { useLanguage } from '../../../context/LanguageContext';
 
 function OTABadge({ channel }: { channel: string }) {
   const styles: Record<string, string> = {
@@ -34,6 +35,8 @@ interface Props {
 }
 
 export default function PropertyCard({ property, onClick }: Props) {
+  const { t } = useLanguage();
+  const roomCount = property.room_types.length;
   return (
     <button
       type="button"
@@ -50,7 +53,7 @@ export default function PropertyCard({ property, onClick }: Props) {
       </p>
 
       <p className="mt-1 text-xs text-content-2">
-        {property.room_types.length} room type{property.room_types.length !== 1 ? 's' : ''}
+        {t(roomCount === 1 ? 'channex.props.roomType.one' : 'channex.props.roomType.many', { n: roomCount })}
       </p>
 
       <div className="mt-3 flex flex-wrap gap-1.5">

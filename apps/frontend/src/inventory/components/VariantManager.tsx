@@ -14,6 +14,7 @@ import {
   formatPrice,
 } from '../../catalog-manager/api/catalogManagerApi';
 import type { ToastType } from './Toast';
+import { useLanguage } from '../../context/LanguageContext';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -49,31 +50,37 @@ const CONDITION_OPTIONS = ['new', 'refurbished', 'used'] as const;
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<
-  MetaVariant['status'],
-  { label: string; cls: string; dot: string }
-> = {
-  SYNCING_WITH_META:   { label: 'Syncing',    cls: 'bg-caution-bg text-caution-text border border-amber-200',   dot: 'bg-amber-400' },
-  ACTIVE:              { label: 'Active',      cls: 'bg-ok-bg text-ok-text border border-green-200',            dot: 'bg-green-500' },
-  FAILED_INTEGRATION:  { label: 'Error',       cls: 'bg-danger-bg text-danger-text border border-red-200',      dot: 'bg-red-500' },
-  ARCHIVED:            { label: 'Archived',    cls: 'bg-surface-subtle text-content-2 border border-edge',      dot: 'bg-gray-400' },
-  SUSPENDED_BY_POLICY: { label: 'Suspended',   cls: 'bg-orange-50 text-orange-700 border border-orange-200',    dot: 'bg-orange-500' },
+const STATUS_STYLE: Record<MetaVariant['status'], { cls: string; dot: string }> = {
+  SYNCING_WITH_META:   { cls: 'bg-caution-bg text-caution-text border border-amber-200',   dot: 'bg-amber-400' },
+  ACTIVE:              { cls: 'bg-ok-bg text-ok-text border border-green-200',            dot: 'bg-green-500' },
+  FAILED_INTEGRATION:  { cls: 'bg-danger-bg text-danger-text border border-red-200',      dot: 'bg-red-500' },
+  ARCHIVED:            { cls: 'bg-surface-subtle text-content-2 border border-edge',      dot: 'bg-gray-400' },
+  SUSPENDED_BY_POLICY: { cls: 'bg-orange-50 text-orange-700 border border-orange-200',    dot: 'bg-orange-500' },
+};
+
+const STATUS_LABEL_KEY: Record<MetaVariant['status'], 'inventory.variant.status.syncing' | 'inventory.variant.status.active' | 'inventory.variant.status.error' | 'inventory.variant.status.archived' | 'inventory.variant.status.suspended'> = {
+  SYNCING_WITH_META:   'inventory.variant.status.syncing',
+  ACTIVE:              'inventory.variant.status.active',
+  FAILED_INTEGRATION:  'inventory.variant.status.error',
+  ARCHIVED:            'inventory.variant.status.archived',
+  SUSPENDED_BY_POLICY: 'inventory.variant.status.suspended',
 };
 
 function StatusBadge({ status }: { status: MetaVariant['status'] }) {
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.FAILED_INTEGRATION;
+  const { t } = useLanguage();
+  const style = STATUS_STYLE[status] ?? STATUS_STYLE.FAILED_INTEGRATION;
   const isSyncing = status === 'SYNCING_WITH_META';
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.cls}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${style.cls}`}>
       {isSyncing ? (
         <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
         </svg>
       ) : (
-        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+        <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
       )}
-      {cfg.label}
+      {t(STATUS_LABEL_KEY[status] ?? 'inventory.variant.status.error')}
     </span>
   );
 }
@@ -121,6 +128,7 @@ export default function VariantManager({
   onBack,
   onToast,
 }: Props) {
+  const { t } = useLanguage();
   const [variants, setVariants]     = useState<MetaVariant[]>([]);
   const [loading, setLoading]       = useState(false);
   const [showForm, setShowForm]     = useState(false);
@@ -138,7 +146,7 @@ export default function VariantManager({
       const data = await listVariants(businessId, catalog.id, product.id);
       setVariants(data);
     } catch (err: unknown) {
-      onToast(err instanceof Error ? err.message : 'Failed to load variants', 'error');
+      onToast(err instanceof Error ? err.message : t('inventory.variant.err.load'), 'error');
     } finally {
       setLoading(false);
     }
@@ -195,11 +203,11 @@ export default function VariantManager({
     e.preventDefault();
     const priceMinor = Math.round(parseFloat(form.priceDecimal) * 100);
     if (isNaN(priceMinor) || priceMinor <= 0) {
-      setFormError('Please enter a valid price (e.g. 10.00)');
+      setFormError(t('inventory.variant.val.price'));
       return;
     }
     if (!resolvedAttributeKey) {
-      setFormError('Please enter an attribute key');
+      setFormError(t('inventory.variant.val.attr'));
       return;
     }
 
@@ -222,7 +230,7 @@ export default function VariantManager({
           url:            form.url || undefined,
         };
         await updateVariant(catalog.id, product.id, editingVariant.metaVariantId!, payload);
-        onToast(`Variant "${form.name}" updated`, 'success');
+        onToast(t('inventory.variant.ok.updated', { name: form.name }), 'success');
       } else {
         const payload: CreateVariantPayload = {
           businessId,
@@ -244,12 +252,12 @@ export default function VariantManager({
           url:            form.url,
         };
         await createVariant(catalog.id, product.id, payload);
-        onToast(`Variant "${resolvedAttributeKey}: ${form.attributeValue}" created`, 'success');
+        onToast(t('inventory.variant.ok.created', { key: resolvedAttributeKey, value: form.attributeValue }), 'success');
       }
       cancelForm();
       void fetchVariants();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Operation failed';
+      const msg = err instanceof Error ? err.message : t('inventory.product.err.op');
       setFormError(msg);
       onToast(msg, 'error');
     } finally {
@@ -261,19 +269,19 @@ export default function VariantManager({
 
   const handleDelete = async (variant: MetaVariant) => {
     if (!variant.metaVariantId) {
-      onToast('Cannot delete a variant that was never synced to Meta', 'error');
+      onToast(t('inventory.variant.err.neverSynced'), 'error');
       return;
     }
-    if (!confirm(`Archive variant "${variant.name}" (${variant.attributeKey}: ${variant.attributeValue})?\n\nIt will be removed from Meta and archived in Firestore.`))
+    if (!confirm(t('inventory.variant.confirm.archive', { name: variant.name, key: variant.attributeKey, value: variant.attributeValue })))
       return;
 
     setDeletingId(variant.metaVariantId);
     try {
       await deleteVariant(businessId, catalog.id, product.id, variant.metaVariantId);
-      onToast(`Variant archived`, 'success');
+      onToast(t('inventory.variant.ok.archived'), 'success');
       void fetchVariants();
     } catch (err: unknown) {
-      onToast(err instanceof Error ? err.message : 'Failed to delete variant', 'error');
+      onToast(err instanceof Error ? err.message : t('inventory.variant.err.delete'), 'error');
     } finally {
       setDeletingId(null);
     }
@@ -293,7 +301,7 @@ export default function VariantManager({
             onClick={onBack}
             className="text-sm font-medium text-content-2 hover:text-content transition-colors"
           >
-            ← Products
+            {t('inventory.variant.back')}
           </button>
           <span className="text-content-3">|</span>
           <span className="text-sm text-content-2 truncate max-w-[140px]">{catalog.name}</span>
@@ -302,7 +310,7 @@ export default function VariantManager({
             {product.name}
           </h2>
           <span className="text-xs font-semibold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
-            Variants
+            {t('inventory.variant.badge')}
           </span>
         </div>
         {!showForm && (
@@ -310,7 +318,7 @@ export default function VariantManager({
             onClick={openCreate}
             className="text-sm font-medium text-violet-600 hover:text-violet-700 transition-colors"
           >
-            + New Variant
+            {t('inventory.variant.new')}
           </button>
         )}
       </div>
@@ -349,14 +357,14 @@ export default function VariantManager({
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-violet-800">
-              {editingVariant ? 'Edit Variant' : 'New Variant'}
+              {editingVariant ? t('inventory.variant.form.editTitle') : t('inventory.variant.form.newTitle')}
             </h3>
             <button
               type="button"
               onClick={cancelForm}
               className="text-xs text-content-2 hover:text-content transition-colors"
             >
-              Cancel
+              {t('inventory.variant.cancel')}
             </button>
           </div>
 
@@ -366,7 +374,7 @@ export default function VariantManager({
               <path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>
             </svg>
             <span>
-              <strong>Meta grouping rule:</strong> Name and description are inherited from the parent product and cannot be changed. Meta only groups variants under the same product card when these fields match exactly. Use the <strong>Attribute</strong> field below to differentiate this variant.
+              {t('inventory.variant.notice')}
             </span>
           </div>
 
@@ -374,7 +382,7 @@ export default function VariantManager({
             {/* Attribute key */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Attribute <span className="text-red-400">*</span>
+                {t('inventory.variant.field.attr')} <span className="text-red-400">*</span>
               </label>
               <select
                 value={form.attributeKey}
@@ -384,14 +392,14 @@ export default function VariantManager({
                 {ATTRIBUTE_PRESETS.map((k) => (
                   <option key={k} value={k}>{k}</option>
                 ))}
-                <option value="__custom__">Custom…</option>
+                <option value="__custom__">{t('inventory.variant.custom')}</option>
               </select>
               {form.attributeKey === '__custom__' && (
                 <input
                   type="text"
                   value={form.customAttributeKey}
                   onChange={(e) => updateField('customAttributeKey', e.target.value)}
-                  placeholder="e.g. material"
+                  placeholder={t('inventory.variant.ph.attr')}
                   required
                   className="w-full mt-1.5 text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
                 />
@@ -401,13 +409,13 @@ export default function VariantManager({
             {/* Attribute value */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Value <span className="text-red-400">*</span>
+                {t('inventory.variant.field.value')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={form.attributeValue}
                 onChange={(e) => updateField('attributeValue', e.target.value)}
-                placeholder="e.g. Red, XL, Cotton"
+                placeholder={t('inventory.variant.ph.value')}
                 required
                 className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               />
@@ -416,13 +424,13 @@ export default function VariantManager({
             {/* SKU */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                SKU / Retailer ID <span className="text-red-400">*</span>
+                {t('inventory.variant.field.sku')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={form.retailerId}
                 onChange={(e) => updateField('retailerId', e.target.value)}
-                placeholder="e.g. SHIRT-RED-XL"
+                placeholder={t('inventory.variant.ph.sku')}
                 disabled={!!editingVariant}
                 required={!editingVariant}
                 className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:bg-surface-subtle disabled:text-content-3"
@@ -432,10 +440,10 @@ export default function VariantManager({
             {/* Name — locked to parent (Meta grouping rule) */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1 flex items-center gap-1.5">
-                Name
+                {t('inventory.variant.field.name')}
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
                   <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
-                  Inherited
+                  {t('inventory.variant.inherited')}
                 </span>
               </label>
               <div className="w-full text-sm border border-edge bg-surface-subtle rounded-lg px-3 py-2 text-content-2 cursor-not-allowed">
@@ -446,21 +454,21 @@ export default function VariantManager({
             {/* Description — locked to parent (Meta grouping rule) */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-content-2 mb-1 flex items-center gap-1.5">
-                Description
+                {t('inventory.variant.field.desc')}
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
                   <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
-                  Inherited
+                  {t('inventory.variant.inherited')}
                 </span>
               </label>
               <div className="w-full text-sm border border-edge bg-surface-subtle rounded-lg px-3 py-2 text-content-2 min-h-[52px] cursor-not-allowed">
-                {product.description || <em className="text-content-3">No description on parent</em>}
+                {product.description || <em className="text-content-3">{t('inventory.variant.noParentDesc')}</em>}
               </div>
             </div>
 
             {/* Price */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Price <span className="text-red-400">*</span>
+                {t('inventory.variant.field.price')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="number"
@@ -477,7 +485,7 @@ export default function VariantManager({
             {/* Currency */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Currency <span className="text-red-400">*</span>
+                {t('inventory.variant.field.currency')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -492,32 +500,38 @@ export default function VariantManager({
 
             {/* Availability */}
             <div>
-              <label className="block text-xs font-medium text-content-2 mb-1">Availability</label>
+              <label className="block text-xs font-medium text-content-2 mb-1">{t('inventory.variant.field.avail')}</label>
               <select
                 value={form.availability}
                 onChange={(e) => updateField('availability', e.target.value)}
                 className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               >
-                {AVAILABILITY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                <option value="in stock">{t('inventory.product.avail.inStock')}</option>
+                <option value="out of stock">{t('inventory.product.avail.outOfStock')}</option>
+                <option value="preorder">{t('inventory.product.avail.preorder')}</option>
+                <option value="available for order">{t('inventory.product.avail.available')}</option>
+                <option value="discontinued">{t('inventory.product.avail.discontinued')}</option>
               </select>
             </div>
 
             {/* Condition */}
             <div>
-              <label className="block text-xs font-medium text-content-2 mb-1">Condition</label>
+              <label className="block text-xs font-medium text-content-2 mb-1">{t('inventory.variant.field.cond')}</label>
               <select
                 value={form.condition}
                 onChange={(e) => updateField('condition', e.target.value)}
                 className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400"
               >
-                {CONDITION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                <option value="new">{t('inventory.product.cond.new')}</option>
+                <option value="refurbished">{t('inventory.product.cond.refurbished')}</option>
+                <option value="used">{t('inventory.product.cond.used')}</option>
               </select>
             </div>
 
             {/* Image URL */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Image URL {!editingVariant && <span className="text-red-400">*</span>}
+                {t('inventory.variant.field.imageUrl')} {!editingVariant && <span className="text-red-400">*</span>}
               </label>
               <input
                 type="url"
@@ -532,7 +546,7 @@ export default function VariantManager({
             {/* Product URL */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Product URL {!editingVariant && <span className="text-red-400">*</span>}
+                {t('inventory.variant.field.pageUrl')} {!editingVariant && <span className="text-red-400">*</span>}
               </label>
               <input
                 type="url"
@@ -557,7 +571,7 @@ export default function VariantManager({
               onClick={cancelForm}
               className="text-sm font-medium text-content-2 hover:text-content px-4 py-2 rounded-lg transition-colors"
             >
-              Cancel
+              {t('inventory.variant.cancel')}
             </button>
             <button
               type="submit"
@@ -565,8 +579,8 @@ export default function VariantManager({
               className="text-sm font-medium bg-violet-600 text-white px-4 py-2 rounded-lg hover:bg-violet-700 disabled:opacity-40 transition-colors"
             >
               {submitting
-                ? editingVariant ? 'Saving…' : 'Creating…'
-                : editingVariant ? 'Save Changes' : 'Create Variant'}
+                ? editingVariant ? t('inventory.variant.saving') : t('inventory.variant.creating')
+                : editingVariant ? t('inventory.variant.save') : t('inventory.variant.create')}
             </button>
           </div>
         </form>
@@ -585,19 +599,19 @@ export default function VariantManager({
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
           </svg>
-          <p className="text-sm">No variants yet.</p>
-          <p className="text-xs mt-1">Click "+ New Variant" to add sizes, colors or materials.</p>
+          <p className="text-sm">{t('inventory.variant.empty')}</p>
+          <p className="text-xs mt-1">{t('inventory.variant.emptyHint')}</p>
         </div>
       ) : (
         <div className="overflow-hidden border border-edge rounded-xl">
           <table className="w-full text-sm">
             <thead className="bg-surface-subtle border-b border-edge">
               <tr>
-                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">Attribute</th>
-                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">SKU</th>
-                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5 hidden sm:table-cell">Price</th>
-                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5 hidden md:table-cell">Stock</th>
-                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">Status</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">{t('inventory.variant.col.attr')}</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">{t('inventory.variant.col.sku')}</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5 hidden sm:table-cell">{t('inventory.variant.col.price')}</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5 hidden md:table-cell">{t('inventory.variant.col.stock')}</th>
+                <th className="text-left text-xs font-semibold text-content-2 px-4 py-2.5">{t('inventory.variant.col.status')}</th>
                 <th className="px-4 py-2.5" />
               </tr>
             </thead>
@@ -651,14 +665,14 @@ export default function VariantManager({
                         onClick={() => openEdit(v)}
                         className="text-xs font-medium text-content-2 hover:text-content transition-colors"
                       >
-                        Edit
+                        {t('inventory.variant.actions.edit')}
                       </button>
                       <button
                         onClick={() => void handleDelete(v)}
                         disabled={deletingId === v.metaVariantId}
                         className="text-xs font-medium text-red-400 hover:text-red-600 disabled:opacity-40 transition-colors"
                       >
-                        {deletingId === v.metaVariantId ? '…' : 'Archive'}
+                        {deletingId === v.metaVariantId ? '…' : t('inventory.variant.actions.archive')}
                       </button>
                     </div>
                   </td>
@@ -676,7 +690,7 @@ export default function VariantManager({
             <svg className="w-3 h-3 transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5l8 7-8 7V5z" />
             </svg>
-            {archivedVariants.length} archived variant{archivedVariants.length !== 1 ? 's' : ''}
+            {t(archivedVariants.length === 1 ? 'inventory.variant.archived.one' : 'inventory.variant.archived.many', { n: archivedVariants.length })}
           </summary>
           <div className="mt-2 overflow-hidden border border-edge rounded-xl opacity-60">
             <table className="w-full text-sm">
@@ -704,13 +718,13 @@ export default function VariantManager({
       {!loading && (
         <div className="flex justify-between items-center pt-1">
           <p className="text-xs text-content-3">
-            {activeVariants.length} active variant{activeVariants.length !== 1 ? 's' : ''}
+            {t(activeVariants.length === 1 ? 'inventory.variant.active.one' : 'inventory.variant.active.many', { n: activeVariants.length })}
           </p>
           <button
             onClick={() => void fetchVariants()}
             className="text-xs text-content-3 hover:text-content-2 transition-colors"
           >
-            ↻ Refresh
+            {t('inventory.variant.refresh')}
           </button>
         </div>
       )}

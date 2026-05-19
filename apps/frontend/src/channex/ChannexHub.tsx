@@ -99,14 +99,14 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
                   onClick={() => setSelectedProperty(null)}
                   className="mb-4"
                 >
-                  ← Back to properties
+                  {t('channex.hub.backToProps')}
                 </Button>
                 <PropertyDetail property={selectedProperty} tenantId={businessId} />
               </div>
             ) : (
               <div className="px-6 py-6">
                 {loading && (
-                  <p className="text-sm text-content-2">Loading properties…</p>
+                  <p className="text-sm text-content-2">{t('channex.hub.loadingProps')}</p>
                 )}
                 {error && (
                   <p className="text-sm text-danger-text">{error}</p>
@@ -161,7 +161,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
               />
             ) : (
               <>
-                {poolsLoading && <p className="text-sm text-content-2">Loading pools…</p>}
+                {poolsLoading && <p className="text-sm text-content-2">{t('channex.hub.loadingPools')}</p>}
                 {poolsError && <p className="text-sm text-danger-text">{poolsError}</p>}
                 {!poolsLoading && !poolsError && (
                   <PoolsList

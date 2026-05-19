@@ -2,17 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { getPropertyBookings, pullPropertyBookings, cancelManualBooking, loadReservations, type Reservation } from '../../api/channexHubApi';
 import Button from '../../../components/ui/Button';
 import ReservationDetailModal from './ReservationDetailModal';
+import { useLanguage } from '../../../context/LanguageContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const CHANNEL_LABELS: Record<string, string> = {
+const CHANNEL_LABELS_STATIC: Record<string, string> = {
   airbnb: 'Airbnb',
   booking_com: 'Booking.com',
   vrbo: 'VRBO',
-  walkin: 'Walk-in',
-  maintenance: 'Mantenimiento',
-  owner_stay: 'Propietario',
-  direct: 'Directa',
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -33,9 +30,7 @@ function statusLabel(status: string): string {
   return status.replace(/^booking_/, '').replace(/_/g, ' ');
 }
 
-function channelLabel(channel: string): string {
-  return CHANNEL_LABELS[channel] ?? channel;
-}
+// channelLabel is defined inside ReservationCard to access t()
 
 function fmt(amount: number, currency: string): string {
   try {
@@ -69,9 +64,22 @@ function ReservationCard({
   onCancel?: (pmsBookingId: string) => void;
   cancellingId?: string | null;
 }) {
+  const { t } = useLanguage();
   const guestName = [r.guest_first_name, r.guest_last_name].filter(Boolean).join(' ')
     || r.customer_name
     || '—';
+
+  function channelLabel(channel: string): string {
+    const tKeys: Record<string, 'channex.reserv.channel.walkin' | 'channex.reserv.channel.maintenance' | 'channex.reserv.channel.ownerStay' | 'channex.reserv.channel.direct'> = {
+      walkin: 'channex.reserv.channel.walkin',
+      maintenance: 'channex.reserv.channel.maintenance',
+      owner_stay: 'channex.reserv.channel.ownerStay',
+      direct: 'channex.reserv.channel.direct',
+    };
+    if (CHANNEL_LABELS_STATIC[channel]) return CHANNEL_LABELS_STATIC[channel];
+    if (tKeys[channel]) return t(tKeys[channel]);
+    return channel;
+  }
   const nightCount = r.count_of_nights ?? nights(r.check_in, r.check_out);
   const displayAmount = (r.gross_amount_rooms ?? 0) > 0 ? r.gross_amount_rooms : r.gross_amount;
 
@@ -138,7 +146,7 @@ function ReservationCard({
           disabled={cancellingId === r.pms_booking_id}
           className="mt-2 text-xs text-danger-text hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {cancellingId === r.pms_booking_id ? 'Cancelando…' : 'Cancelar reserva'}
+          {cancellingId === r.pms_booking_id ? t('channex.reserv.cancelling') : t('channex.reserv.cancel')}
         </button>
       )}
     </div>
@@ -176,7 +184,9 @@ export default function ReservationsPanel({
   channels,
   pollInterval = 30_000,
 }: ReservationsPanelProps) {
+  const { t } = useLanguage();
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [propertyChannelCode, setPropertyChannelCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -191,12 +201,13 @@ export default function ReservationsPanel({
   async function load(silent = false) {
     if (!silent) setLoading(true);
     try {
-      const data = await getPropertyBookings(propertyId, tenantId);
-      setReservations(data);
+      const { bookings, propertyChannelCode: code } = await getPropertyBookings(propertyId, tenantId);
+      setReservations(bookings);
+      setPropertyChannelCode(code);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load reservations');
+      setError(err instanceof Error ? err.message : t('channex.reserv.err.load'));
     } finally {
       if (!silent) setLoading(false);
     }
@@ -211,7 +222,7 @@ export default function ReservationsPanel({
       setSyncResult(result);
       await load(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sync failed');
+      setError(err instanceof Error ? err.message : t('channex.reserv.err.sync'));
     } finally {
       setSyncing(false);
     }
@@ -224,19 +235,19 @@ export default function ReservationsPanel({
       await loadReservations(propertyId);
       setImportState('success');
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Import failed. Please try again.');
+      setImportError(err instanceof Error ? err.message : t('channex.reserv.err.import'));
       setImportState('error');
     }
   }
 
   async function handleCancel(pmsBookingId: string) {
-    if (!window.confirm('¿Confirmar cancelación de la reserva?')) return;
+    if (!window.confirm(t('channex.reserv.cancelConfirm'))) return;
     setCancellingId(pmsBookingId);
     try {
       await cancelManualBooking(propertyId, pmsBookingId, tenantId);
       await load(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Cancel failed');
+      setError(err instanceof Error ? err.message : t('channex.reserv.err.cancel'));
     } finally {
       setCancellingId(null);
     }
@@ -277,12 +288,12 @@ export default function ReservationsPanel({
       {/* Header row */}
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-medium text-content">
-          {visible.length} reservation{visible.length !== 1 ? 's' : ''}
+          {t(visible.length === 1 ? 'channex.reserv.count.one' : 'channex.reserv.count.many', { n: visible.length })}
         </p>
         <div className="flex items-center gap-2">
           {lastUpdated && (
             <span className="text-[11px] text-content-3">
-              Updated {lastUpdated.toLocaleTimeString()}
+              {t('channex.reserv.updated', { timestamp: lastUpdated.toLocaleTimeString() })}
             </span>
           )}
           <Button
@@ -303,7 +314,7 @@ export default function ReservationsPanel({
             className="flex items-center gap-1"
           >
             <span className={syncing ? 'animate-spin inline-block' : ''}>↻</span>
-            {syncing ? 'Syncing…' : 'Sync from Channex'}
+            {syncing ? t('channex.reserv.refreshing') : t('channex.reserv.refresh')}
           </Button>
         </div>
       </div>
@@ -311,7 +322,7 @@ export default function ReservationsPanel({
       {/* Sync result toast */}
       {syncResult && (
         <div className="mb-3 rounded-lg bg-ok-bg border border-ok-bg px-3 py-2 text-sm text-ok-text">
-          ✓ Sync complete — {syncResult.synced} booking{syncResult.synced !== 1 ? 's' : ''} imported from Channex
+          {t(syncResult.synced === 1 ? 'channex.reserv.syncDone.one' : 'channex.reserv.syncDone.many', { n: syncResult.synced })}
         </div>
       )}
 
@@ -325,13 +336,13 @@ export default function ReservationsPanel({
       {/* Empty state */}
       {!error && visible.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-edge py-12 text-center">
-          <p className="text-sm text-content-2">No reservations yet</p>
+          <p className="text-sm text-content-2">{t('channex.reserv.empty.title')}</p>
           <p className="mt-1 text-xs text-content-3">
-            Bookings from Airbnb and Booking.com will appear here automatically.
+            {t('channex.reserv.empty.desc')}
           </p>
           <div className="mt-5">
             <p className="mb-3 text-xs text-content-3">
-              Already have reservations on your OTA? Import them now.
+              {t('channex.reserv.empty.hasOta')}
             </p>
             <button
               type="button"
@@ -342,15 +353,15 @@ export default function ReservationsPanel({
               {importState === 'loading' ? (
                 <>
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-edge border-t-brand" />
-                  Importing…
+                  {t('channex.reserv.importing')}
                 </>
               ) : (
-                'Import Past Reservations'
+                t('channex.reserv.import')
               )}
             </button>
             {importState === 'success' && (
               <p className="mt-3 text-xs font-medium text-ok-text">
-                Import started — reservations will appear here in a few seconds.
+                {t('channex.reserv.importStarted')}
               </p>
             )}
             {importState === 'error' && (
@@ -377,10 +388,12 @@ export default function ReservationsPanel({
 
       <ReservationDetailModal
         reservation={selectedReservation}
+        tenantId={tenantId}
+        propertyChannelCode={propertyChannelCode}
         onClose={() => setSelectedReservation(null)}
-        onNoShow={(reservation) => {
-          // No show backend integration to be implemented — placeholder for now
-          console.warn('[ReservationsPanel] No show triggered for', reservation.ota_unique_id ?? reservation.reservation_id);
+        onNoShowComplete={() => {
+          setSelectedReservation(null);
+          void load(true);
         }}
       />
     </div>

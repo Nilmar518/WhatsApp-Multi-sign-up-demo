@@ -12,7 +12,7 @@ const locales = { es, en };
 interface LanguageContextValue {
   lang: Lang;
   toggleLanguage: () => void;
-  t: (key: TranslationKey) => string;
+  t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextValue>({
@@ -35,7 +35,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const t = (key: TranslationKey): string => locales[lang][key] ?? key;
+  const t = (key: TranslationKey, vars?: Record<string, string | number>): string => {
+    let str = locales[lang][key] ?? key;
+    if (vars) {
+      for (const [k, v] of Object.entries(vars))
+        str = str.replaceAll(`{${k}}`, String(v));
+    }
+    return str;
+  };
 
   return (
     <LanguageContext.Provider value={{ lang, toggleLanguage, t }}>

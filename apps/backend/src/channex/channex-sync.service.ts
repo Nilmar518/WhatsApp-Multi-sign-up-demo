@@ -423,6 +423,18 @@ export class ChannexSyncService {
           `[SYNC:1:1] ✓ F — Messages App installed — newPropertyId=${newPropertyId}`,
         );
 
+        // ── Step G: Install Booking CRS App (non-fatal) ───────────────────
+        try {
+          await this.channex.installBookingCrsApp(newPropertyId);
+          this.logger.log(
+            `[SYNC:1:1] ✓ G — Booking CRS installed — newPropertyId=${newPropertyId}`,
+          );
+        } catch (err) {
+          this.logger.warn(
+            `[SYNC:1:1] Booking CRS install failed (non-fatal) — newPropertyId=${newPropertyId}: ${(err as Error).message}`,
+          );
+        }
+
         succeeded.push({
           listingId: seed.listingId,
           listingTitle: seed.listingTitle,

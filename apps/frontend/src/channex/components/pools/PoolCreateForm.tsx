@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Button from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { createMigoProperty, type MigoProperty } from '../../api/migoPropertyApi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   tenantId: string;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function PoolCreateForm({ tenantId, onCreated, onCancel }: Props) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState('');
   const [alertThreshold, setAlertThreshold] = useState('0');
   const [saving, setSaving] = useState(false);
@@ -18,7 +20,7 @@ export default function PoolCreateForm({ tenantId, onCreated, onCancel }: Props)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Pool name is required.');
+      setError(t('channex.poolCreate.err.name'));
       return;
     }
     setSaving(true);
@@ -31,7 +33,7 @@ export default function PoolCreateForm({ tenantId, onCreated, onCancel }: Props)
       });
       onCreated(pool);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create pool');
+      setError(err instanceof Error ? err.message : t('channex.poolCreate.err.create'));
     } finally {
       setSaving(false);
     }
@@ -39,23 +41,23 @@ export default function PoolCreateForm({ tenantId, onCreated, onCancel }: Props)
 
   return (
     <div className="rounded-2xl border border-edge bg-surface-raised px-6 py-6 max-w-md">
-      <h2 className="text-lg font-semibold text-content mb-5">New Property Pool</h2>
+      <h2 className="text-lg font-semibold text-content mb-5">{t('channex.poolCreate.title')}</h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <label className="mb-1.5 block text-xs font-semibold text-content-2 uppercase tracking-wide">
-            Pool Name
+            {t('channex.poolCreate.name')}
           </label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Studio Full"
+            placeholder={t('channex.poolCreate.namePh')}
             required
           />
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold text-content-2 uppercase tracking-wide">
-            Alert Threshold
+            {t('channex.poolCreate.alertThreshold')}
           </label>
           <Input
             type="number"
@@ -64,22 +66,22 @@ export default function PoolCreateForm({ tenantId, onCreated, onCancel }: Props)
             onChange={(e) => setAlertThreshold(e.target.value)}
           />
           <p className="mt-1 text-xs text-content-3">
-            Show alert when availability drops to or below this number. Default: 0.
+            {t('channex.poolCreate.alertHelp')}
           </p>
         </div>
 
         <p className="text-xs text-content-3">
-          Pool capacity is calculated automatically when you add platform connections.
+          {t('channex.poolCreate.capacityNote')}
         </p>
 
         {error && <p className="text-sm text-danger-text">{error}</p>}
 
         <div className="flex gap-3 pt-2">
           <Button type="submit" variant="primary" size="sm" disabled={saving}>
-            {saving ? 'Creating…' : 'Create Pool'}
+            {saving ? t('channex.poolCreate.creating') : t('channex.poolCreate.create')}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
+            {t('channex.poolCreate.cancel')}
           </Button>
         </div>
       </form>

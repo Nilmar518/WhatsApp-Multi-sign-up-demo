@@ -1,5 +1,6 @@
 import type { MigoProperty } from '../../api/migoPropertyApi';
 import Button from '../../../components/ui/Button';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   pools: MigoProperty[];
@@ -46,6 +47,7 @@ function PlatformBadge({ platform }: { platform: string }) {
 }
 
 export default function PoolsList({ pools, onSelect, onNew, onEdit }: Props) {
+  const { t } = useLanguage();
   const platforms = (pool: MigoProperty) =>
     [...new Set(pool.platform_connections.map((c) => c.platform))];
 
@@ -53,24 +55,24 @@ export default function PoolsList({ pools, onSelect, onNew, onEdit }: Props) {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-content">Property Pools</h2>
+          <h2 className="text-lg font-semibold text-content">{t('channex.pools.title')}</h2>
           <p className="text-sm text-content-2">
-            Group OTA listings into shared availability pools.
+            {t('channex.pools.desc')}
           </p>
         </div>
         <Button type="button" onClick={onNew} variant="primary" size="sm">
-          + New Pool
+          {t('channex.pools.new')}
         </Button>
       </div>
 
       {pools.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-edge px-8 py-12 text-center">
-          <p className="text-sm font-medium text-content">No pools yet</p>
+          <p className="text-sm font-medium text-content">{t('channex.pools.empty.title')}</p>
           <p className="mt-1 text-sm text-content-2">
-            Create a pool to track availability across multiple OTA listings.
+            {t('channex.pools.empty.desc')}
           </p>
           <Button type="button" onClick={onNew} variant="primary" size="sm" className="mt-4">
-            Create first pool
+            {t('channex.pools.empty.action')}
           </Button>
         </div>
       ) : (
@@ -88,14 +90,13 @@ export default function PoolsList({ pools, onSelect, onNew, onEdit }: Props) {
                 </div>
 
                 <p className="mt-1 text-xs text-content-2">
-                  {pool.platform_connections.length} connection
-                  {pool.platform_connections.length !== 1 ? 's' : ''}
+                  {t(pool.platform_connections.length === 1 ? 'channex.pools.conn.one' : 'channex.pools.conn.many', { n: pool.platform_connections.length })}
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {platforms(pool).length === 0 ? (
                     <span className="inline-flex items-center rounded-full bg-surface-subtle px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-content-2">
-                      No platforms
+                      {t('channex.pools.noPlatforms')}
                     </span>
                   ) : (
                     platforms(pool).map((p) => <PlatformBadge key={p} platform={p} />)
@@ -105,10 +106,10 @@ export default function PoolsList({ pools, onSelect, onNew, onEdit }: Props) {
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onEdit(pool); }}
-                title="Edit pool"
+                title={t('channex.pools.editPool')}
                 className="absolute right-3 top-3 rounded-lg px-2 py-1 text-xs text-content-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-surface-subtle hover:text-content"
               >
-                Edit
+                {t('channex.pools.edit')}
               </button>
             </div>
           ))}

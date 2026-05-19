@@ -294,11 +294,16 @@ export interface Reservation {
   customer_name?: string | null;
 }
 
+export interface PropertyBookingsResponse {
+  bookings: Reservation[];
+  propertyChannelCode: string | null;
+}
+
 export async function getPropertyBookings(
   propertyId: string,
   tenantId: string,
   limit = 50,
-): Promise<Reservation[]> {
+): Promise<PropertyBookingsResponse> {
   const params = new URLSearchParams({ tenantId, limit: String(limit) });
   return apiFetch(
     `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings?${params}`,
@@ -360,6 +365,42 @@ export async function createManualBooking(
     `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings/manual`,
     { method: 'POST', body: JSON.stringify(body) },
   );
+}
+
+// ─── No Show ──────────────────────────────────────────────────────────────────
+
+export interface NoShowResult {
+  success: boolean;
+  data?: unknown;
+  errors?: {
+    code?: string;
+    title?: string;
+    details?: Record<string, string[]>;
+  };
+}
+
+/**
+ * Reports a Booking.com guest as No Show via the backend → Channex.
+ * Does NOT throw on 422 — returns the body so the modal can display the error.
+ */
+export async function markNoShow(
+  propertyId: string,
+  channexBookingId: string,
+  tenantId: string,
+  waivedFees: boolean,
+): Promise<NoShowResult> {
+  const res = await fetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings/${encodeURIComponent(channexBookingId)}/no-show`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId, waivedFees }),
+    },
+  );
+  const body = await res.json().catch(() => ({}));
+  if (res.ok) return { success: true, data: body };
+  // 422 or other error — return structured body for display
+  return { success: false, errors: body?.errors ?? body };
 }
 
 export async function cancelManualBooking(

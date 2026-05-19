@@ -1,5 +1,7 @@
 // apps/frontend/src/channex/components/connection/NoPropertyGuide.tsx
 
+import { useLanguage } from '../../../context/LanguageContext';
+
 interface Props {
   channel: 'airbnb' | 'booking';
   onNavigateToProperties: () => void;
@@ -10,36 +12,37 @@ const CHANNEL_LABELS: Record<Props['channel'], string> = {
   booking: 'Booking.com',
 };
 
-const SYNC_LABELS: Record<Props['channel'], string> = {
-  airbnb: 'Sync Listings',
-  booking: 'Sync Rooms & Rates',
-};
-
 export default function NoPropertyGuide({ channel, onNavigateToProperties }: Props) {
+  const { t } = useLanguage();
+
+  const syncAction = t(
+    channel === 'airbnb'
+      ? 'channex.noPropGuide.syncAction.airbnb'
+      : 'channex.noPropGuide.syncAction.booking',
+  );
+
   const steps = [
     {
-      title: 'Crea tu primera propiedad',
-      description:
-        'Ve a la pestaña Properties y completa el asistente de configuración para registrar tu propiedad en Channex.',
+      title: t('channex.noPropGuide.step1.title'),
+      description: t('channex.noPropGuide.step1.desc'),
       action: (
         <button
           type="button"
           onClick={onNavigateToProperties}
           className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
-          → Ir a Properties
+          {t('channex.noPropGuide.step1.btn')}
         </button>
       ),
     },
     {
-      title: `Conecta tu cuenta de ${CHANNEL_LABELS[channel]}`,
-      description:
-        'Regresa a esta pestaña y autoriza el acceso desde el panel de conexión que aparecerá aquí.',
+      title: t('channex.noPropGuide.step2.title', { channel: CHANNEL_LABELS[channel] }),
+      description: t('channex.noPropGuide.step2.desc'),
       action: null,
     },
     {
-      title: 'Sincroniza tus propiedades',
-      description: `Una vez conectado, usa el botón "${SYNC_LABELS[channel]}" para importar tus propiedades.`,
+      title: t('channex.noPropGuide.step3.title'),
+      description: t('channex.noPropGuide.step3.desc', { action: syncAction }),
       action: null,
     },
   ];
@@ -47,7 +50,7 @@ export default function NoPropertyGuide({ channel, onNavigateToProperties }: Pro
   return (
     <div className="space-y-3">
       <p className="mb-4 text-sm text-content-2">
-        Todavía no tienes una propiedad en Channex. Sigue estos pasos para comenzar:
+        {t('channex.noPropGuide.intro')}
       </p>
       {steps.map((step, index) => (
         <div

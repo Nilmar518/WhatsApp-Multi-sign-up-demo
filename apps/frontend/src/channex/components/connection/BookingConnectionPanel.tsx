@@ -1,6 +1,7 @@
 // apps/frontend/src/channex/components/connection/BookingConnectionPanel.tsx
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useLanguage } from '../../../context/LanguageContext';
 import { useChannexProperties } from '../../hooks/useChannexProperties';
 import {
   getAirbnbSessionToken,
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export default function BookingConnectionPanel({ tenantId, onNavigateToProperties }: Props) {
+  const { t } = useLanguage();
   const { properties: allProperties, loading } = useChannexProperties(tenantId);
   const { properties: bookingProperties } = useChannexProperties(tenantId, { source: 'booking' });
   const [selectedProperty, setSelectedProperty] = useState<ChannexProperty | null>(null);
@@ -63,7 +65,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
       setPreview(data);
       setSyncStep('naming');
     } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : 'Failed to load room preview.');
+      setPreviewError(err instanceof Error ? err.message : t('channex.bdcConn.err.preview'));
       setSyncStep('idle');
     }
   }, [baseProperty, tenantId]);
@@ -82,7 +84,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
       );
       setSyncResult(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sync failed.');
+      setError(err instanceof Error ? err.message : t('channex.bdcConn.err.sync'));
     } finally {
       setSyncStep('idle');
     }
@@ -110,7 +112,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
           onClick={() => setSelectedProperty(null)}
           className="mb-4 text-sm text-content-2 hover:text-content"
         >
-          ← Back to Booking.com
+          {t('channex.bdcConn.back')}
         </button>
         <PropertyDetail property={selectedProperty} tenantId={tenantId} />
       </div>
@@ -132,11 +134,11 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
               <span className="text-xs font-bold text-notice-text">B</span>
             </div>
             <div>
-              <h2 className="text-base font-semibold text-content">Booking.com Connection</h2>
+              <h2 className="text-base font-semibold text-content">{t('channex.bdcConn.title')}</h2>
               <p className="text-xs text-content-2">
                 {bookingProperties.length > 0
-                  ? `${bookingProperties.length} propert${bookingProperties.length === 1 ? 'y' : 'ies'} connected`
-                  : 'Connect your Booking.com account and sync rooms via Channex.'}
+                  ? t(bookingProperties.length === 1 ? 'channex.bdcConn.prop.one' : 'channex.bdcConn.prop.many', { n: bookingProperties.length })
+                  : t('channex.bdcConn.desc')}
               </p>
             </div>
           </div>
@@ -159,7 +161,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
         {/* Collapsible body */}
         {isOpen && (
           <div className="border-t border-edge px-6 pb-6 pt-4">
-            {loading && <p className="text-sm text-content-2">Loading properties…</p>}
+            {loading && <p className="text-sm text-content-2">{t('channex.bdcConn.loadingProps')}</p>}
 
             {!loading && !baseProperty && (
               <NoPropertyGuide channel="booking" onNavigateToProperties={onNavigateToProperties} />
@@ -176,13 +178,13 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
 
                 {previewError && (
                   <div className="mt-3 rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
-                    <span className="font-semibold">Preview error: </span>{previewError}
+                    {t('channex.bdcConn.previewErr', { error: previewError })}
                   </div>
                 )}
 
                 {error && (
                   <div className="mt-3 rounded-xl border border-danger-text/20 bg-danger-bg px-4 py-3 text-sm text-danger-text">
-                    <span className="font-semibold">Error: </span>{error}
+                    {t('channex.bdcConn.err', { error })}
                   </div>
                 )}
 
@@ -196,8 +198,8 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
                     ].join(' ')}
                   >
                     <p className="font-semibold">
-                      {syncResult.succeeded.length} room{syncResult.succeeded.length !== 1 ? 's' : ''} synced
-                      {syncResult.failed.length > 0 && `, ${syncResult.failed.length} failed`}
+                      {t(syncResult.succeeded.length === 1 ? 'channex.bdcConn.synced.one' : 'channex.bdcConn.synced.many', { n: syncResult.succeeded.length })}
+                      {syncResult.failed.length > 0 && `, ${syncResult.failed.length} ${t('channex.bdcConn.failed')}`}
                     </p>
                     {syncResult.succeeded.map((s) => (
                       <p key={s.channexPropertyId} className="mt-0.5">• {s.otaRoomTitle}</p>
@@ -216,7 +218,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
                     onClick={handleReconnect}
                     className="text-sm text-content-3 underline hover:no-underline"
                   >
-                    Reconnect Booking.com
+                    {t('channex.bdcConn.reconnect')}
                   </button>
                   <button
                     type="button"
@@ -232,15 +234,15 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
                     {syncing ? (
                       <>
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        Syncing…
+                        {t('channex.bdcConn.syncing')}
                       </>
                     ) : syncStep === 'loadingPreview' ? (
                       <>
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-content-3 border-t-content-2" />
-                        Loading preview…
+                        {t('channex.bdcConn.loadingPreview')}
                       </>
                     ) : (
-                      'Sync Rooms & Rates'
+                      t('channex.bdcConn.sync')
                     )}
                   </button>
                 </div>
@@ -273,7 +275,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
       {bookingProperties.length > 0 && (
         <>
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-content">Messages</h3>
+            <h3 className="mb-3 text-sm font-semibold text-content">{t('channex.bdcConn.messages')}</h3>
             <MessagesInbox
               tenantId={tenantId}
               threads={allThreads}
@@ -282,7 +284,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
           </div>
           <div>
             <h3 className="mb-3 text-sm font-semibold text-content">
-              Connected Booking.com Properties
+              {t('channex.bdcConn.connectedProps')}
             </h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {bookingProperties.map((property) => (

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Button from '../../../components/ui/Button';
 import { recalibrateAvailability, type MigoProperty } from '../../api/migoPropertyApi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 const DISMISSED_KEY = 'migo-pool-sync-dismissed';
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function PoolSyncModal({ pool, computedTotal, onCalibrated, onClose }: Props) {
+  const { t } = useLanguage();
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export default function PoolSyncModal({ pool, computedTotal, onCalibrated, onClo
       }
       onCalibrated(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Adjustment failed');
+      setError(err instanceof Error ? err.message : t('channex.poolSync.err'));
     } finally {
       setAdjusting(false);
     }
@@ -49,23 +51,20 @@ export default function PoolSyncModal({ pool, computedTotal, onCalibrated, onClo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-sm rounded-2xl border border-edge bg-surface-raised px-6 py-6 shadow-xl">
-        <h3 className="mb-2 text-base font-semibold text-content">Pool capacity mismatch</h3>
+        <h3 className="mb-2 text-base font-semibold text-content">{t('channex.poolSync.title')}</h3>
         <p className="text-sm text-content-2 mb-4">
-          Your connected properties sum to{' '}
-          <strong className="text-content">{computedTotal} unit{computedTotal !== 1 ? 's' : ''}</strong>,
-          but the pool is set to{' '}
-          <strong className="text-content">{pool.total_units}</strong>.
+          {t('channex.poolSync.desc', { sum: computedTotal, pool: pool.total_units })}
         </p>
 
         <div className="rounded-lg bg-surface px-4 py-3 text-sm mb-4">
           <div className="flex justify-between text-content-2 mb-1">
-            <span>Current</span>
+            <span>{t('channex.poolSync.current')}</span>
             <span className="font-semibold text-content">
               {pool.current_availability} / {pool.total_units}
             </span>
           </div>
           <div className="flex justify-between text-content-2">
-            <span>After adjustment</span>
+            <span>{t('channex.poolSync.after')}</span>
             <span className="font-semibold text-ok-text">
               {newAvail} / {computedTotal}
             </span>
@@ -82,10 +81,10 @@ export default function PoolSyncModal({ pool, computedTotal, onCalibrated, onClo
             onClick={handleAdjust}
             disabled={adjusting}
           >
-            {adjusting ? 'Adjusting…' : `Adjust to ${computedTotal} units`}
+            {adjusting ? t('channex.poolSync.adjusting') : t('channex.poolSync.adjust', { n: computedTotal })}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={handleDismiss}>
-            Dismiss
+            {t('channex.poolSync.dismiss')}
           </Button>
         </div>
 
@@ -96,7 +95,7 @@ export default function PoolSyncModal({ pool, computedTotal, onCalibrated, onClo
             onChange={(e) => setDontShowAgain(e.target.checked)}
             className="h-4 w-4 rounded border-edge accent-brand"
           />
-          Don't show this suggestion again
+          {t('channex.poolSync.dontShow')}
         </label>
       </div>
     </div>

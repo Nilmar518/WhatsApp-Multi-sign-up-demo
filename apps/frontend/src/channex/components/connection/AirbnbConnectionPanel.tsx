@@ -18,6 +18,7 @@ import PropertyCard from '../shared/PropertyCard';
 import PropertyDetail from '../shared/PropertyDetail';
 import MessagesInbox from '../shared/MessagesInbox';
 import type { ChannexProperty } from '../../hooks/useChannexProperties';
+import { useLanguage } from '../../../context/LanguageContext';
 
 type SyncStep = 'idle' | 'channelSelect' | 'loadingPreview' | 'naming' | 'syncing';
 
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties }: Props) {
+  const { t } = useLanguage();
   const { properties: allProperties, loading } = useChannexProperties(tenantId);
   const { properties: airbnbProperties } = useChannexProperties(tenantId, { source: 'airbnb' });
 
@@ -62,7 +64,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
       setPreview(data);
       setSyncStep('naming');
     } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : 'Failed to load listing preview.');
+      setPreviewError(err instanceof Error ? err.message : t('channex.airbnbConn.err.preview'));
       setSyncStep('idle');
     }
   }, [baseProperty, tenantId]);
@@ -81,7 +83,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
       );
       setSyncResult(result);
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Sync failed. Please try again.');
+      setSyncError(err instanceof Error ? err.message : t('channex.airbnbConn.err.sync'));
     } finally {
       setSyncStep('idle');
     }
@@ -109,7 +111,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
           onClick={() => setSelectedProperty(null)}
           className="mb-4 text-sm text-content-2 hover:text-content"
         >
-          ← Back to Airbnb
+          {t('channex.airbnbConn.back')}
         </button>
         <PropertyDetail property={selectedProperty} tenantId={tenantId} />
       </div>
@@ -130,11 +132,11 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
               <span className="text-xs font-bold text-white">A</span>
             </div>
             <div>
-              <h2 className="text-base font-semibold text-content">Airbnb Connection</h2>
+              <h2 className="text-base font-semibold text-content">{t('channex.airbnbConn.title')}</h2>
               <p className="text-xs text-content-2">
                 {airbnbProperties.length > 0
-                  ? `${airbnbProperties.length} propert${airbnbProperties.length === 1 ? 'y' : 'ies'} connected`
-                  : 'Connect your Airbnb account and sync listings to Channex.'}
+                  ? t(airbnbProperties.length === 1 ? 'channex.airbnbConn.prop.one' : 'channex.airbnbConn.prop.many', { n: airbnbProperties.length })
+                  : t('channex.airbnbConn.desc')}
               </p>
             </div>
           </div>
@@ -156,7 +158,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
 
         {isOpen && (
           <div className="border-t border-edge px-6 pb-6 pt-4">
-            {loading && <p className="text-sm text-content-2">Loading properties…</p>}
+            {loading && <p className="text-sm text-content-2">{t('channex.airbnbConn.loadingProps')}</p>}
 
             {!loading && !baseProperty && (
               <NoPropertyGuide channel="airbnb" onNavigateToProperties={onNavigateToProperties} />
@@ -173,13 +175,13 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
 
                 {previewError && (
                   <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    <span className="font-semibold">Preview error: </span>{previewError}
+                    {t('channex.airbnbConn.previewErr', { error: previewError })}
                   </div>
                 )}
 
                 {syncError && (
                   <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    <span className="font-semibold">Error: </span>{syncError}
+                    {t('channex.airbnbConn.err', { error: syncError })}
                   </div>
                 )}
 
@@ -193,9 +195,8 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
                     ].join(' ')}
                   >
                     <p className="font-semibold">
-                      {syncResult.succeeded.length}{' '}
-                      {syncResult.succeeded.length === 1 ? 'property' : 'properties'} synced
-                      {syncResult.failed.length > 0 && `, ${syncResult.failed.length} failed`}
+                      {t(syncResult.succeeded.length === 1 ? 'channex.airbnbConn.synced.one' : 'channex.airbnbConn.synced.many', { n: syncResult.succeeded.length })}
+                      {syncResult.failed.length > 0 && `, ${syncResult.failed.length} ${t('channex.airbnbConn.failed')}`}
                     </p>
                     {syncResult.succeeded.map((s) => (
                       <p key={s.channexPropertyId} className="mt-0.5">• {s.listingTitle}</p>
@@ -214,7 +215,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
                     onClick={handleReconnect}
                     className="text-sm text-content-3 underline hover:no-underline"
                   >
-                    Reconnect Airbnb
+                    {t('channex.airbnbConn.reconnect')}
                   </button>
                   <button
                     type="button"
@@ -230,15 +231,15 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
                     {syncing ? (
                       <>
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-rose-200 border-t-white" />
-                        Syncing listings…
+                        {t('channex.airbnbConn.syncing')}
                       </>
                     ) : syncStep === 'loadingPreview' ? (
                       <>
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-content-3 border-t-content-2" />
-                        Loading preview…
+                        {t('channex.airbnbConn.loadingPreview')}
                       </>
                     ) : (
-                      'Sync Listings'
+                      t('channex.airbnbConn.sync')
                     )}
                   </button>
                 </div>
@@ -271,7 +272,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
       {airbnbProperties.length > 0 && (
         <>
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-content">Messages</h3>
+            <h3 className="mb-3 text-sm font-semibold text-content">{t('channex.airbnbConn.messages')}</h3>
             <MessagesInbox
               tenantId={tenantId}
               threads={allThreads}
@@ -280,7 +281,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
           </div>
 
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-content">Connected Airbnb Properties</h3>
+            <h3 className="mb-3 text-sm font-semibold text-content">{t('channex.airbnbConn.connectedProps')}</h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {airbnbProperties.map((property) => (
                 <PropertyCard

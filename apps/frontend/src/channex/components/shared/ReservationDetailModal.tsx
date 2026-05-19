@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { Reservation } from '../../api/channexHubApi';
+import NoShowConfirmModal from './NoShowConfirmModal';
+import { useLanguage } from '../../../context/LanguageContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -64,24 +66,31 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export interface ReservationDetailModalProps {
   reservation: Reservation | null;
+  tenantId: string;
+  /** OTA channel code from the property (e.g. "BDC", "ABB"). Used to determine No Show eligibility. */
+  propertyChannelCode: string | null;
   onClose: () => void;
-  /** Called when the "No show" button is clicked. Passes the reservation. */
-  onNoShow?: (reservation: Reservation) => void;
+  /** Called after a successful No Show report — use to refresh the reservations list. */
+  onNoShowComplete?: () => void;
 }
 
 export default function ReservationDetailModal({
   reservation: r,
+  tenantId,
+  propertyChannelCode,
   onClose,
-  onNoShow,
+  onNoShowComplete,
 }: ReservationDetailModalProps) {
+  const { t } = useLanguage();
+  const [showNoShowConfirm, setShowNoShowConfirm] = useState(false);
   useEffect(() => {
     if (!r) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !showNoShowConfirm) onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [r, onClose]);
+  }, [r, onClose, showNoShowConfirm]);
 
   if (!r) return null;
 
@@ -96,12 +105,26 @@ export default function ReservationDetailModal({
   const displayAmount =
     (r.gross_amount_rooms ?? 0) > 0 ? r.gross_amount_rooms : r.gross_amount;
 
-  const isBookingCom = r.channel === 'booking_com';
+  const isBookingCom = propertyChannelCode === 'BookingCom';
+  const noShowButtonVisible =
+    isBookingCom &&
+    r.booking_status !== 'cancelled' &&
+    r.booking_status !== 'no_show' &&
+    !!r.channex_booking_id;
+
+  console.log('[NoShow] button check:', {
+    reservation_id: r.reservation_id,
+    propertyChannelCode,
+    isBookingCom,
+    booking_status: r.booking_status,
+    channex_booking_id: r.channex_booking_id,
+    noShowButtonVisible,
+  });
 
   const occupancyParts: string[] = [];
-  if ((r.occ_adults ?? 0) > 0) occupancyParts.push(`${r.occ_adults} adult${r.occ_adults !== 1 ? 's' : ''}`);
-  if ((r.occ_children ?? 0) > 0) occupancyParts.push(`${r.occ_children} child${r.occ_children !== 1 ? 'ren' : ''}`);
-  if ((r.occ_infants ?? 0) > 0) occupancyParts.push(`${r.occ_infants} infant${r.occ_infants !== 1 ? 's' : ''}`);
+  if ((r.occ_adults ?? 0) > 0) occupancyParts.push(t(r.occ_adults === 1 ? 'channex.reservDetail.occ.adult.one' : 'channex.reservDetail.occ.adult.many', { n: r.occ_adults ?? 0 }));
+  if ((r.occ_children ?? 0) > 0) occupancyParts.push(t(r.occ_children === 1 ? 'channex.reservDetail.occ.child.one' : 'channex.reservDetail.occ.child.many', { n: r.occ_children ?? 0 }));
+  if ((r.occ_infants ?? 0) > 0) occupancyParts.push(t(r.occ_infants === 1 ? 'channex.reservDetail.occ.infant.one' : 'channex.reservDetail.occ.infant.many', { n: r.occ_infants ?? 0 }));
 
   return (
     /* Backdrop */
@@ -133,44 +156,44 @@ export default function ReservationDetailModal({
         {/* Body */}
         <div className="px-5 pb-5">
           {/* Stay */}
-          <SectionTitle>Stay</SectionTitle>
+          <SectionTitle>{t('channex.reservDetail.stay')}</SectionTitle>
           <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-1">
-            <InfoRow label="Check-in" value={r.check_in || '—'} />
-            <InfoRow label="Check-out" value={r.check_out || '—'} />
+            <InfoRow label={t('channex.reservDetail.checkin')} value={r.check_in || '—'} />
+            <InfoRow label={t('channex.reservDetail.checkout')} value={r.check_out || '—'} />
             {nightCount !== null && (
-              <InfoRow label="Duration" value={`${nightCount} night${nightCount !== 1 ? 's' : ''}`} />
+              <InfoRow label={t('channex.reservDetail.duration')} value={t(nightCount === 1 ? 'channex.reservDetail.night.one' : 'channex.reservDetail.night.many', { n: nightCount })} />
             )}
             {occupancyParts.length > 0 && (
-              <InfoRow label="Guests" value={occupancyParts.join(', ')} />
+              <InfoRow label={t('channex.reservDetail.guests')} value={occupancyParts.join(', ')} />
             )}
-            {r.meal_plan && <InfoRow label="Meal plan" value={r.meal_plan} />}
+            {r.meal_plan && <InfoRow label={t('channex.reservDetail.mealPlan')} value={r.meal_plan} />}
           </div>
 
           {/* Financial */}
-          <SectionTitle>Financial</SectionTitle>
+          <SectionTitle>{t('channex.reservDetail.financial')}</SectionTitle>
           <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-1">
             <InfoRow
-              label="Total (gross)"
+              label={t('channex.reservDetail.grossTotal')}
               value={displayAmount > 0 ? fmt(displayAmount, r.currency) : '—'}
             />
             {r.ota_fee > 0 && (
-              <InfoRow label="OTA commission" value={fmt(r.ota_fee, r.currency)} />
+              <InfoRow label={t('channex.reservDetail.otaComm')} value={fmt(r.ota_fee, r.currency)} />
             )}
             <InfoRow
-              label="Net payout"
+              label={t('channex.reservDetail.netPayout')}
               value={r.net_payout > 0 ? fmt(r.net_payout, r.currency) : '—'}
             />
-            <InfoRow label="Payment collect" value={r.payment_collect || '—'} />
-            <InfoRow label="Payment type" value={r.payment_type || '—'} />
+            <InfoRow label={t('channex.reservDetail.payCollect')} value={r.payment_collect || '—'} />
+            <InfoRow label={t('channex.reservDetail.payType')} value={r.payment_type || '—'} />
           </div>
 
           {/* Guest / Contact */}
-          <SectionTitle>Guest</SectionTitle>
+          <SectionTitle>{t('channex.reservDetail.guestSection')}</SectionTitle>
           <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-1">
-            <InfoRow label="Name" value={guestName} />
+            <InfoRow label={t('channex.reservDetail.name')} value={guestName} />
             {r.customer_email && (
               <InfoRow
-                label="Email"
+                label={t('channex.reservDetail.email')}
                 value={
                   <a
                     href={`mailto:${r.customer_email}`}
@@ -183,7 +206,7 @@ export default function ReservationDetailModal({
             )}
             {r.customer_phone && (
               <InfoRow
-                label="Phone"
+                label={t('channex.reservDetail.phone')}
                 value={
                   <a
                     href={`tel:${r.customer_phone}`}
@@ -194,20 +217,20 @@ export default function ReservationDetailModal({
                 }
               />
             )}
-            {r.customer_country && <InfoRow label="Country" value={r.customer_country} />}
+            {r.customer_country && <InfoRow label={t('channex.reservDetail.country')} value={r.customer_country} />}
           </div>
 
           {/* Booking refs */}
-          <SectionTitle>Booking info</SectionTitle>
+          <SectionTitle>{t('channex.reservDetail.bookingInfo')}</SectionTitle>
           <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-1">
-            {r.ota_unique_id && <InfoRow label="OTA booking ID" value={r.ota_unique_id} />}
+            {r.ota_unique_id && <InfoRow label={t('channex.reservDetail.otaId')} value={r.ota_unique_id} />}
             {r.reservation_id && r.reservation_id !== r.ota_unique_id && (
-              <InfoRow label="Reservation ID" value={r.reservation_id} />
+              <InfoRow label={t('channex.reservDetail.reservId')} value={r.reservation_id} />
             )}
-            {r.channel_name && <InfoRow label="Channel" value={r.channel_name} />}
+            {r.channel_name && <InfoRow label={t('channex.reservDetail.channel')} value={r.channel_name} />}
             {r.pms_booking_id && (
               <InfoRow
-                label="PMS ID"
+                label={t('channex.reservDetail.pmsId')}
                 value={
                   <span className="font-mono text-xs">{r.pms_booking_id}</span>
                 }
@@ -218,7 +241,7 @@ export default function ReservationDetailModal({
           {/* Notes */}
           {r.notes && (
             <>
-              <SectionTitle>Notes</SectionTitle>
+              <SectionTitle>{t('channex.reservDetail.notes')}</SectionTitle>
               <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-3">
                 <p className="whitespace-pre-wrap text-xs text-content-2">{r.notes}</p>
               </div>
@@ -226,25 +249,38 @@ export default function ReservationDetailModal({
           )}
 
           {/* No show — BDC only */}
-          {isBookingCom && onNoShow && r.booking_status !== 'cancelled' && (
+          {noShowButtonVisible && (
             <div className="mt-5 rounded-xl border border-danger-bg bg-danger-bg/30 px-4 py-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-danger-text">Mark as No Show</p>
+                <p className="text-sm font-medium text-danger-text">{t('channex.reservDetail.noShowTitle')}</p>
                 <p className="mt-0.5 text-xs text-content-3">
-                  Guest did not arrive. This action will be reported to Booking.com.
+                  {t('channex.reservDetail.noShowDesc')}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => onNoShow(r)}
+                onClick={() => setShowNoShowConfirm(true)}
                 className="shrink-0 rounded-lg border border-danger-text px-3 py-1.5 text-xs font-semibold text-danger-text hover:bg-danger-bg transition-colors"
               >
-                No show
+                {t('channex.reservDetail.noShowBtn')}
               </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* No Show confirmation modal — rendered above this modal */}
+      {showNoShowConfirm && r && (
+        <NoShowConfirmModal
+          reservation={r}
+          tenantId={tenantId}
+          onClose={() => setShowNoShowConfirm(false)}
+          onSuccess={() => {
+            setShowNoShowConfirm(false);
+            onNoShowComplete?.();
+          }}
+        />
+      )}
     </div>
   );
 }

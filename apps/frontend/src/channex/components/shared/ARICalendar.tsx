@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLanguage } from '../../../context/LanguageContext';
 import ARIGlossaryButton from '../ARIGlossaryButton';
 import {
   listRoomTypes,
@@ -38,8 +39,6 @@ interface BatchEntry {
   closedToDeparture?: boolean;
 }
 
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 let batchCounter = 0;
 
 function isoDate(d: Date): string {
@@ -61,6 +60,14 @@ function endOfMonthUtc(d: Date): Date {
 }
 
 export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
+  const { t, lang } = useLanguage();
+  const WEEKDAY_LABELS = useMemo(
+    () => Array.from({ length: 7 }, (_, i) =>
+      new Date(Date.UTC(2024, 0, 7 + i))
+        .toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { weekday: 'short', timeZone: 'UTC' })
+    ),
+    [lang],
+  );
   const [visibleMonth, setVisibleMonth] = useState<Date>(() => startOfMonthUtc(new Date()));
   const [roomTypes, setRoomTypes] = useState<StoredRoomType[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
@@ -397,7 +404,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
       setSelectionStart(null);
       setSelectionEnd(null);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Save failed.');
+      setSaveError(err instanceof Error ? err.message : t('channex.ari.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -420,7 +427,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
       });
       setSyncResult(result);
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Full sync failed.');
+      setSyncError(err instanceof Error ? err.message : t('channex.ari.fullSyncFailed'));
     } finally {
       setSyncing(false);
     }
@@ -447,7 +454,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
     const roomTypeId = bookingRoomTypeId || roomTypes[0]?.room_type_id;
     if (!roomTypeId) return;
     if (selectedRange[0] >= selectedRange[1]) {
-      setBookingError('El check-out debe ser posterior al check-in (mínimo 1 noche).');
+      setBookingError(t('channex.ari.booking.checkoutErr'));
       return;
     }
     setBookingSaving(true);
@@ -477,7 +484,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
         setSelectionEnd(null);
       }, 1200);
     } catch (err) {
-      setBookingError(err instanceof Error ? err.message : 'Error al crear la reserva');
+      setBookingError(err instanceof Error ? err.message : t('channex.ari.booking.createErr'));
     } finally {
       setBookingSaving(false);
     }
@@ -493,8 +500,8 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
       {/* Header bar */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-semibold text-content">ARI Calendar</h3>
-          <p className="text-xs text-content-2">Click a date to preview, click a second date to open the update panel.</p>
+          <h3 className="text-base font-semibold text-content">{t('channex.ari.title')}</h3>
+          <p className="text-xs text-content-2">{t('channex.ari.desc')}</p>
         </div>
         <div className="flex items-center gap-2">
           <ARIGlossaryButton />
@@ -506,7 +513,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
               variant="secondary"
               size="sm"
             >
-              {refreshingSnapshot ? 'Refreshing…' : '↻ Refresh Calendar'}
+              {refreshingSnapshot ? t('channex.ari.refreshing') : t('channex.ari.refresh')}
             </Button>
           )}
           <Button
@@ -515,7 +522,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
             variant="outline"
             size="sm"
           >
-            Full Sync ({syncDays} days)
+            {t('channex.ari.fullSync', { n: syncDays })}
           </Button>
         </div>
       </div>
@@ -523,7 +530,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
       {/* Task ID display after save */}
       {lastTaskIds.length > 0 && (
         <div className="rounded-xl border border-ok-bg bg-ok-bg px-4 py-3">
-          <p className="text-xs font-semibold text-ok-text uppercase tracking-[0.1em]">Task IDs</p>
+          <p className="text-xs font-semibold text-ok-text uppercase tracking-[0.1em]">{t('channex.ari.taskIds')}</p>
           {lastTaskIds.map((id) => (
             <p key={id} className="mt-1 font-mono text-xs text-ok-text">{id}</p>
           ))}
@@ -557,7 +564,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
 
             {!hasData ? (
               <p className="text-xs text-content-3 italic">
-                No hay datos — usa ↻ Refresh Calendar para cargar desde Channex.
+                {t('channex.ari.noData')}
               </p>
             ) : (
               <div className="space-y-2">
@@ -600,7 +607,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                               )}
                             </>
                           ) : (
-                            <span className="text-content-3 italic text-[10px]">sin datos</span>
+                            <span className="text-content-3 italic text-[10px]">{t('channex.ari.noDataCell')}</span>
                           )}
                         </div>
                       </div>
@@ -610,23 +617,23 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
               </div>
             )}
             <p className="mt-2 text-xs text-content-3">
-              Haz click en otra fecha para definir un rango.
+              {t('channex.ari.clickSecond')}
             </p>
           </div>
         );
       })()}
 
       {loadingRooms ? (
-        <p className="text-sm text-content-2">Loading room types…</p>
+        <p className="text-sm text-content-2">{t('channex.ari.loading')}</p>
       ) : (
         <>
           {/* Month navigation */}
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => setVisibleMonth((m) => new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() - 1, 1)))}
-              className="rounded-lg border border-edge px-3 py-1.5 text-sm text-content-2 hover:bg-surface-subtle">Prev</button>
+              className="rounded-lg border border-edge px-3 py-1.5 text-sm text-content-2 hover:bg-surface-subtle">{t('channex.ari.prev')}</button>
             <span className="min-w-36 text-center text-sm font-semibold text-content">{monthLabel}</span>
             <button type="button" onClick={() => setVisibleMonth((m) => new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1)))}
-              className="rounded-lg border border-edge px-3 py-1.5 text-sm text-content-2 hover:bg-surface-subtle">Next</button>
+              className="rounded-lg border border-edge px-3 py-1.5 text-sm text-content-2 hover:bg-surface-subtle">{t('channex.ari.next')}</button>
           </div>
 
           {/* Calendar grid */}
@@ -729,19 +736,18 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => { if (!saving) setShowPanel(false); }} />
           <div className="fixed inset-y-0 right-0 z-50 w-96 border-l border-edge bg-surface-raised p-6 shadow-2xl overflow-y-auto">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-base font-bold text-content">Update ARI</h2>
+              <h2 className="text-base font-bold text-content">{t('channex.ari.updatePanel')}</h2>
               <button type="button" onClick={() => { if (!saving) setShowPanel(false); }} className="text-content-3 hover:text-content-2 disabled:opacity-50" disabled={saving}>✕</button>
             </div>
 
             <div className="mb-4 rounded-xl bg-surface-subtle px-3 py-2 text-sm">
-              <span className="text-content-2">Range: </span>
-              <span className="font-semibold text-content">{selectedRange[0]} → {selectedRange[1]}</span>
+              {t('channex.ari.range', { from: selectedRange[0], to: selectedRange[1] })}
             </div>
 
             <div className="space-y-4">
               {/* Room Type selector */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-content-2">Room Type</label>
+                <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.roomType')}</label>
                 <Select
                   value={selectedRoomTypeId}
                   onChange={(e) => {
@@ -750,7 +756,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                     setSelectedRatePlanId(room?.rate_plans[0]?.rate_plan_id ?? '');
                   }}
                 >
-                  <option value="">— select —</option>
+                  <option value="">{t('channex.ari.selectPh')}</option>
                   {uniqueRooms.map((rt) => (
                     <option key={rt.room_type_id} value={rt.room_type_id}>{rt.title}</option>
                   ))}
@@ -759,12 +765,12 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
 
               {/* Rate Plan selector */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-content-2">Rate Plan</label>
+                <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.ratePlan')}</label>
                 <Select
                   value={selectedRatePlanId}
                   onChange={(e) => setSelectedRatePlanId(e.target.value)}
                 >
-                  <option value="">— select —</option>
+                  <option value="">{t('channex.ari.selectPh')}</option>
                   {ratePlansForRoom.map((rp) => (
                     <option key={rp.rate_plan_id} value={rp.rate_plan_id}>{rp.title}</option>
                   ))}
@@ -776,14 +782,14 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
               {/* Availability */}
               <div>
                 <label className="mb-1 block text-xs font-semibold text-content-2">
-                  Availability (units) — leave blank to skip
+                  {t('channex.ari.avail.label')}
                 </label>
                 <Input
                   type="number"
                   min={0}
                   value={availability}
                   onChange={(e) => setAvailability(e.target.value === '' ? '' : Number(e.target.value))}
-                  placeholder="e.g. 7"
+                  placeholder={t('channex.ari.avail.ph')}
                 />
               </div>
 
@@ -792,7 +798,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
               {/* Rate */}
               <div>
                 <label className="mb-1 block text-xs font-semibold text-content-2">
-                  Rate ({currency}) — leave blank to skip
+                  {t('channex.ari.rate.label', { currency })}
                 </label>
                 <Input
                   type="number"
@@ -800,54 +806,57 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                   step="0.01"
                   value={rate}
                   onChange={(e) => setRate(e.target.value)}
-                  placeholder="e.g. 333"
+                  placeholder={t('channex.ari.rate.ph')}
                 />
               </div>
 
               {/* Min Stay */}
               <div>
                 <label className="mb-1 block text-xs font-semibold text-content-2">
-                  Min Stay (nights) — leave blank to skip
+                  {t('channex.ari.minStay.label')}
                 </label>
                 <Input
                   type="number"
                   min={1}
                   value={minStay}
                   onChange={(e) => setMinStay(e.target.value === '' ? '' : Number(e.target.value))}
-                  placeholder="e.g. 3"
+                  placeholder={t('channex.ari.minStay.ph')}
                 />
               </div>
 
               {/* Max Stay */}
               <div>
                 <label className="mb-1 block text-xs font-semibold text-content-2">
-                  Max Stay (nights) — leave blank to skip
+                  {t('channex.ari.maxStay.label')}
                 </label>
                 <Input
                   type="number"
                   min={1}
                   value={maxStay}
                   onChange={(e) => setMaxStay(e.target.value === '' ? '' : Number(e.target.value))}
-                  placeholder="e.g. 14"
+                  placeholder={t('channex.ari.maxStay.ph')}
                 />
               </div>
 
               {/* Restriction checkboxes */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-content-2">Restrictions</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-content-2">{t('channex.ari.restrictions')}</p>
                 {[
-                  { id: 'stop_sell', label: isRangeBlocked ? 'Sell (quitar bloqueo)' : 'Stop Sell', value: stopSell, set: setStopSell },
-                  { id: 'cta', label: 'Closed to Arrival', value: closedToArrival, set: setClosedToArrival },
-                  { id: 'ctd', label: 'Closed to Departure', value: closedToDeparture, set: setClosedToDeparture },
-                ].map(({ id, label, value, set }) => (
-                  <label key={id} className="flex cursor-pointer items-center gap-2.5">
+                  { id: 'stop_sell', label: isRangeBlocked ? t('channex.ari.openSell') : t('channex.ari.stopSell'), hint: t('channex.glossary.ss.hint'),  value: stopSell,          set: setStopSell },
+                  { id: 'cta',       label: t('channex.ari.cta'),                                                    hint: t('channex.glossary.cta.hint'), value: closedToArrival,   set: setClosedToArrival },
+                  { id: 'ctd',       label: t('channex.ari.ctd'),                                                    hint: t('channex.glossary.ctd.hint'), value: closedToDeparture, set: setClosedToDeparture },
+                ].map(({ id, label, hint, value, set }) => (
+                  <label key={id} className="flex cursor-pointer items-start gap-2.5">
                     <input
                       type="checkbox"
                       checked={value}
                       onChange={(e) => set(e.target.checked)}
-                      className="h-4 w-4 rounded border-edge text-brand focus:ring-brand"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-edge text-brand focus:ring-brand"
                     />
-                    <span className="text-sm text-content">{label}</span>
+                    <div>
+                      <span className="text-sm text-content">{label}</span>
+                      <p className="text-xs text-content-3 mt-0.5">{hint}</p>
+                    </div>
                   </label>
                 ))}
               </div>
@@ -856,7 +865,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
             {/* Batch queue preview */}
             {batchQueue.length > 0 && (
               <div className="mt-3 rounded-xl bg-surface-subtle border border-edge p-3">
-                <p className="text-xs font-semibold text-content-2 mb-2">Batch queue ({batchQueue.length} updates)</p>
+                <p className="text-xs font-semibold text-content-2 mb-2">{t('channex.ari.batchQueue', { n: batchQueue.length })}</p>
                 {batchQueue.map((entry) => (
                   <div key={entry.id} className="flex items-center justify-between text-xs text-content py-0.5">
                     <span>
@@ -884,7 +893,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                 size="sm"
                 className="flex-1"
               >
-                + Add to Batch
+                {t('channex.ari.addToBatch')}
               </Button>
               {batchQueue.length > 0 && (
                 <Button
@@ -895,7 +904,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                   size="sm"
                   className="flex-1"
                 >
-                  {saving ? 'Saving…' : `Save (${batchQueue.length})`}
+                  {saving ? t('channex.ari.saving') : t('channex.ari.save', { n: batchQueue.length })}
                 </Button>
               )}
             </div>
@@ -905,7 +914,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
               <>
                 <hr className="my-5 border-edge" />
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-content-2">Registrar Reserva</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-content-2">{t('channex.ari.registerReserv')}</p>
                   <Button
                     type="button"
                     onClick={openBookingModal}
@@ -913,7 +922,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                     size="sm"
                     className="w-full"
                   >
-                    + Nueva Reserva
+                    {t('channex.ari.addReserv')}
                   </Button>
                 </div>
               </>
@@ -928,7 +937,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
           <div className="fixed inset-0 z-[60] bg-black/40" onClick={() => { if (!bookingSaving) setShowBookingModal(false); }} />
           <div className="fixed inset-x-4 top-[8%] z-[70] mx-auto max-w-md rounded-2xl border border-edge bg-surface-raised p-6 shadow-2xl overflow-y-auto max-h-[84vh]">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-bold text-content">Nueva Reserva</h3>
+              <h3 className="text-base font-bold text-content">{t('channex.ari.newReserv')}</h3>
               <button
                 type="button"
                 onClick={() => { if (!bookingSaving) setShowBookingModal(false); }}
@@ -941,8 +950,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
 
             {/* Date range (read-only) */}
             <div className="mb-4 rounded-xl bg-surface-subtle px-3 py-2 text-sm">
-              <span className="text-content-2">Fechas: </span>
-              <span className="font-semibold text-content">{selectedRange[0]} → {selectedRange[1]}</span>
+              {t('channex.ari.dates', { from: selectedRange[0], to: selectedRange[1] })}
             </div>
 
             {(() => {
@@ -958,21 +966,21 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                 <div className="space-y-4">
                   {/* Tipo */}
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-content-2">Tipo</label>
+                    <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.type')}</label>
                     <Select
                       value={bookingType}
                       onChange={(e) => setBookingType(e.target.value as typeof bookingType)}
                     >
-                      <option value="walkin">Walk-in</option>
-                      <option value="maintenance">Mantenimiento</option>
-                      <option value="owner_stay">Uso propietario</option>
-                      <option value="direct">Directa</option>
+                      <option value="walkin">{t('channex.ari.type.walkin')}</option>
+                      <option value="maintenance">{t('channex.ari.type.maintenance')}</option>
+                      <option value="owner_stay">{t('channex.ari.type.owner')}</option>
+                      <option value="direct">{t('channex.ari.type.direct')}</option>
                     </Select>
                   </div>
 
                   {/* Room Type */}
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-content-2">Habitación</label>
+                    <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.room')}</label>
                     <Select
                       value={bookingRoomTypeId}
                       onChange={(e) => {
@@ -993,9 +1001,9 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                   {bookingRatePlans.length > 0 && (
                     <div>
                       <label className="mb-1 block text-xs font-semibold text-content-2">
-                        Plan de tarifa
+                        {t('channex.ari.ratePlan')}
                         {priceIsCustom && (
-                          <span className="ml-1.5 text-[10px] font-normal text-notice-text">(precio personalizado)</span>
+                          <span className="ml-1.5 text-[10px] font-normal text-notice-text">{t('channex.ari.customPrice')}</span>
                         )}
                       </label>
                       <Select
@@ -1006,7 +1014,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                           if (rp) setBookingUnitPrice(rp.rate);
                         }}
                       >
-                        <option value="">— sin plan —</option>
+                        <option value="">{t('channex.ari.noRatePlan')}</option>
                         {bookingRatePlans.map((rp) => (
                           <option key={rp.rate_plan_id} value={rp.rate_plan_id}>
                             {rp.title} — {currency} {rp.rate.toFixed(2)}
@@ -1019,7 +1027,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                   {/* Room count + pricing row */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="mb-1 block text-xs font-semibold text-content-2">Cantidad de unidades</label>
+                      <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.quantity')}</label>
                       <Input
                         type="number"
                         min={1}
@@ -1029,7 +1037,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-semibold text-content-2">Precio por unidad ({currency})</label>
+                      <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.pricePerUnit', { currency })}</label>
                       <Input
                         type="number"
                         min={0}
@@ -1043,7 +1051,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
 
                   {/* Total (computed, read-only) */}
                   <div className="rounded-xl bg-surface-subtle px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs text-content-2">Total</span>
+                    <span className="text-xs text-content-2">{t('channex.ari.total')}</span>
                     <span className="text-sm font-bold text-content">
                       {bookingTotal !== null
                         ? `${currency} ${bookingTotal.toFixed(2)}`
@@ -1053,33 +1061,33 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
 
                   {/* Nombre del huésped */}
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-content-2">Nombre del huésped (opcional)</label>
+                    <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.guestName')}</label>
                     <Input
                       type="text"
                       value={bookingGuestName}
                       onChange={(e) => setBookingGuestName(e.target.value)}
-                      placeholder="Ej. Juan Pérez"
+                      placeholder={t('channex.ari.guestNamePh')}
                     />
                   </div>
 
                   {/* Teléfono */}
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-content-2">Teléfono (opcional)</label>
+                    <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.phone')}</label>
                     <Input
                       type="text"
                       value={bookingGuestPhone}
                       onChange={(e) => setBookingGuestPhone(e.target.value)}
-                      placeholder="+52 55 0000 0000"
+                      placeholder={t('channex.ari.phonePh')}
                     />
                   </div>
 
                   {/* Notas */}
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-content-2">Notas (opcional)</label>
+                    <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.notes')}</label>
                     <textarea
                       value={bookingNotes}
                       onChange={(e) => setBookingNotes(e.target.value)}
-                      placeholder="Observaciones adicionales…"
+                      placeholder={t('channex.ari.notesPh')}
                       rows={3}
                       className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-content placeholder:text-content-3 focus:outline-none focus:ring-2 focus:ring-brand-light resize-none"
                     />
@@ -1096,7 +1104,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
 
             {bookingSuccess && (
               <div className="mt-3 rounded-xl border border-ok-bg bg-ok-bg px-3 py-2 text-sm text-ok-text">
-                ✓ Reserva registrada correctamente
+                {t('channex.ari.reservSuccess')}
               </div>
             )}
 
@@ -1108,7 +1116,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                 variant="ghost"
                 size="sm"
               >
-                Cancelar
+                {t('channex.ari.cancel')}
               </Button>
               <Button
                 type="button"
@@ -1117,7 +1125,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                 variant="primary"
                 size="sm"
               >
-                {bookingSaving ? 'Guardando…' : 'Confirmar Reserva'}
+                {bookingSaving ? t('channex.ari.saving') : t('channex.ari.confirmReserv')}
               </Button>
             </div>
           </div>
@@ -1133,15 +1141,15 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
             {/* Header */}
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="text-base font-bold text-content">Full Sync</h3>
+                <h3 className="text-base font-bold text-content">{t('channex.ari.fullSyncTitle')}</h3>
                 <p className="mt-0.5 text-xs text-content-3">
-                  Sends {syncDays} days of ARI to Channex in 2 API calls (availability + restrictions).
+                  {t('channex.ari.fullSyncDesc', { n: syncDays })}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowSyncInfo((v) => !v)}
-                title="Field descriptions"
+                title={t('channex.ari.fieldRefBtn')}
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold transition-colors ${showSyncInfo ? 'border-brand-light bg-brand-subtle text-brand' : 'border-edge bg-surface-subtle text-content-2 hover:border-brand-light hover:bg-brand-subtle hover:text-brand'}`}
               >
                 i
@@ -1151,24 +1159,24 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
             {/* Info panel */}
             {showSyncInfo && (
               <div className="mt-3 rounded-xl border border-brand-light bg-brand-subtle p-4 text-xs text-content space-y-2">
-                <p className="font-semibold text-brand mb-1">Field reference</p>
+                <p className="font-semibold text-brand mb-1">{t('channex.ari.fieldRef')}</p>
                 <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
-                  <span className="font-semibold text-content-2">Availability</span>
-                  <span>Number of rooms/units available per day for each Room Type.</span>
-                  <span className="font-semibold text-content-2">Rate</span>
-                  <span>Base nightly price applied to every Rate Plan for all {syncDays} days.</span>
+                  <span className="font-semibold text-content-2">{t('channex.ari.sync.avail')}</span>
+                  <span>{t('channex.ari.sync.availDesc')}</span>
+                  <span className="font-semibold text-content-2">{t('channex.ari.sync.rate', { currency })}</span>
+                  <span>{t('channex.ari.sync.rateDesc')}</span>
                   <span className="font-semibold text-content-2">Min Stay</span>
-                  <span>Minimum nights a guest must book (min_stay_arrival). 1 = no restriction.</span>
+                  <span>{t('channex.ari.sync.minStayDesc')}</span>
                   <span className="font-semibold text-content-2">Max Stay</span>
-                  <span>Maximum nights a guest can book. Required by Channex — cannot be empty or null.</span>
-                  <span className="font-semibold text-content-2">Stop Sell</span>
-                  <span>Closes all inventory — no new bookings accepted. Usually false for go-live.</span>
-                  <span className="font-semibold text-content-2">Closed to Arrival</span>
-                  <span>Blocks guests from checking in on any synced date (CTA). Usually false.</span>
-                  <span className="font-semibold text-content-2">Closed to Departure</span>
-                  <span>Blocks guests from checking out on any synced date (CTD). Usually false.</span>
+                  <span>{t('channex.ari.sync.maxStayDesc')}</span>
+                  <span className="font-semibold text-content-2">{t('channex.ari.sync.stopSell')}</span>
+                  <span>{t('channex.ari.sync.stopSellDesc')}</span>
+                  <span className="font-semibold text-content-2">{t('channex.ari.sync.cta')}</span>
+                  <span>{t('channex.ari.sync.ctaDesc')}</span>
+                  <span className="font-semibold text-content-2">{t('channex.ari.sync.ctd')}</span>
+                  <span>{t('channex.ari.sync.ctdDesc')}</span>
                   <span className="font-semibold text-content-2">Days</span>
-                  <span>How many days forward from today to sync.</span>
+                  <span>{t('channex.ari.sync.daysDesc')}</span>
                 </div>
               </div>
             )}
@@ -1176,7 +1184,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
             {/* Numeric fields */}
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-content-2">Availability</label>
+                <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.sync.avail')}</label>
                 <Input
                   type="number" min={0}
                   value={syncAvailability}
@@ -1184,14 +1192,14 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-content-2">Rate ({currency})</label>
+                <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.sync.rate', { currency })}</label>
                 <Input
                   value={syncRate}
                   onChange={(e) => setSyncRate(e.target.value)}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-content-2">Min Stay (nights)</label>
+                <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.sync.minStay')}</label>
                 <Input
                   type="number" min={1}
                   value={syncMinStay}
@@ -1199,7 +1207,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-content-2">Max Stay (nights)</label>
+                <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.sync.maxStay')}</label>
                 <Input
                   type="number" min={1}
                   value={syncMaxStay}
@@ -1207,7 +1215,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                 />
               </div>
               <div className="col-span-2">
-                <label className="mb-1 block text-xs font-semibold text-content-2">Days forward</label>
+                <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.ari.daysForward')}</label>
                 <Input
                   type="number" min={1}
                   value={syncDays}
@@ -1218,12 +1226,12 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
 
             {/* Boolean toggles */}
             <div className="mt-4 space-y-2">
-              <p className="text-xs font-semibold text-content-2 uppercase tracking-wide">Restrictions</p>
+              <p className="text-xs font-semibold text-content-2 uppercase tracking-wide">{t('channex.ari.restrictions')}</p>
               {(
                 [
-                  { label: 'Stop Sell', desc: 'Close all inventory', value: syncStopSell, set: setSyncStopSell },
-                  { label: 'Closed to Arrival', desc: 'Block check-in on all dates', value: syncClosedToArrival, set: setSyncClosedToArrival },
-                  { label: 'Closed to Departure', desc: 'Block check-out on all dates', value: syncClosedToDeparture, set: setSyncClosedToDeparture },
+                  { label: t('channex.ari.sync.stopSell'), desc: t('channex.ari.sync.stopSellDesc'), value: syncStopSell, set: setSyncStopSell },
+                  { label: t('channex.ari.sync.cta'), desc: t('channex.ari.sync.ctaDesc'), value: syncClosedToArrival, set: setSyncClosedToArrival },
+                  { label: t('channex.ari.sync.ctd'), desc: t('channex.ari.sync.ctdDesc'), value: syncClosedToDeparture, set: setSyncClosedToDeparture },
                 ] as const
               ).map(({ label, desc, value, set }) => (
                 <label key={label} className="flex cursor-pointer items-center justify-between rounded-xl border border-edge bg-surface-subtle px-4 py-2.5 hover:bg-surface-raised">
@@ -1249,14 +1257,14 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
             )}
             {syncResult && (
               <div className="mt-3 rounded-xl border border-ok-bg bg-ok-bg px-4 py-3 space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ok-text">Task IDs</p>
-                <p className="font-mono text-xs text-ok-text">Availability: {syncResult.availabilityTaskId || '—'}</p>
-                <p className="font-mono text-xs text-ok-text">Restrictions: {syncResult.restrictionsTaskId || '—'}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ok-text">{t('channex.ari.taskIds')}</p>
+                <p className="font-mono text-xs text-ok-text">{t('channex.ari.taskAvail')}{syncResult.availabilityTaskId || '—'}</p>
+                <p className="font-mono text-xs text-ok-text">{t('channex.ari.taskRestrict')}{syncResult.restrictionsTaskId || '—'}</p>
               </div>
             )}
 
             <div className="mt-5 flex justify-end gap-3">
-              <Button type="button" onClick={() => { setShowSyncModal(false); setShowSyncInfo(false); }} disabled={syncing} variant="ghost" size="sm">Cancel</Button>
+              <Button type="button" onClick={() => { setShowSyncModal(false); setShowSyncInfo(false); }} disabled={syncing} variant="ghost" size="sm">{t('channex.ari.cancel')}</Button>
               <Button
                 type="button"
                 onClick={() => void handleFullSync()}
@@ -1264,7 +1272,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                 variant="primary"
                 size="sm"
               >
-                {syncing ? 'Syncing…' : 'Run Full Sync'}
+                {syncing ? t('channex.ari.syncing') : t('channex.ari.runSync')}
               </Button>
             </div>
           </div>

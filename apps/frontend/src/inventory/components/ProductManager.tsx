@@ -13,6 +13,7 @@ import {
   formatPrice,
 } from '../../catalog-manager/api/catalogManagerApi';
 import type { ToastType } from './Toast';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface Props {
   businessId: string;
@@ -73,6 +74,7 @@ function ProductCard({
   onManageVariants: () => void;
   isDeleting: boolean;
 }) {
+  const { t } = useLanguage();
   const [imgError, setImgError] = useState(false);
 
   return (
@@ -108,20 +110,20 @@ function ProductCard({
             onClick={onEdit}
             className="text-xs font-medium bg-surface-raised text-content px-3 py-1.5 rounded-lg hover:bg-surface-subtle transition-colors"
           >
-            Edit
+            {t('inventory.product.edit')}
           </button>
           <button
             onClick={onManageVariants}
             className="text-xs font-medium bg-violet-500 text-white px-3 py-1.5 rounded-lg hover:bg-violet-600 transition-colors"
           >
-            Variants
+            {t('inventory.product.variants')}
           </button>
           <button
             onClick={onDelete}
             disabled={isDeleting}
             className="text-xs font-medium bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 disabled:opacity-40 transition-colors"
           >
-            {isDeleting ? '…' : 'Delete'}
+            {isDeleting ? t('inventory.product.loading') : t('inventory.product.delete')}
           </button>
         </div>
       </div>
@@ -146,9 +148,9 @@ function ProductCard({
               }`}
             >
               {product.availability === 'in stock'
-                ? 'In Stock'
+                ? t('inventory.product.badge.inStock')
                 : product.availability === 'out of stock'
-                  ? 'Out of Stock'
+                  ? t('inventory.product.badge.outOfStock')
                   : product.availability}
             </span>
           )}
@@ -186,6 +188,7 @@ export default function ProductManager({
   onToast,
   onManageVariants,
 }: Props) {
+  const { t } = useLanguage();
   const [products, setProducts]     = useState<MetaProduct[]>([]);
   const [loading, setLoading]       = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -206,7 +209,7 @@ export default function ProductManager({
       setProducts(data);
     } catch (err: unknown) {
       onToast(
-        err instanceof Error ? err.message : 'Failed to load products',
+        err instanceof Error ? err.message : t('inventory.product.err.load'),
         'error',
       );
     } finally {
@@ -261,7 +264,7 @@ export default function ProductManager({
     e.preventDefault();
     const priceMinor = Math.round(parseFloat(form.priceDecimal) * 100);
     if (isNaN(priceMinor) || priceMinor <= 0) {
-      setFormError('Please enter a valid price (e.g. 10.00)');
+      setFormError(t('inventory.product.val.price'));
       return;
     }
 
@@ -282,7 +285,7 @@ export default function ProductManager({
           url:          form.url,
         };
         await updateProduct(catalog.id, editingProduct.id, payload);
-        onToast(`"${form.name}" updated`, 'success');
+        onToast(t('inventory.product.ok.updated', { name: form.name }), 'success');
       } else {
         const payload: CreateProductPayload = {
           businessId,
@@ -297,12 +300,12 @@ export default function ProductManager({
           url:          form.url,
         };
         await createProduct(catalog.id, payload);
-        onToast(`"${form.name}" added`, 'success');
+        onToast(t('inventory.product.ok.created', { name: form.name }), 'success');
       }
       cancelForm();
       void fetchProducts();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Operation failed';
+      const msg = err instanceof Error ? err.message : t('inventory.product.err.op');
       setFormError(msg);
       onToast(msg, 'error');
     } finally {
@@ -313,19 +316,17 @@ export default function ProductManager({
   // ── Delete ───────────────────────────────────────────────────────────────────
 
   const handleDelete = async (product: MetaProduct) => {
-    if (
-      !confirm(`Delete "${product.name}"?\n\nThis is permanent and cannot be undone.`)
-    )
+    if (!confirm(t('inventory.product.confirm.delete', { name: product.name })))
       return;
 
     setDeletingId(product.id);
     try {
       await deleteProduct(businessId, catalog.id, product.id);
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
-      onToast(`"${product.name}" deleted`, 'success');
+      onToast(t('inventory.product.ok.deleted', { name: product.name }), 'success');
     } catch (err: unknown) {
       onToast(
-        err instanceof Error ? err.message : 'Failed to delete product',
+        err instanceof Error ? err.message : t('inventory.product.err.delete'),
         'error',
       );
     } finally {
@@ -344,7 +345,7 @@ export default function ProductManager({
             onClick={onBack}
             className="text-sm font-medium text-content-2 hover:text-content transition-colors"
           >
-            ← Catalogs
+            {t('inventory.product.back')}
           </button>
           <span className="text-content-3">|</span>
           <h2 className="text-base font-semibold text-content truncate max-w-xs">
@@ -356,7 +357,7 @@ export default function ProductManager({
             onClick={openCreate}
             className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
           >
-            + New Product
+            {t('inventory.product.new')}
           </button>
         )}
       </div>
@@ -369,14 +370,14 @@ export default function ProductManager({
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-blue-800">
-              {editingProduct ? 'Edit Product' : 'New Product'}
+              {editingProduct ? t('inventory.product.form.editTitle') : t('inventory.product.form.newTitle')}
             </h3>
             <button
               type="button"
               onClick={cancelForm}
               className="text-xs text-content-2 hover:text-content transition-colors"
             >
-              Cancel
+              {t('inventory.product.cancel')}
             </button>
           </div>
 
@@ -384,13 +385,13 @@ export default function ProductManager({
             {/* SKU — read-only on edit */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                SKU / Retailer ID <span className="text-red-400">*</span>
+                {t('inventory.product.field.sku')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={form.retailerId}
                 onChange={(e) => updateField('retailerId', e.target.value)}
-                placeholder="e.g. SHIRT-RED-M"
+                placeholder={t('inventory.product.ph.sku')}
                 disabled={!!editingProduct}
                 required={!editingProduct}
                 className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-surface-subtle disabled:text-content-3"
@@ -400,13 +401,13 @@ export default function ProductManager({
             {/* Name */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Name <span className="text-red-400">*</span>
+                {t('inventory.product.field.name')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(e) => updateField('name', e.target.value)}
-                placeholder="e.g. Red Cotton T-Shirt"
+                placeholder={t('inventory.product.ph.name')}
                 required
                 className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
@@ -415,12 +416,12 @@ export default function ProductManager({
             {/* Description */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Description <span className="text-red-400">*</span>
+                {t('inventory.product.field.desc')} <span className="text-red-400">*</span>
               </label>
               <textarea
                 value={form.description}
                 onChange={(e) => updateField('description', e.target.value)}
-                placeholder="Short product description"
+                placeholder={t('inventory.product.ph.desc')}
                 required
                 rows={2}
                 className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
@@ -430,7 +431,7 @@ export default function ProductManager({
             {/* Price */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Price <span className="text-red-400">*</span>
+                {t('inventory.product.field.price')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="number"
@@ -447,7 +448,7 @@ export default function ProductManager({
             {/* Currency */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Currency <span className="text-red-400">*</span>
+                {t('inventory.product.field.currency')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -465,43 +466,41 @@ export default function ProductManager({
             {/* Availability */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Availability <span className="text-red-400">*</span>
+                {t('inventory.product.field.avail')} <span className="text-red-400">*</span>
               </label>
               <select
                 value={form.availability}
                 onChange={(e) => updateField('availability', e.target.value)}
                 className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
-                {AVAILABILITY_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
+                <option value="in stock">{t('inventory.product.avail.inStock')}</option>
+                <option value="out of stock">{t('inventory.product.avail.outOfStock')}</option>
+                <option value="preorder">{t('inventory.product.avail.preorder')}</option>
+                <option value="available for order">{t('inventory.product.avail.available')}</option>
+                <option value="discontinued">{t('inventory.product.avail.discontinued')}</option>
               </select>
             </div>
 
             {/* Condition */}
             <div>
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Condition <span className="text-red-400">*</span>
+                {t('inventory.product.field.cond')} <span className="text-red-400">*</span>
               </label>
               <select
                 value={form.condition}
                 onChange={(e) => updateField('condition', e.target.value)}
                 className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
-                {CONDITION_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
+                <option value="new">{t('inventory.product.cond.new')}</option>
+                <option value="refurbished">{t('inventory.product.cond.refurbished')}</option>
+                <option value="used">{t('inventory.product.cond.used')}</option>
               </select>
             </div>
 
             {/* Image URL */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Image URL <span className="text-red-400">*</span>
+                {t('inventory.product.field.imageUrl')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="url"
@@ -516,7 +515,7 @@ export default function ProductManager({
             {/* Product URL */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-content-2 mb-1">
-                Product Page URL <span className="text-red-400">*</span>
+                {t('inventory.product.field.pageUrl')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="url"
@@ -541,7 +540,7 @@ export default function ProductManager({
               onClick={cancelForm}
               className="text-sm font-medium text-content-2 hover:text-content px-4 py-2 rounded-lg transition-colors"
             >
-              Cancel
+              {t('inventory.product.cancel')}
             </button>
             <button
               type="submit"
@@ -549,8 +548,8 @@ export default function ProductManager({
               className="text-sm font-medium bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
             >
               {submitting
-                ? editingProduct ? 'Saving…' : 'Creating…'
-                : editingProduct ? 'Save Changes' : 'Create Product'}
+                ? editingProduct ? t('inventory.product.saving') : t('inventory.product.creating')
+                : editingProduct ? t('inventory.product.save') : t('inventory.product.create')}
             </button>
           </div>
         </form>
@@ -581,8 +580,8 @@ export default function ProductManager({
               d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"
             />
           </svg>
-          <p className="text-sm">No products in this catalog yet.</p>
-          <p className="text-xs mt-1">Click "+ New Product" to add the first one.</p>
+          <p className="text-sm">{t('inventory.product.empty')}</p>
+          <p className="text-xs mt-1">{t('inventory.product.emptyHint')}</p>
         </div>
       )}
 
@@ -606,13 +605,13 @@ export default function ProductManager({
       {!loading && (
         <div className="flex justify-between items-center pt-1">
           <p className="text-xs text-content-3">
-            {products.length} product{products.length !== 1 ? 's' : ''}
+            {t(products.length === 1 ? 'inventory.product.count.one' : 'inventory.product.count.many', { n: products.length })}
           </p>
           <button
             onClick={() => void fetchProducts()}
             className="text-xs text-content-3 hover:text-content-2 transition-colors"
           >
-            ↻ Refresh
+            {t('inventory.product.refresh')}
           </button>
         </div>
       )}

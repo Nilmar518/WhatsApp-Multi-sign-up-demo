@@ -7,6 +7,7 @@ import VariantManager from './components/VariantManager';
 import AutoReplyManager from './components/AutoReplyManager';
 import { ToastContainer } from './components/Toast';
 import type { ToastItem, ToastType } from './components/Toast';
+import { useLanguage } from '../context/LanguageContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ function BoltIcon({ active }: { active: boolean }) {
  * Layout: sticky header + left sidebar + scrollable main content area.
  */
 export default function InventoryPage() {
+  const { t } = useLanguage();
   const [businessId, setBusinessId] = useState(BUSINESS_OPTIONS[0].value);
   const [section, setSection]       = useState<Section>('inventory');
   const [view, setView]             = useState<InventoryView>('catalogs');
@@ -99,7 +101,7 @@ export default function InventoryPage() {
       setCatalogs(data);
     } catch (err: unknown) {
       showToast(
-        err instanceof Error ? err.message : 'Failed to load catalogs',
+        err instanceof Error ? err.message : t('inventory.err.loadCatalogs'),
         'error',
       );
     } finally {
@@ -163,18 +165,18 @@ export default function InventoryPage() {
             href="/"
             className="text-sm font-medium text-content-3 hover:text-content-2 transition-colors"
           >
-            ← Dashboard
+            {t('inventory.back')}
           </a>
           <span className="text-content-3">|</span>
-          <h1 className="text-sm font-bold text-content">Inventory Manager</h1>
+          <h1 className="text-sm font-bold text-content">{t('inventory.title')}</h1>
           <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-            Admin
+            {t('inventory.admin')}
           </span>
         </div>
 
         {/* Business selector */}
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-content-3">Business</label>
+          <label className="text-xs font-medium text-content-3">{t('inventory.business')}</label>
           <select
             value={businessId}
             onChange={(e) => setBusinessId(e.target.value)}
@@ -195,7 +197,7 @@ export default function InventoryPage() {
         {/* ── Sidebar ──────────────────────────────────────────────────────── */}
         <aside className="w-56 bg-surface-raised border-r border-edge shrink-0 flex flex-col py-5 px-3">
           <p className="text-[10px] font-semibold text-content-3 uppercase tracking-widest px-3 mb-2">
-            Menu
+            {t('inventory.menu')}
           </p>
           <nav className="space-y-0.5">
             <button
@@ -207,7 +209,7 @@ export default function InventoryPage() {
               }`}
             >
               <BoxIcon active={section === 'inventory'} />
-              Catalogs &amp; Products
+              {t('inventory.menu.catalogs')}
             </button>
 
             <button
@@ -219,7 +221,7 @@ export default function InventoryPage() {
               }`}
             >
               <BoltIcon active={section === 'auto-replies'} />
-              Keyword Triggers
+              {t('inventory.menu.triggers')}
             </button>
           </nav>
         </aside>

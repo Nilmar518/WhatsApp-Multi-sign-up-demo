@@ -9,6 +9,7 @@ import {
 } from '../../api/channexHubApi';
 import Button from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   propertyId: string;
@@ -46,6 +47,7 @@ function RoomFormFields({
   form: RoomForm;
   onChange: (f: RoomForm) => void;
 }) {
+  const { t } = useLanguage();
   function set<K extends keyof RoomForm>(key: K, val: RoomForm[K]) {
     onChange({ ...form, [key]: val });
   }
@@ -53,18 +55,18 @@ function RoomFormFields({
   return (
     <div className="space-y-3">
       <div>
-        <label className="mb-1 block text-xs font-semibold text-content-2">Nombre</label>
+        <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.rooms.field.name')}</label>
         <Input
           value={form.title}
           onChange={(e) => set('title', e.target.value)}
-          placeholder="Ej. Suite Estándar"
+          placeholder={t('channex.rooms.field.namePlaceholder')}
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="mb-1 block text-xs font-semibold text-content-2">
-            Unidades físicas
+            {t('channex.rooms.field.units')}
             <span className="ml-1 font-normal text-content-3">(count_of_rooms)</span>
           </label>
           <Input
@@ -76,7 +78,7 @@ function RoomFormFields({
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold text-content-2">
-            Ocupación base
+            {t('channex.rooms.field.occBase')}
           </label>
           <Input
             type="number"
@@ -92,7 +94,7 @@ function RoomFormFields({
 
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="mb-1 block text-xs font-semibold text-content-2">Adultos máx.</label>
+          <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.rooms.field.adults')}</label>
           <Input
             type="number"
             min={1}
@@ -101,7 +103,7 @@ function RoomFormFields({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold text-content-2">Niños máx.</label>
+          <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.rooms.field.children')}</label>
           <Input
             type="number"
             min={0}
@@ -110,7 +112,7 @@ function RoomFormFields({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold text-content-2">Bebés máx.</label>
+          <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.rooms.field.babies')}</label>
           <Input
             type="number"
             min={0}
@@ -124,6 +126,7 @@ function RoomFormFields({
 }
 
 export default function RoomRateManager({ propertyId, currency }: Props) {
+  const { t } = useLanguage();
   const [roomTypes, setRoomTypes] = useState<StoredRoomType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +154,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
       const data = await listRoomTypes(propertyId);
       setRoomTypes(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load room types.');
+      setError(err instanceof Error ? err.message : t('channex.rooms.err.load'));
     } finally {
       setLoading(false);
     }
@@ -176,7 +179,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
       setShowRoomForm(false);
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create room type.');
+      setError(err instanceof Error ? err.message : t('channex.rooms.err.create'));
     } finally {
       setSavingRoom(false);
     }
@@ -197,7 +200,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
       setEditingRoomId(null);
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update room type.');
+      setError(err instanceof Error ? err.message : t('channex.rooms.err.update'));
     } finally {
       setSavingEdit(false);
     }
@@ -218,13 +221,13 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
       setShowRateForm(null);
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create rate plan.');
+      setError(err instanceof Error ? err.message : t('channex.rooms.err.rate'));
     } finally {
       setSavingRate(false);
     }
   }
 
-  if (loading) return <p className="text-sm text-content-2">Loading room types…</p>;
+  if (loading) return <p className="text-sm text-content-2">{t('channex.rooms.loading')}</p>;
 
   return (
     <div className="space-y-4">
@@ -240,13 +243,13 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
             /* ── Edit mode ── */
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-content">Editar room type</p>
+                <p className="text-sm font-semibold text-content">{t('channex.rooms.editRoom')}</p>
                 <button
                   type="button"
                   onClick={() => setEditingRoomId(null)}
                   className="text-content-3 hover:text-content-2 text-xs"
                 >
-                  ✕ Cancelar
+                  {t('channex.rooms.cancel')}
                 </button>
               </div>
               <RoomFormFields form={editForm} onChange={setEditForm} />
@@ -257,7 +260,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
                 variant="primary"
                 size="sm"
               >
-                {savingEdit ? 'Guardando…' : 'Guardar cambios'}
+                {savingEdit ? t('channex.rooms.saving') : t('channex.rooms.save')}
               </Button>
             </div>
           ) : (
@@ -271,7 +274,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
                 <div className="flex items-center gap-2">
                   <div className="flex flex-wrap gap-1.5 justify-end">
                     <span className="rounded-full bg-surface-subtle px-2.5 py-1 text-xs font-medium text-content-2">
-                      {rt.count_of_rooms} {rt.count_of_rooms !== 1 ? 'unidades' : 'unidad'}
+                      {t(rt.count_of_rooms === 1 ? 'channex.rooms.unit.one' : 'channex.rooms.unit.many', { n: rt.count_of_rooms })}
                     </span>
                     <span className="rounded-full bg-brand-subtle px-2.5 py-1 text-xs font-medium text-brand">
                       Occ {rt.default_occupancy}
@@ -279,7 +282,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
                   </div>
                   <button
                     type="button"
-                    title="Editar"
+                    title={t('channex.rooms.editTitle')}
                     onClick={() => { setEditingRoomId(rt.room_type_id); setEditForm(roomFormFromExisting(rt)); }}
                     className="rounded-lg border border-edge px-2 py-1 text-xs text-content-2 hover:border-brand-light hover:text-brand transition-colors"
                   >
@@ -289,9 +292,9 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
               </div>
 
               <div className="mt-2 flex gap-3 text-xs text-content-2">
-                <span>Adultos: <span className="font-medium text-content">{rt.occ_adults}</span></span>
-                <span>Niños: <span className="font-medium text-content">{rt.occ_children}</span></span>
-                <span>Bebés: <span className="font-medium text-content">{rt.occ_infants}</span></span>
+                <span>{t('channex.rooms.adults')} <span className="font-medium text-content">{rt.occ_adults}</span></span>
+                <span>{t('channex.rooms.children')} <span className="font-medium text-content">{rt.occ_children}</span></span>
+                <span>{t('channex.rooms.babies')} <span className="font-medium text-content">{rt.occ_infants}</span></span>
                 {rt.source && (
                   <span className="ml-auto rounded-full bg-surface-subtle px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-content-2">
                     {rt.source}
@@ -302,11 +305,11 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
               {/* Rate plans */}
               <div className="mt-4 space-y-1.5">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-content-2">
-                  Rate Plans ({rt.rate_plans.length})
+                  {t('channex.rooms.ratePlans', { n: rt.rate_plans.length })}
                 </p>
 
                 {rt.rate_plans.length === 0 ? (
-                  <p className="text-xs text-content-3 italic">Sin rate plans aún.</p>
+                  <p className="text-xs text-content-3 italic">{t('channex.rooms.noRatePlans')}</p>
                 ) : (
                   rt.rate_plans.map((rp: StoredRatePlan) => (
                     <div
@@ -320,7 +323,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
                       <div className="flex items-center gap-2 shrink-0">
                         {rp.is_primary && (
                           <span className="rounded-full bg-ok-bg px-2 py-0.5 text-[11px] font-semibold text-ok-text">
-                            Primary
+                            {t('channex.rooms.primary')}
                           </span>
                         )}
                         <span className="rounded-full bg-surface-raised border border-edge px-2.5 py-1 text-xs font-semibold text-content">
@@ -337,7 +340,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
                     <Input
                       value={newRateTitle}
                       onChange={(e) => setNewRateTitle(e.target.value)}
-                      placeholder="Nombre del rate plan"
+                      placeholder={t('channex.rooms.rateName')}
                       className="flex-1 text-xs"
                     />
                     <Input
@@ -345,7 +348,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
                       min={0}
                       value={newRateAmount}
                       onChange={(e) => setNewRateAmount(Number(e.target.value))}
-                      placeholder="Tarifa base"
+                      placeholder={t('channex.rooms.baseRate')}
                       className="w-24 text-xs"
                     />
                     <Button
@@ -355,7 +358,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
                       variant="primary"
                       size="sm"
                     >
-                      {savingRate ? '…' : 'Agregar'}
+                      {savingRate ? '…' : t('channex.rooms.add')}
                     </Button>
                     <button type="button" onClick={() => setShowRateForm(null)} className="text-content-3 hover:text-content-2">✕</button>
                   </div>
@@ -365,7 +368,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
                     onClick={() => { setShowRateForm(rt.room_type_id); setNewRateTitle(''); setNewRateAmount(100); }}
                     className="text-xs text-brand hover:text-brand"
                   >
-                    + Agregar rate plan
+                    {t('channex.rooms.addRatePlan')}
                   </button>
                 )}
               </div>
@@ -377,7 +380,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
       {/* Create form */}
       {showRoomForm ? (
         <div className="rounded-2xl border border-brand-light bg-brand-subtle p-4 space-y-4">
-          <p className="text-sm font-semibold text-content">Nuevo room type</p>
+          <p className="text-sm font-semibold text-content">{t('channex.rooms.newRoom')}</p>
           <RoomFormFields form={newRoomForm} onChange={setNewRoomForm} />
           <div className="flex gap-2">
             <Button
@@ -387,10 +390,10 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
               variant="primary"
               size="sm"
             >
-              {savingRoom ? 'Creando…' : 'Crear Room Type'}
+              {savingRoom ? t('channex.rooms.creating') : t('channex.rooms.createRoom')}
             </Button>
             <Button type="button" onClick={() => { setShowRoomForm(false); setNewRoomForm(emptyRoomForm()); }} variant="ghost" size="sm">
-              Cancelar
+              {t('channex.rooms.cancelPlain')}
             </Button>
           </div>
         </div>
@@ -400,7 +403,7 @@ export default function RoomRateManager({ propertyId, currency }: Props) {
           onClick={() => setShowRoomForm(true)}
           className="rounded-xl border-2 border-dashed border-edge px-4 py-3 text-sm text-content-2 hover:border-brand-light hover:text-brand w-full"
         >
-          + Agregar room type
+          {t('channex.rooms.addRoom')}
         </button>
       )}
     </div>

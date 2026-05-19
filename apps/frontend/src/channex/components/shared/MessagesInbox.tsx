@@ -3,6 +3,7 @@ import type { Timestamp } from 'firebase/firestore';
 import { useThreadMessages } from '../../hooks/useChannexMessages';
 import { replyToThread } from '../../api/channexHubApi';
 import type { ChannexThread } from '../../hooks/useChannexThreads';
+import { useLanguage } from '../../../context/LanguageContext';
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ interface ConversationPaneProps {
 }
 
 function ConversationPane({ tenantId, thread }: ConversationPaneProps) {
+  const { t } = useLanguage();
   const { messages, loading } = useThreadMessages(tenantId, thread.propertyId, thread.id);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
@@ -48,7 +50,7 @@ function ConversationPane({ tenantId, thread }: ConversationPaneProps) {
       await replyToThread(thread.propertyId, thread.id, text);
       setReply('');
     } catch (err) {
-      setSendError(err instanceof Error ? err.message : 'Send failed.');
+      setSendError(err instanceof Error ? err.message : t('channex.messages.err.send'));
     } finally {
       setSending(false);
     }
@@ -71,7 +73,7 @@ function ConversationPane({ tenantId, thread }: ConversationPaneProps) {
         <p className="text-sm font-semibold text-content">{thread.guestName}</p>
         {thread.isInquiry ? (
           <p className="text-xs text-notice-text mt-0.5">
-            Inquiry · {thread.checkinDate ?? '—'} → {thread.checkoutDate ?? '—'}
+            {t('channex.messages.inquiry')} · {thread.checkinDate ?? '—'} → {thread.checkoutDate ?? '—'}
           </p>
         ) : null}
         {thread.listingName && (
@@ -82,10 +84,10 @@ function ConversationPane({ tenantId, thread }: ConversationPaneProps) {
       {/* Message list */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 min-h-0">
         {loading && (
-          <p className="text-xs text-content-3">Loading messages…</p>
+          <p className="text-xs text-content-3">{t('channex.messages.loading')}</p>
         )}
         {!loading && messages.length === 0 && (
-          <p className="text-xs text-content-3">No messages in this thread yet.</p>
+          <p className="text-xs text-content-3">{t('channex.messages.empty')}</p>
         )}
         {messages.map((msg) => {
           const isHost = msg.sender === 'host';
@@ -127,7 +129,7 @@ function ConversationPane({ tenantId, thread }: ConversationPaneProps) {
             value={reply}
             onChange={(e) => setReply(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Reply… (Enter to send, Shift+Enter for new line)"
+            placeholder={t('channex.messages.replyPh')}
             rows={2}
             className="flex-1 resize-none rounded-xl border border-edge bg-surface px-3 py-2 text-sm text-content placeholder:text-content-3 focus:border-brand-light focus:outline-none"
           />
@@ -142,7 +144,7 @@ function ConversationPane({ tenantId, thread }: ConversationPaneProps) {
                 : 'bg-brand text-white hover:opacity-80',
             ].join(' ')}
           >
-            {sending ? '…' : 'Send'}
+            {sending ? t('channex.messages.sending') : t('channex.messages.send')}
           </button>
         </div>
       </div>
@@ -159,6 +161,7 @@ interface Props {
 }
 
 export default function MessagesInbox({ tenantId, threads, loading }: Props) {
+  const { t } = useLanguage();
   const [selectedThread, setSelectedThread] = useState<ChannexThread | null>(null);
 
   // Clear selection if the thread disappears from the list
@@ -171,7 +174,7 @@ export default function MessagesInbox({ tenantId, threads, loading }: Props) {
   if (loading) {
     return (
       <div className="flex h-40 items-center justify-center rounded-2xl border border-edge bg-surface-raised">
-        <p className="text-sm text-content-2">Loading messages…</p>
+        <p className="text-sm text-content-2">{t('channex.messages.loading')}</p>
       </div>
     );
   }
@@ -179,7 +182,7 @@ export default function MessagesInbox({ tenantId, threads, loading }: Props) {
   if (threads.length === 0) {
     return (
       <div className="flex h-40 items-center justify-center rounded-2xl border border-edge bg-surface-raised">
-        <p className="text-sm text-content-3">No messages yet.</p>
+        <p className="text-sm text-content-3">{t('channex.messages.noThreads')}</p>
       </div>
     );
   }
@@ -213,7 +216,7 @@ export default function MessagesInbox({ tenantId, threads, loading }: Props) {
               )}
               {thread.isInquiry && (
                 <span className="mt-1 inline-block rounded-full bg-notice-bg px-1.5 py-0.5 text-[10px] font-medium text-notice-text">
-                  Inquiry
+                  {t('channex.messages.inquiry')}
                 </span>
               )}
             </button>
@@ -231,7 +234,7 @@ export default function MessagesInbox({ tenantId, threads, loading }: Props) {
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-content-3">Select a conversation</p>
+            <p className="text-sm text-content-3">{t('channex.messages.selectConv')}</p>
           </div>
         )}
       </div>

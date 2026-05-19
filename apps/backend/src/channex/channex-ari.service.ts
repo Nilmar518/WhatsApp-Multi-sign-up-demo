@@ -594,26 +594,56 @@ export class ChannexARIService {
   // ─── Reservations ─────────────────────────────────────────────────────────
 
   /**
-   * Returns bookings for a tenant (all properties), ordered newest-first by check_in.
+   * Returns bookings for a property plus the OTA channel code of that property.
+   *
+   * Channel code is resolved via:
+   *   properties/{propertyId}.channex_channel_id
+   *     → channels/{channelId}.channel_code  (e.g. "BookingCom", "ABB")
    *
    * Prefers the flat tenant-level collection (newer) but falls back to nested
-   * per-property collections for historical data. Callers can filter by propertyId
-   * client-side if needed. Covers all channels (airbnb, booking.com, …).
+   * per-property collections for historical data.
    */
   async getPropertyBookings(
     propertyId: string,
     tenantId: string,
     limit = 50,
-  ): Promise<FirestoreReservationDoc[]> {
+  ): Promise<{ bookings: FirestoreReservationDoc[]; propertyChannelCode: string | null }> {
     this.logger.log(
       `[ARI] getPropertyBookings — propertyId=${propertyId} tenantId=${tenantId} limit=${limit}`,
     );
 
     const db = this.firebase.getFirestore();
 
-    // 1. Try the new flat collection first, filtered by propertyId.
-    // orderBy is omitted to avoid requiring a composite Firestore index; results
-    // are sorted in memory immediately after.
+    // ── Resolve property channel code ─────────────────────────────────────────
+    const propertyDocSnap = await db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(propertyId)
+      .get();
+
+    const channexChannelId =
+      (propertyDocSnap.data()?.channex_channel_id as string | null) ?? null;
+
+    let propertyChannelCode: string | null = null;
+
+    if (channexChannelId) {
+      const channelDocSnap = await db
+        .collection(INTEGRATIONS_COLLECTION)
+        .doc(tenantId)
+        .collection('channels')
+        .doc(channexChannelId)
+        .get();
+
+      propertyChannelCode =
+        (channelDocSnap.data()?.channel_code as string | null) ?? null;
+    }
+
+    this.logger.log(
+      `[ARI] getPropertyBookings — channex_channel_id=${channexChannelId ?? 'null'} channel_code=${propertyChannelCode ?? 'null'} isBookingCom=${propertyChannelCode === 'BookingCom'}`,
+    );
+
+    // ── 1. Flat collection (new path) ─────────────────────────────────────────
     const newSnap = await db
       .collection(INTEGRATIONS_COLLECTION)
       .doc(tenantId)
@@ -623,18 +653,18 @@ export class ChannexARIService {
       .get();
 
     if (!newSnap.empty) {
-      const results: FirestoreReservationDoc[] = newSnap.docs
+      const bookings: FirestoreReservationDoc[] = newSnap.docs
         .map((d) => ({ ...d.data(), id: d.id }) as unknown as FirestoreReservationDoc)
         .sort((a, b) => (b.check_in ?? '').localeCompare(a.check_in ?? ''));
 
       this.logger.log(
-        `[ARI] ✓ getPropertyBookings (flat collection) — found ${results.length} bookings for propertyId=${propertyId}`,
+        `[ARI] ✓ getPropertyBookings (flat) — ${bookings.length} bookings propertyChannelCode=${propertyChannelCode ?? 'null'}`,
       );
 
-      return results;
+      return { bookings, propertyChannelCode };
     }
 
-    // 2. Fallback: old nested collection (historical data before migration)
+    // ── 2. Nested fallback (historical data) ──────────────────────────────────
     const oldSnap = await db
       .collection(INTEGRATIONS_COLLECTION)
       .doc(tenantId)
@@ -645,15 +675,15 @@ export class ChannexARIService {
       .limit(limit)
       .get();
 
-    const results: FirestoreReservationDoc[] = oldSnap.docs.map(
+    const bookings: FirestoreReservationDoc[] = oldSnap.docs.map(
       (d) => ({ ...d.data(), id: d.id }) as unknown as FirestoreReservationDoc,
     );
 
     this.logger.log(
-      `[ARI] ✓ getPropertyBookings (nested fallback) — found ${results.length} bookings`,
+      `[ARI] ✓ getPropertyBookings (nested fallback) — ${bookings.length} bookings propertyChannelCode=${propertyChannelCode ?? 'null'}`,
     );
 
-    return results;
+    return { bookings, propertyChannelCode };
   }
 
   /**
@@ -1374,5 +1404,66 @@ export class ChannexARIService {
         );
       }
     });
+  }
+
+  // ─── No Show (Booking.com) ────────────────────────────────────────────────
+
+  /**
+   * Marks a Booking.com reservation as No Show via Channex, then updates
+   * Firestore to reflect the new status.
+   *
+   * Returns { success, data } on success or { success: false, errors } on a
+   * Channex validation error (e.g. check-in < 1 day ago) — never throws HTTP
+   * exceptions, letting the controller decide the response status code.
+   */
+  async markBookingNoShow(
+    propertyId: string,
+    channexBookingId: string,
+    tenantId: string,
+    waivedFees: boolean,
+  ): Promise<{ success: boolean; data?: unknown; errors?: unknown }> {
+    this.logger.log(
+      `[ARI] markBookingNoShow — propertyId=${propertyId} bookingId=${channexBookingId} waivedFees=${waivedFees}`,
+    );
+
+    const result = await this.channex.markNoShow(channexBookingId, waivedFees);
+
+    if (!result.success) {
+      return result;
+    }
+
+    // Update Firestore: find the booking doc and set no_show fields
+    const db = this.firebase.getFirestore();
+    const snap = await db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('bookings')
+      .where('channex_booking_id', '==', channexBookingId)
+      .where('propertyId', '==', propertyId)
+      .limit(1)
+      .get();
+
+    if (!snap.empty) {
+      const now = new Date().toISOString();
+      await this.firebase.set(
+        snap.docs[0].ref,
+        {
+          booking_status: 'no_show',
+          updated_at: now,
+          no_show_waived_fees: waivedFees,
+          no_show_reported_at: now,
+        },
+        { merge: true },
+      );
+      this.logger.log(
+        `[ARI] ✓ Booking updated to no_show in Firestore — bookingId=${channexBookingId}`,
+      );
+    } else {
+      this.logger.warn(
+        `[ARI] markBookingNoShow: booking not found in Firestore — bookingId=${channexBookingId} propertyId=${propertyId}`,
+      );
+    }
+
+    return result;
   }
 }

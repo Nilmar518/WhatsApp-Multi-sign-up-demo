@@ -7,6 +7,7 @@ import {
 import type { ChannexProperty } from '../hooks/useChannexProperties';
 import Button from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface RoomDraft {
   title: string;
@@ -31,6 +32,7 @@ interface Props {
 type Step = 1 | 2 | 3 | 4;
 
 export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: Props) {
+  const { t } = useLanguage();
   const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       setFirestoreDocId(result.firestoreDocId);
       setStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create property.');
+      setError(err instanceof Error ? err.message : t('channex.wizard.err.property'));
     } finally {
       setSaving(false);
     }
@@ -94,7 +96,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       setRates(drafts);
       setStep(3);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create room types.');
+      setError(err instanceof Error ? err.message : t('channex.wizard.err.rooms'));
     } finally {
       setSaving(false);
     }
@@ -117,7 +119,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       setRates(created);
       setStep(4);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create rate plans.');
+      setError(err instanceof Error ? err.message : t('channex.wizard.err.rates'));
     } finally {
       setSaving(false);
     }
@@ -152,7 +154,12 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
     });
   }
 
-  const stepLabels = ['Property details', 'Room types', 'Rate plans', 'Confirm'];
+  const stepLabels = [
+    t('channex.wizard.step.details'),
+    t('channex.wizard.step.rooms'),
+    t('channex.wizard.step.rates'),
+    t('channex.wizard.step.confirm'),
+  ];
 
   return (
     <div className="mx-auto max-w-2xl rounded-2xl border border-edge bg-surface-raised p-6 shadow-sm">
@@ -192,9 +199,9 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       {/* Step 1: Property details */}
       {step === 1 && (
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-content">Property details</h3>
+          <h3 className="text-base font-semibold text-content">{t('channex.wizard.step.details')}</h3>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-content-2">Name</label>
+            <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.wizard.name')}</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -202,14 +209,14 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-content-2">Currency</label>
+              <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.wizard.currency')}</label>
               <Input
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-content-2">Timezone</label>
+              <label className="mb-1 block text-xs font-semibold text-content-2">{t('channex.wizard.timezone')}</label>
               <Input
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
@@ -217,7 +224,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
             </div>
           </div>
           <div className="flex justify-between pt-2">
-            <Button type="button" onClick={onCancel} variant="ghost" size="sm">Cancel</Button>
+            <Button type="button" onClick={onCancel} variant="ghost" size="sm">{t('channex.wizard.cancel')}</Button>
             <Button
               type="button"
               onClick={() => void handleStep1()}
@@ -225,7 +232,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
               variant="primary"
               size="sm"
             >
-              {saving ? 'Creating…' : 'Create Property →'}
+              {saving ? t('channex.wizard.creating') : t('channex.wizard.create')}
             </Button>
           </div>
         </div>
@@ -234,7 +241,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       {/* Step 2: Room types */}
       {step === 2 && (
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-content">Room types</h3>
+          <h3 className="text-base font-semibold text-content">{t('channex.wizard.step.rooms')}</h3>
           <p className="text-sm text-content-2">
             Property ID: <code className="font-mono text-xs text-brand">{channexPropertyId}</code>
           </p>
@@ -251,7 +258,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
                 />
               </div>
               <div className="w-28">
-                <label className="block text-[11px] text-content-2">Occupancy</label>
+                <label className="block text-[11px] text-content-2">{t('channex.wizard.occupancy')}</label>
                 <Input
                   type="number"
                   min={1}
@@ -277,10 +284,10 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
             onClick={() => setRooms([...rooms, { title: '', defaultOccupancy: 2 }])}
             className="text-sm text-brand hover:text-brand"
           >
-            + Add room type
+            {t('channex.wizard.addRoom')}
           </button>
           <div className="flex justify-between pt-2">
-            <Button type="button" onClick={() => setStep(1)} variant="ghost" size="sm">← Back</Button>
+            <Button type="button" onClick={() => setStep(1)} variant="ghost" size="sm">{t('channex.wizard.back')}</Button>
             <Button
               type="button"
               onClick={() => void handleStep2()}
@@ -288,7 +295,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
               variant="primary"
               size="sm"
             >
-              {saving ? 'Creating…' : 'Create Room Types →'}
+              {saving ? t('channex.wizard.creating') : t('channex.wizard.createRooms')}
             </Button>
           </div>
         </div>
@@ -297,7 +304,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       {/* Step 3: Rate plans */}
       {step === 3 && (
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-content">Rate plans</h3>
+          <h3 className="text-base font-semibold text-content">{t('channex.wizard.step.rates')}</h3>
           {rates.map((rate, i) => (
             <div key={i} className="flex items-center gap-3 rounded-xl border border-edge px-4 py-3">
               <div className="flex-1">
@@ -312,7 +319,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
                 />
               </div>
               <div className="w-24">
-                <label className="block text-[11px] text-content-2">Base rate</label>
+                <label className="block text-[11px] text-content-2">{t('channex.wizard.baseRate')}</label>
                 <Input
                   type="number"
                   min={0}
@@ -327,7 +334,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
             </div>
           ))}
           <div className="flex justify-between pt-2">
-            <Button type="button" onClick={() => setStep(2)} variant="ghost" size="sm">← Back</Button>
+            <Button type="button" onClick={() => setStep(2)} variant="ghost" size="sm">{t('channex.wizard.back')}</Button>
             <Button
               type="button"
               onClick={() => void handleStep3()}
@@ -335,7 +342,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
               variant="primary"
               size="sm"
             >
-              {saving ? 'Creating…' : 'Create Rate Plans →'}
+              {saving ? t('channex.wizard.creating') : t('channex.wizard.createRates')}
             </Button>
           </div>
         </div>
@@ -344,7 +351,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
       {/* Step 4: Confirmation */}
       {step === 4 && (
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-content">Setup complete</h3>
+          <h3 className="text-base font-semibold text-content">{t('channex.wizard.complete')}</h3>
           <div className="rounded-xl bg-ok-bg border border-ok-bg px-4 py-3 space-y-2 text-xs font-mono">
             <p><span className="text-content-2">Property ID:</span> <span className="text-ok-text">{channexPropertyId}</span></p>
             {rooms.map((r) => (
@@ -361,7 +368,7 @@ export default function PropertySetupWizard({ tenantId, onComplete, onCancel }: 
               variant="primary"
               size="sm"
             >
-              Go to property →
+              {t('channex.wizard.goTo')}
             </Button>
           </div>
         </div>

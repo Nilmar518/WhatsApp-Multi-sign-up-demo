@@ -6,6 +6,7 @@ import {
   deleteCatalog,
 } from '../../catalog-manager/api/catalogManagerApi';
 import type { ToastType } from './Toast';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface Props {
   businessId: string;
@@ -24,6 +25,7 @@ export default function CatalogManager({
   onViewProducts,
   onToast,
 }: Props) {
+  const { t } = useLanguage();
   // ── Create form ─────────────────────────────────────────────────────────────
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName]               = useState('');
@@ -48,10 +50,10 @@ export default function CatalogManager({
       setNewName('');
       setShowCreateForm(false);
       onRefresh();
-      onToast(`Catalog "${newName.trim()}" created`, 'success');
+      onToast(t('inventory.catalog.ok.created', { name: newName.trim() }), 'success');
     } catch (err: unknown) {
       onToast(
-        err instanceof Error ? err.message : 'Failed to create catalog',
+        err instanceof Error ? err.message : t('inventory.catalog.err.create'),
         'error',
       );
     } finally {
@@ -78,10 +80,10 @@ export default function CatalogManager({
     try {
       await renameCatalog(businessId, catalogId, trimmed);
       onRefresh();
-      onToast('Catalog renamed', 'success');
+      onToast(t('inventory.catalog.ok.renamed'), 'success');
     } catch (err: unknown) {
       onToast(
-        err instanceof Error ? err.message : 'Failed to rename catalog',
+        err instanceof Error ? err.message : t('inventory.catalog.err.rename'),
         'error',
       );
     } finally {
@@ -93,21 +95,17 @@ export default function CatalogManager({
   // ── Delete ───────────────────────────────────────────────────────────────────
 
   const handleDelete = async (catalog: MetaCatalog) => {
-    if (
-      !confirm(
-        `Delete catalog "${catalog.name}"?\n\nThis will permanently remove it and all its products from Meta.`,
-      )
-    )
+    if (!confirm(t('inventory.catalog.confirm.delete', { name: catalog.name })))
       return;
 
     setDeletingId(catalog.id);
     try {
       await deleteCatalog(businessId, catalog.id);
       onRefresh();
-      onToast(`Catalog "${catalog.name}" deleted`, 'success');
+      onToast(t('inventory.catalog.ok.deleted', { name: catalog.name }), 'success');
     } catch (err: unknown) {
       onToast(
-        err instanceof Error ? err.message : 'Failed to delete catalog',
+        err instanceof Error ? err.message : t('inventory.catalog.err.delete'),
         'error',
       );
     } finally {
@@ -122,13 +120,13 @@ export default function CatalogManager({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-content">
-          Product Catalogs
+          {t('inventory.catalog.title')}
         </h2>
         <button
           onClick={() => { setShowCreateForm((v) => !v); setNewName(''); }}
           className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
         >
-          {showCreateForm ? 'Cancel' : '+ New Catalog'}
+          {showCreateForm ? t('inventory.catalog.cancel') : t('inventory.catalog.new')}
         </button>
       </div>
 
@@ -140,13 +138,13 @@ export default function CatalogManager({
         >
           <div className="flex-1">
             <label className="block text-xs font-medium text-content-2 mb-1">
-              Catalog Name
+              {t('inventory.catalog.nameLbl')}
             </label>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Summer Collection"
+              placeholder={t('inventory.catalog.namePh')}
               autoFocus
               className="w-full text-sm border border-edge rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
             />
@@ -156,7 +154,7 @@ export default function CatalogManager({
             disabled={creating || !newName.trim()}
             className="text-sm font-medium bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors"
           >
-            {creating ? 'Creating…' : 'Create'}
+            {creating ? t('inventory.catalog.creating') : t('inventory.catalog.create')}
           </button>
         </form>
       )}
@@ -173,8 +171,8 @@ export default function CatalogManager({
       {/* Empty state */}
       {!isLoading && catalogs.length === 0 && (
         <div className="text-center py-10 text-content-3">
-          <p className="text-sm">No catalogs found in your Business account.</p>
-          <p className="text-xs mt-1">Click "+ New Catalog" to create one.</p>
+          <p className="text-sm">{t('inventory.catalog.empty')}</p>
+          <p className="text-xs mt-1">{t('inventory.catalog.emptyHint')}</p>
         </div>
       )}
 
@@ -221,13 +219,13 @@ export default function CatalogManager({
                       disabled={renameSaving || !renameValue.trim()}
                       className="text-xs font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
                     >
-                      {renameSaving ? '…' : 'Save'}
+                      {renameSaving ? '…' : t('inventory.catalog.save')}
                     </button>
                     <button
                       onClick={cancelRename}
                       className="text-xs font-medium text-content-2 hover:text-content px-2.5 py-1.5 rounded-lg transition-colors"
                     >
-                      Cancel
+                      {t('inventory.catalog.cancel')}
                     </button>
                   </>
                 ) : (
@@ -236,21 +234,21 @@ export default function CatalogManager({
                       onClick={() => onViewProducts(catalog)}
                       className="text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition-colors"
                     >
-                      Products →
+                      {t('inventory.catalog.manage')}
                     </button>
                     <button
                       onClick={() => openRename(catalog)}
                       title="Rename"
                       className="text-xs font-medium text-content-2 hover:text-content bg-surface-subtle hover:bg-surface-subtle px-2.5 py-1.5 rounded-lg transition-colors"
                     >
-                      Rename
+                      {t('inventory.catalog.rename')}
                     </button>
                     <button
                       onClick={() => void handleDelete(catalog)}
                       disabled={deletingId === catalog.id}
                       className="text-xs font-medium text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40"
                     >
-                      {deletingId === catalog.id ? '…' : 'Delete'}
+                      {deletingId === catalog.id ? '…' : t('inventory.catalog.delete')}
                     </button>
                   </>
                 )}
@@ -267,7 +265,7 @@ export default function CatalogManager({
             onClick={onRefresh}
             className="text-xs text-content-3 hover:text-content-2 transition-colors"
           >
-            ↻ Refresh
+            {t('inventory.catalog.refresh')}
           </button>
         </div>
       )}

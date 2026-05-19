@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getChannels, type StoredChannel } from '../../api/channexHubApi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   tenantId: string;
@@ -15,12 +16,13 @@ function matchesType(ch: StoredChannel, channelType: 'airbnb' | 'booking'): bool
 }
 
 export default function BdcChannelSelectModal({ tenantId, channelType, onConfirm, onClose }: Props) {
+  const { t } = useLanguage();
   const [channels, setChannels] = useState<StoredChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
-  const title = channelType === 'airbnb' ? 'Select Airbnb Channel' : 'Select Booking.com Channel';
+  const title = t(channelType === 'airbnb' ? 'channex.bdcModal.titleAirbnb' : 'channex.bdcModal.titleBdc');
 
   const fetchChannels = () => {
     setLoading(true);
@@ -31,7 +33,7 @@ export default function BdcChannelSelectModal({ tenantId, channelType, onConfirm
         setChannels(filtered);
         if (filtered.length === 1) setSelected(filtered[0].channel_id);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load channels.'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('channex.bdcModal.err')))
       .finally(() => setLoading(false));
   };
 
@@ -61,7 +63,7 @@ export default function BdcChannelSelectModal({ tenantId, channelType, onConfirm
           {loading && (
             <div className="flex items-center gap-2 text-sm text-content-2">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-content-3 border-t-content-2" />
-              Loading channels…
+              {t('channex.bdcModal.loading')}
             </div>
           )}
 
@@ -73,13 +75,13 @@ export default function BdcChannelSelectModal({ tenantId, channelType, onConfirm
                 onClick={fetchChannels}
                 className="text-sm font-medium text-brand hover:underline"
               >
-                Retry
+                {t('channex.bdcModal.retry')}
               </button>
             </div>
           )}
 
           {!loading && !error && channels.length === 0 && (
-            <p className="text-sm text-content-2">No channels found. Connect a channel via the IFrame first.</p>
+            <p className="text-sm text-content-2">{t('channex.bdcModal.empty')}</p>
           )}
 
           {!loading && !error && channels.length > 0 && (
@@ -109,7 +111,7 @@ export default function BdcChannelSelectModal({ tenantId, channelType, onConfirm
             onClick={onClose}
             className="rounded-xl px-4 py-2 text-sm text-content-2 hover:text-content transition-colors"
           >
-            Cancel
+            {t('channex.bdcModal.cancel')}
           </button>
           {!loading && !error && channels.length > 0 && (
             <button
@@ -123,7 +125,7 @@ export default function BdcChannelSelectModal({ tenantId, channelType, onConfirm
                   : 'cursor-not-allowed bg-surface-subtle text-content-3',
               ].join(' ')}
             >
-              Next
+              {t('channex.bdcModal.next')}
             </button>
           )}
         </div>

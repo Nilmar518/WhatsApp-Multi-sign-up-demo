@@ -1778,6 +1778,10 @@ export class ChannexService {
     return this.installApplication(propertyId, ChannexService.APP_IDS.channex_messages);
   }
 
+  async installBookingCrsApp(propertyId: string): Promise<void> {
+    return this.installApplication(propertyId, ChannexService.APP_IDS.booking_crs);
+  }
+
   /**
    * Installs a Channex Application on a specific property by application UUID.
    *
@@ -1894,5 +1898,53 @@ export class ChannexService {
    */
   static readonly APP_IDS = {
     channex_messages: 'd5c07f16-52f7-4afb-a884-dfe2d1cd7103',
+    booking_crs:      'bdcd403b-b62e-46c4-997e-3dced2ae7a37',
   } as const;
+
+  // ─── No Show (Booking.com) ────────────────────────────────────────────────
+
+  /**
+   * Reports a guest as a No Show to Booking.com via Channex.
+   *
+   * POST /api/v1/bookings/{channexBookingId}/no_show
+   *
+   * BDC rule: can only be called ≥1 day after check-in date.
+   * If called too early, Channex returns 422 with validation_error.
+   *
+   * Returns the raw Channex response body so the caller can decide how to
+   * surface success or structured errors to the client — does not throw on 4xx.
+   */
+  async markNoShow(
+    channexBookingId: string,
+    waivedFees: boolean,
+  ): Promise<{ success: boolean; data?: unknown; errors?: unknown }> {
+    this.logger.log(
+      `[CHANNEX] markNoShow — bookingId=${channexBookingId} waivedFees=${waivedFees}`,
+    );
+
+    try {
+      const response = await this.defLogger.request<unknown>({
+        method: 'POST',
+        url: `${this.baseUrl}/bookings/${encodeURIComponent(channexBookingId)}/no_show`,
+        headers: this.buildAuthHeaders(),
+        data: { no_show_report: { waived_fees: waivedFees } },
+      });
+
+      this.logger.log(
+        `[CHANNEX] ✓ No show reported — bookingId=${channexBookingId}`,
+      );
+
+      return { success: true, data: response };
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: unknown; status?: number } };
+      const channexErrors = axiosErr?.response?.data;
+      const status = axiosErr?.response?.status ?? 0;
+
+      this.logger.warn(
+        `[CHANNEX] markNoShow failed — bookingId=${channexBookingId} status=${status}`,
+      );
+
+      return { success: false, errors: channexErrors };
+    }
+  }
 }

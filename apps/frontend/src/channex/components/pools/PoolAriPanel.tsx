@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Button from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { pushAriToPool, type AriPushResult } from '../../api/migoPropertyApi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   migoPropertyId: string;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function PoolAriPanel({ migoPropertyId, enabledConnectionCount }: Props) {
+  const { t } = useLanguage();
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [stopSell, setStopSell] = useState(false);
@@ -20,7 +22,7 @@ export default function PoolAriPanel({ migoPropertyId, enabledConnectionCount }:
   async function handlePush(e: React.FormEvent) {
     e.preventDefault();
     if (!dateFrom || !dateTo) {
-      setError('Date range is required.');
+      setError(t('channex.poolAri.err.dateRequired'));
       return;
     }
     setPushing(true);
@@ -36,7 +38,7 @@ export default function PoolAriPanel({ migoPropertyId, enabledConnectionCount }:
       const res = await pushAriToPool(migoPropertyId, payload);
       setResult(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Push failed');
+      setError(err instanceof Error ? err.message : t('channex.poolAri.err.pushFailed'));
     } finally {
       setPushing(false);
     }
@@ -44,17 +46,16 @@ export default function PoolAriPanel({ migoPropertyId, enabledConnectionCount }:
 
   return (
     <div className="rounded-2xl border border-edge bg-surface-raised px-5 py-4">
-      <h3 className="mb-4 text-sm font-semibold text-content">ARI Fan-out</h3>
+      <h3 className="mb-4 text-sm font-semibold text-content">{t('channex.poolAri.title')}</h3>
       <p className="mb-4 text-xs text-content-2">
-        Push ARI updates to all {enabledConnectionCount} enabled platform
-        {enabledConnectionCount !== 1 ? 's' : ''} simultaneously.
+        {t('channex.poolAri.desc', { n: enabledConnectionCount })}
       </p>
 
       <form onSubmit={handlePush} className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
-              Date From
+              {t('channex.poolAri.dateFrom')}
             </label>
             <Input
               type="date"
@@ -65,7 +66,7 @@ export default function PoolAriPanel({ migoPropertyId, enabledConnectionCount }:
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
-              Date To
+              {t('channex.poolAri.dateTo')}
             </label>
             <Input
               type="date"
@@ -84,20 +85,20 @@ export default function PoolAriPanel({ migoPropertyId, enabledConnectionCount }:
               onChange={(e) => setStopSell(e.target.checked)}
               className="h-4 w-4 rounded border-edge accent-brand"
             />
-            <span className="text-sm font-medium text-content">Stop Sell</span>
-            <span className="text-xs text-content-3">Close all bookings for this period</span>
+            <span className="text-sm font-medium text-content">{t('channex.poolAri.stopSell')}</span>
+            <span className="text-xs text-content-3">{t('channex.poolAri.stopSellDesc')}</span>
           </label>
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
-              Availability Override <span className="font-normal normal-case">(optional)</span>
+              {t('channex.poolAri.availOverride')}
             </label>
             <Input
               type="number"
               min={0}
               value={availability}
               onChange={(e) => setAvailability(e.target.value)}
-              placeholder="Leave blank to skip"
+              placeholder={t('channex.poolAri.availPh')}
               className="max-w-[120px]"
             />
           </div>
@@ -112,7 +113,7 @@ export default function PoolAriPanel({ migoPropertyId, enabledConnectionCount }:
           disabled={pushing || enabledConnectionCount === 0}
           className="self-start"
         >
-          {pushing ? 'Pushing…' : 'Push to all platforms'}
+          {pushing ? t('channex.poolAri.pushing') : t('channex.poolAri.push')}
         </Button>
       </form>
 
@@ -121,7 +122,7 @@ export default function PoolAriPanel({ migoPropertyId, enabledConnectionCount }:
           {result.succeeded.length > 0 && (
             <div className="mb-2">
               <p className="text-xs font-semibold text-ok-text">
-                ✓ Succeeded ({result.succeeded.length})
+                {t('channex.poolAri.succeeded', { n: result.succeeded.length })}
               </p>
               <ul className="mt-1 space-y-0.5">
                 {result.succeeded.map((id) => (
@@ -133,7 +134,7 @@ export default function PoolAriPanel({ migoPropertyId, enabledConnectionCount }:
           {result.failed.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-danger-text">
-                ✗ Failed ({result.failed.length})
+                {t('channex.poolAri.failed', { n: result.failed.length })}
               </p>
               <ul className="mt-1 space-y-0.5">
                 {result.failed.map((f) => (

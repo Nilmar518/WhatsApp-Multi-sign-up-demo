@@ -7,6 +7,7 @@ import MessagesInbox from './MessagesInbox';
 import { checkConnectionHealth, type ConnectionHealthResult } from '../../api/channexHubApi';
 import { usePropertyThreads } from '../../hooks/useChannexThreads';
 import Button from '../../../components/ui/Button';
+import { useLanguage } from '../../../context/LanguageContext';
 
 type InnerTab = 'rooms' | 'ari' | 'reservations' | 'messages';
 
@@ -28,6 +29,7 @@ function HealthRow({ label, ok, detail }: { label: string; ok: boolean; detail?:
 }
 
 export default function PropertyDetail({ property, tenantId }: Props) {
+  const { t } = useLanguage();
   const [innerTab, setInnerTab] = useState<InnerTab>('rooms');
   const [syncing, setSyncing] = useState(false);
   const { threads, loading: threadsLoading } = usePropertyThreads(tenantId, property.channex_property_id);
@@ -81,7 +83,7 @@ export default function PropertyDetail({ property, tenantId }: Props) {
               className="flex items-center gap-1.5"
             >
               <span className={syncing ? 'animate-spin inline-block' : ''}>↻</span>
-              {syncing ? 'Syncing…' : 'Sync'}
+              {syncing ? t('channex.detail.syncing') : t('channex.detail.sync')}
             </Button>
           </div>
         </div>
@@ -89,19 +91,18 @@ export default function PropertyDetail({ property, tenantId }: Props) {
         {/* Health result panel */}
         {healthResult && (
           <div className="mt-4 animate-fade-in rounded-xl border border-edge bg-surface-subtle px-4 py-3">
-            <HealthRow label="Property exists in Channex" ok={healthResult.propertyExists} />
+            <HealthRow label={t('channex.detail.existsInChannex')} ok={healthResult.propertyExists} />
             <HealthRow
-              label="Rooms configured"
+              label={t('channex.detail.roomsConfigured')}
               ok={healthResult.roomsCount > 0}
-              detail={`${healthResult.roomsCount} room${healthResult.roomsCount !== 1 ? 's' : ''}`}
+              detail={t(healthResult.roomsCount === 1 ? 'channex.detail.room.one' : 'channex.detail.room.many', { n: healthResult.roomsCount })}
             />
-            <HealthRow label="Tenant group match" ok={healthResult.inTenantGroup} />
+            <HealthRow label={t('channex.detail.tenantMatch')} ok={healthResult.inTenantGroup} />
             <HealthRow
-              label="Webhook subscribed"
+              label={t('channex.detail.webhookSubscribed')}
               ok={healthResult.webhookSubscribed}
-              detail={healthResult.webhookReregistered ? 're-registered' : undefined}
             />
-            <HealthRow label="Messages App installed" ok={healthResult.messagesAppInstalled} />
+            <HealthRow label={t('channex.detail.messagesInstalled')} ok={healthResult.messagesAppInstalled} />
             {healthResult.errors.length > 0 && (
               <div className="mt-2 rounded-lg bg-danger-bg px-3 py-2">
                 {healthResult.errors.map((e, i) => (
@@ -122,10 +123,10 @@ export default function PropertyDetail({ property, tenantId }: Props) {
       {/* Inner tabs */}
       <div className="mb-4 flex gap-0 border-b border-edge">
         {([
-          { id: 'rooms' as InnerTab, label: 'Rooms & Rates' },
-          { id: 'ari' as InnerTab, label: 'ARI Calendar' },
-          { id: 'reservations' as InnerTab, label: 'Reservations' },
-          { id: 'messages' as InnerTab, label: 'Messages' },
+          { id: 'rooms' as InnerTab, label: t('channex.detail.tab.rooms') },
+          { id: 'ari' as InnerTab, label: t('channex.detail.tab.ari') },
+          { id: 'reservations' as InnerTab, label: t('channex.detail.tab.reservations') },
+          { id: 'messages' as InnerTab, label: t('channex.detail.tab.messages') },
         ] as const).map((tab) => (
           <button
             key={tab.id}

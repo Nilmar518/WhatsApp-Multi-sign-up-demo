@@ -3,6 +3,7 @@ import Button from '../../../components/ui/Button';
 import { Input, Select } from '../../../components/ui/Input';
 import { useChannexProperties } from '../../hooks/useChannexProperties';
 import { assignConnection, type MigoProperty, type PlatformConnection } from '../../api/migoPropertyApi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   migoPropertyId: string;
@@ -19,6 +20,7 @@ export default function AssignConnectionModal({
   onAssigned,
   onClose,
 }: Props) {
+  const { t } = useLanguage();
   const { properties, loading: propsLoading } = useChannexProperties(tenantId);
   const [selectedChannexId, setSelectedChannexId] = useState('');
   const [platform, setPlatform] = useState('airbnb');
@@ -54,7 +56,7 @@ export default function AssignConnectionModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedChannexId || !listingTitle.trim()) {
-      setError('Select a property and enter a listing title.');
+      setError(t('channex.assign.err.required'));
       return;
     }
     setSaving(true);
@@ -68,7 +70,7 @@ export default function AssignConnectionModal({
       });
       onAssigned(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to assign connection');
+      setError(err instanceof Error ? err.message : t('channex.assign.err.assign'));
     } finally {
       setSaving(false);
     }
@@ -77,26 +79,26 @@ export default function AssignConnectionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-md rounded-2xl border border-edge bg-surface-raised px-6 py-6 shadow-xl">
-        <h3 className="mb-5 text-base font-semibold text-content">Assign Platform Connection</h3>
+        <h3 className="mb-5 text-base font-semibold text-content">{t('channex.assign.title')}</h3>
 
         {propsLoading ? (
-          <p className="text-sm text-content-2">Loading properties…</p>
+          <p className="text-sm text-content-2">{t('channex.assign.loadingProps')}</p>
         ) : available.length === 0 ? (
           <p className="text-sm text-content-2">
-            All registered Channex properties are already connected.
+            {t('channex.assign.allConnected')}
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
-                Channex Property
+                {t('channex.assign.property')}
               </label>
               <Select
                 value={selectedChannexId}
                 onChange={(e) => handlePropertySelect(e.target.value)}
                 required
               >
-                <option value="">Select a property…</option>
+                <option value="">{t('channex.assign.selectProp')}</option>
                 {available.map((p) => (
                   <option key={p.channex_property_id} value={p.channex_property_id}>
                     {p.title}
@@ -111,22 +113,15 @@ export default function AssignConnectionModal({
                   ? 'bg-danger-bg text-danger-text'
                   : 'bg-ok-bg text-ok-text'
               }`}>
-                {hasNoRooms ? (
-                  <>
-                    <strong>No rooms configured.</strong> Go to Properties → Rooms &amp; Rates and
-                    set the room count for this property before adding it to a pool.
-                  </>
-                ) : (
-                  <>
-                    This connection will add <strong>{selectedRoomCount} room{selectedRoomCount !== 1 ? 's' : ''}</strong> to the pool capacity.
-                  </>
-                )}
+                {hasNoRooms
+                  ? t('channex.assign.noRooms')
+                  : t(selectedRoomCount === 1 ? 'channex.assign.willAdd.one' : 'channex.assign.willAdd.many', { n: selectedRoomCount ?? 0 })}
               </div>
             )}
 
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
-                Platform
+                {t('channex.assign.platform')}
               </label>
               <Select value={platform} onChange={(e) => setPlatform(e.target.value)}>
                 <option value="airbnb">Airbnb</option>
@@ -136,12 +131,12 @@ export default function AssignConnectionModal({
 
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
-                OTA Listing Title
+                {t('channex.assign.listingTitle')}
               </label>
               <Input
                 value={listingTitle}
                 onChange={(e) => setListingTitle(e.target.value)}
-                placeholder="e.g. Studio Full ventana grande"
+                placeholder={t('channex.assign.listingPh')}
                 required
               />
             </div>
@@ -153,17 +148,17 @@ export default function AssignConnectionModal({
                 onChange={(e) => setIsSyncEnabled(e.target.checked)}
                 className="h-4 w-4 rounded border-edge accent-brand"
               />
-              <span className="text-sm text-content">Sync enabled (include in ARI fan-out)</span>
+              <span className="text-sm text-content">{t('channex.assign.syncEnabled')}</span>
             </label>
 
             {error && <p className="text-sm text-danger-text">{error}</p>}
 
             <div className="flex gap-3 pt-2">
               <Button type="submit" variant="primary" size="sm" disabled={saving || hasNoRooms}>
-                {saving ? 'Assigning…' : 'Assign'}
+                {saving ? t('channex.assign.assigning') : t('channex.assign.assign')}
               </Button>
               <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-                Cancel
+                {t('channex.assign.cancel')}
               </Button>
             </div>
           </form>

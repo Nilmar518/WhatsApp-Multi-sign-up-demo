@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   HttpCode,
+  HttpException,
   HttpStatus,
   Logger,
   Param,
@@ -286,15 +288,15 @@ export class ChannexARIController {
   /**
    * GET /channex/properties/:propertyId/bookings?tenantId=X&limit=50
    *
-   * Returns bookings for the property ordered newest-first.
-   * Covers all OTA channels — filter by the `channel` field on the client.
+   * Returns bookings for the property plus the OTA channel code resolved from
+   * the property's connected channel (e.g. "BDC", "ABB").
    */
   @Get('bookings')
   async getPropertyBookings(
     @Param('propertyId') propertyId: string,
     @Query('tenantId') tenantId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
-  ): Promise<FirestoreReservationDoc[]> {
+  ): Promise<{ bookings: FirestoreReservationDoc[]; propertyChannelCode: string | null }> {
     this.logger.log(
       `[CTRL] GET /bookings — propertyId=${propertyId} tenantId=${tenantId} limit=${limit}`,
     );
@@ -353,6 +355,47 @@ export class ChannexARIController {
         `type=${dto.bookingType} checkIn=${dto.checkIn} checkOut=${dto.checkOut}`,
     );
     return this.ariService.createManualBooking(propertyId, dto);
+  }
+
+  /**
+   * POST /channex/properties/:propertyId/bookings/:channexBookingId/no-show
+   *
+   * Reports a Booking.com guest as No Show via Channex.
+   * BDC rule: can only be executed ≥1 day after check-in.
+   *
+   * Body:    { tenantId: string, waivedFees: boolean }
+   * Returns: 200 { success: true, data } on success
+   *          422 { errors } on Channex validation error
+   * Status:  200 OK | 422 Unprocessable | 400 Bad Request
+   */
+  @Post('bookings/:channexBookingId/no-show')
+  @HttpCode(HttpStatus.OK)
+  async markNoShow(
+    @Param('propertyId') propertyId: string,
+    @Param('channexBookingId') channexBookingId: string,
+    @Body('tenantId') tenantId: string,
+    @Body('waivedFees') waivedFees: boolean,
+  ): Promise<{ success: boolean; data?: unknown; errors?: unknown }> {
+    this.logger.log(
+      `[CTRL] POST /bookings/${channexBookingId}/no-show — propertyId=${propertyId} tenantId=${tenantId} waivedFees=${waivedFees}`,
+    );
+
+    if (!tenantId) {
+      throw new BadRequestException('tenantId is required in the request body.');
+    }
+
+    const result = await this.ariService.markBookingNoShow(
+      propertyId,
+      channexBookingId,
+      tenantId,
+      waivedFees ?? false,
+    );
+
+    if (!result.success) {
+      throw new HttpException(result.errors ?? { message: 'No show request failed' }, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    return result;
   }
 
   /**

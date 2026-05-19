@@ -271,6 +271,18 @@ export class ChannexBdcSyncService {
           `[BDC_SYNC] ✓ E — Messages App installed — newPropertyId=${newPropertyId}`,
         );
 
+        // ── Step F: Install Booking CRS App (non-fatal) ──────────────────────
+        try {
+          await this.channex.installBookingCrsApp(newPropertyId);
+          this.logger.log(
+            `[BDC_SYNC] ✓ F — Booking CRS installed — newPropertyId=${newPropertyId}`,
+          );
+        } catch (err) {
+          this.logger.warn(
+            `[BDC_SYNC] Booking CRS install failed (non-fatal) — newPropertyId=${newPropertyId}: ${(err as Error).message}`,
+          );
+        }
+
         succeeded.push({ otaRoomId, otaRoomTitle: first.otaRoomTitle, channexPropertyId: newPropertyId, roomTypeId, ratePlanIds, webhookId });
       } catch (err) {
         const reason = (err as Error).message ?? String(err);

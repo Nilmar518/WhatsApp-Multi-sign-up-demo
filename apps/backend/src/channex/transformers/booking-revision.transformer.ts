@@ -237,16 +237,38 @@ export class BookingRevisionTransformer {
     );
 
     // ── Customer contact info ──────────────────────────────────────────────
+    // Channex-normalised format (Airbnb): booking.customer.{ phone, mail, country }
     const customer =
       booking.customer !== null && typeof booking.customer === 'object'
         ? (booking.customer as Record<string, unknown>)
         : null;
+
+    // BDC OTA format: booking.ResGlobalInfo.Profiles[0].ProfileInfo.Profile.Customer
+    const resGlobalInfo =
+      booking.ResGlobalInfo !== null && typeof booking.ResGlobalInfo === 'object'
+        ? (booking.ResGlobalInfo as Record<string, unknown>)
+        : null;
+    const bdcProfiles = Array.isArray(resGlobalInfo?.Profiles) ? (resGlobalInfo!.Profiles as Array<Record<string, unknown>>) : [];
+    const bdcProfileCustomer = (
+      (bdcProfiles[0]?.ProfileInfo as Record<string, unknown> | undefined)
+        ?.Profile as Record<string, unknown> | undefined
+    )?.Customer as Record<string, unknown> | undefined ?? null;
+
     const customerPhone =
-      typeof customer?.phone === 'string' ? customer.phone : null;
+      (typeof customer?.phone === 'string' ? customer.phone : null) ??
+      (typeof (bdcProfileCustomer?.Telephone as Record<string, unknown> | undefined)?.['@PhoneNumber'] === 'string'
+        ? (bdcProfileCustomer!.Telephone as Record<string, unknown>)['@PhoneNumber'] as string
+        : null);
+
     const customerEmail =
-      typeof customer?.mail === 'string' ? customer.mail : null;
+      (typeof customer?.mail === 'string' ? customer.mail : null) ??
+      (typeof bdcProfileCustomer?.Email === 'string' ? bdcProfileCustomer.Email : null);
+
     const customerCountry =
-      typeof customer?.country === 'string' ? customer.country : null;
+      (typeof customer?.country === 'string' ? customer.country : null) ??
+      (typeof ((bdcProfileCustomer?.Address as Record<string, unknown> | undefined)?.CountryName as Record<string, unknown> | undefined)?.['@Code'] === 'string'
+        ? ((bdcProfileCustomer!.Address as Record<string, unknown>).CountryName as Record<string, unknown>)['@Code'] as string
+        : null);
 
     // ── Lead room extras ───────────────────────────────────────────────────
     const leadRoomMeta =

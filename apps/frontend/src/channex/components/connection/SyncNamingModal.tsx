@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ListingPreviewProperty, SyncNameOverrides } from '../../api/channexHubApi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   preview: ListingPreviewProperty[];
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function SyncNamingModal({ preview, onConfirm, onClose }: Props) {
+  const { t } = useLanguage();
   const [names, setNames] = useState<SyncNameOverrides>(() => {
     const initial: SyncNameOverrides = {};
     for (const prop of preview) {
@@ -49,8 +51,8 @@ export default function SyncNamingModal({ preview, onConfirm, onClose }: Props) 
       <div className="w-full max-w-lg rounded-2xl border border-edge bg-surface shadow-xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between border-b border-edge px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-content">Confirm Names</h2>
-            <p className="text-xs text-content-2 mt-0.5">Review and edit property, room, and rate names before syncing.</p>
+            <h2 className="text-base font-semibold text-content">{t('channex.syncNaming.title')}</h2>
+            <p className="text-xs text-content-2 mt-0.5">{t('channex.syncNaming.desc')}</p>
           </div>
           <button
             type="button"
@@ -73,7 +75,7 @@ export default function SyncNamingModal({ preview, onConfirm, onClose }: Props) 
                 {/* Property level */}
                 <div className="flex items-center gap-2 mb-2">
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand/10 text-[10px] font-bold text-brand">P</span>
-                  <label className="text-xs font-semibold text-content-2 uppercase tracking-wide">Property</label>
+                  <label className="text-xs font-semibold text-content-2 uppercase tracking-wide">{t('channex.syncNaming.property')}</label>
                 </div>
                 <input
                   type="text"
@@ -87,7 +89,7 @@ export default function SyncNamingModal({ preview, onConfirm, onClose }: Props) 
                     {/* Room level */}
                     <div className="flex items-center gap-2 mb-2">
                       <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-ok-bg text-[10px] font-bold text-ok-text">R</span>
-                      <label className="text-xs font-semibold text-content-2 uppercase tracking-wide">Room</label>
+                      <label className="text-xs font-semibold text-content-2 uppercase tracking-wide">{t('channex.syncNaming.room')}</label>
                     </div>
                     <input
                       type="text"
@@ -103,7 +105,7 @@ export default function SyncNamingModal({ preview, onConfirm, onClose }: Props) 
                           <div key={rate.id}>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-notice-bg text-[10px] font-bold text-notice-text">$</span>
-                              <label className="text-xs font-semibold text-content-2 uppercase tracking-wide">Rate</label>
+                              <label className="text-xs font-semibold text-content-2 uppercase tracking-wide">{t('channex.syncNaming.rate')}</label>
                             </div>
                             <input
                               type="text"
@@ -128,14 +130,14 @@ export default function SyncNamingModal({ preview, onConfirm, onClose }: Props) 
             onClick={onClose}
             className="rounded-xl px-4 py-2 text-sm text-content-2 hover:text-content transition-colors"
           >
-            Cancel
+            {t('channex.syncNaming.cancel')}
           </button>
           <button
             type="button"
             onClick={handleConfirm}
             className="rounded-xl bg-brand px-5 py-2 text-sm font-semibold text-white hover:opacity-80 transition-opacity"
           >
-            Sync
+            {t('channex.syncNaming.sync')}
           </button>
         </div>
       </div>

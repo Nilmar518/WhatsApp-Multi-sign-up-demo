@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Button from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { updateMigoProperty, type MigoProperty } from '../../api/migoPropertyApi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   pool: MigoProperty;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function PoolEditModal({ pool, onSaved, onClose }: Props) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState(pool.title);
   const [alertThreshold, setAlertThreshold] = useState(String(pool.alert_threshold));
   const [totalUnits, setTotalUnits] = useState(String(pool.total_units));
@@ -19,17 +21,17 @@ export default function PoolEditModal({ pool, onSaved, onClose }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Pool name is required.');
+      setError(t('channex.poolEdit.err.name'));
       return;
     }
     const units = parseInt(totalUnits, 10);
     const threshold = parseInt(alertThreshold, 10);
     if (isNaN(units) || units < 0) {
-      setError('Total units must be 0 or greater.');
+      setError(t('channex.poolEdit.err.units'));
       return;
     }
     if (isNaN(threshold) || threshold < 0) {
-      setError('Alert threshold must be 0 or greater.');
+      setError(t('channex.poolEdit.err.threshold'));
       return;
     }
     setSaving(true);
@@ -42,7 +44,7 @@ export default function PoolEditModal({ pool, onSaved, onClose }: Props) {
       });
       onSaved(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save changes');
+      setError(err instanceof Error ? err.message : t('channex.poolEdit.err.save'));
     } finally {
       setSaving(false);
     }
@@ -51,11 +53,11 @@ export default function PoolEditModal({ pool, onSaved, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-md rounded-2xl border border-edge bg-surface-raised px-6 py-6 shadow-xl">
-        <h3 className="mb-5 text-base font-semibold text-content">Edit Pool</h3>
+        <h3 className="mb-5 text-base font-semibold text-content">{t('channex.poolEdit.title')}</h3>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
-              Pool Name
+              {t('channex.poolEdit.name')}
             </label>
             <Input
               value={title}
@@ -66,7 +68,7 @@ export default function PoolEditModal({ pool, onSaved, onClose }: Props) {
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
-              Alert Threshold
+              {t('channex.poolEdit.alertThreshold')}
             </label>
             <Input
               type="number"
@@ -78,7 +80,7 @@ export default function PoolEditModal({ pool, onSaved, onClose }: Props) {
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-content-2">
-              Total Units (capacity)
+              {t('channex.poolEdit.capacity')}
             </label>
             <Input
               type="number"
@@ -87,7 +89,7 @@ export default function PoolEditModal({ pool, onSaved, onClose }: Props) {
               onChange={(e) => setTotalUnits(e.target.value)}
             />
             <p className="mt-1 text-xs text-notice-text">
-              Editing this overrides the auto-calculated capacity from connections.
+              {t('channex.poolEdit.capacityNote')}
             </p>
           </div>
 
@@ -95,10 +97,10 @@ export default function PoolEditModal({ pool, onSaved, onClose }: Props) {
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" variant="primary" size="sm" disabled={saving}>
-              {saving ? 'Saving…' : 'Save changes'}
+              {saving ? t('channex.poolEdit.saving') : t('channex.poolEdit.save')}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-              Cancel
+              {t('channex.poolEdit.cancel')}
             </Button>
           </div>
         </form>

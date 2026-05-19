@@ -222,6 +222,20 @@ export class ChannexBookingWorker {
     reservationDoc.ota_listing_id =
       (propertyDocSnap.data()?.airbnb_listing_id as string | undefined) ?? null;
 
+    const connectedChannels =
+      (propertyDocSnap.data()?.connected_channels as string[] | undefined) ?? [];
+    const channelBefore = reservationDoc.channel;
+    if (connectedChannels.includes('booking')) {
+      reservationDoc.channel = 'booking_com';
+    } else if (connectedChannels.includes('airbnb')) {
+      reservationDoc.channel = 'airbnb';
+    }
+    this.logger.log(
+      `[BOOKING-WORKER] Channel resolution — propertyId=${propertyId} ` +
+        `connected_channels=${JSON.stringify(connectedChannels)} ` +
+        `transformer_channel="${channelBefore}" → final_channel="${reservationDoc.channel}"`,
+    );
+
     if (bookingUniqueId) {
       reservationDoc.reservation_id = bookingUniqueId;
     }

@@ -11,6 +11,7 @@ import AssignConnectionModal from './AssignConnectionModal';
 import PoolAriPanel from './PoolAriPanel';
 import PoolSyncModal, { isPoolSyncDismissed } from './PoolSyncModal';
 import PoolEditModal from './PoolEditModal';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
   pool: MigoProperty;
@@ -20,6 +21,7 @@ interface Props {
 }
 
 function AvailabilityBadge({ pool }: { pool: MigoProperty }) {
+  const { t } = useLanguage();
   const { current_availability, total_units, alert_threshold } = pool;
   const isAlert = current_availability <= alert_threshold;
   const isEmpty = current_availability <= 0;
@@ -30,9 +32,9 @@ function AvailabilityBadge({ pool }: { pool: MigoProperty }) {
       : 'bg-ok-bg text-ok-text';
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${color}`}>
-      {current_availability} / {total_units} available
+      {current_availability} / {total_units} {t('channex.pools.available')}
       {isAlert && (
-        <span className="text-xs opacity-80">· alert ≤ {alert_threshold}</span>
+        <span className="text-xs opacity-80">· {t('channex.pools.alertHint', { n: alert_threshold })}</span>
       )}
     </span>
   );
@@ -51,6 +53,7 @@ function PlatformBadge({ platform }: { platform: string }) {
 }
 
 export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpdated }: Props) {
+  const { t } = useLanguage();
   const [pool, setPool] = useState(initialPool);
   const [showAssign, setShowAssign] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -79,7 +82,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
       const updated = await removeConnection(pool.id, channexId);
       handleUpdated(updated);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to remove connection');
+      alert(err instanceof Error ? err.message : t('channex.pools.err.remove'));
     }
   }
 
@@ -88,7 +91,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
       const updated = await toggleSync(pool.id, channexId, !current);
       handleUpdated(updated);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to toggle sync');
+      alert(err instanceof Error ? err.message : t('channex.pools.err.sync'));
     }
   }
 
@@ -99,7 +102,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
       const updated = await recalibrateAvailability(pool.id);
       handleUpdated(updated);
     } catch (err) {
-      setCalibrateError(err instanceof Error ? err.message : 'Calibration failed');
+      setCalibrateError(err instanceof Error ? err.message : t('channex.pools.err.calibrate'));
     } finally {
       setCalibrating(false);
     }
@@ -112,7 +115,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
       const updated = await resetAvailability(pool.id);
       handleUpdated(updated);
     } catch (err) {
-      setResetError(err instanceof Error ? err.message : 'Reset failed');
+      setResetError(err instanceof Error ? err.message : t('channex.pools.err.reset'));
     } finally {
       setResetting(false);
     }
@@ -124,7 +127,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
     <div className="flex flex-col gap-5">
       {/* Back */}
       <Button variant="ghost" size="sm" type="button" onClick={onBack} className="self-start">
-        ← Back to pools
+        {t('channex.pools.back')}
       </Button>
 
       {/* Header */}
@@ -142,7 +145,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
             onClick={handleCalibrate}
             disabled={calibrating}
           >
-            {calibrating ? 'Adjusting…' : 'Adjust capacity'}
+            {calibrating ? t('channex.pools.adjusting') : t('channex.pools.adjustCapacity')}
           </Button>
           <Button
             type="button"
@@ -151,7 +154,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
             onClick={handleReset}
             disabled={resetting}
           >
-            {resetting ? 'Resetting…' : 'Reset to full'}
+            {resetting ? t('channex.pools.resetting') : t('channex.pools.resetFull')}
           </Button>
           <Button
             type="button"
@@ -159,7 +162,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
             size="sm"
             onClick={() => setShowEdit(true)}
           >
-            Edit
+            {t('channex.pools.edit')}
           </Button>
         </div>
         {(resetError || calibrateError) && (
@@ -170,14 +173,14 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
       {/* Platform connections */}
       <div className="rounded-2xl border border-edge bg-surface-raised px-5 py-4">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-content">Platform Connections</h3>
+          <h3 className="text-sm font-semibold text-content">{t('channex.pools.platformConns')}</h3>
           <Button type="button" variant="outline" size="sm" onClick={() => setShowAssign(true)}>
-            + Add
+            {t('channex.pools.addConn')}
           </Button>
         </div>
 
         {pool.platform_connections.length === 0 ? (
-          <p className="text-sm text-content-2">No connections yet. Add a platform connection above.</p>
+          <p className="text-sm text-content-2">{t('channex.pools.noConns')}</p>
         ) : (
           <div className="flex flex-col gap-2">
             {pool.platform_connections.map((conn) => (
@@ -191,7 +194,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
                   <p className="truncate font-mono text-xs text-content-3">{conn.channex_property_id}</p>
                   {(conn.count_of_rooms ?? 0) > 0 && (
                     <p className="text-xs text-content-2">
-                      {conn.count_of_rooms} room{(conn.count_of_rooms ?? 1) !== 1 ? 's' : ''}
+                      {t((conn.count_of_rooms ?? 1) === 1 ? 'channex.pools.room.one' : 'channex.pools.room.many', { n: conn.count_of_rooms ?? 0 })}
                     </p>
                   )}
                 </div>
@@ -202,7 +205,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
                     onChange={() => handleToggleSync(conn.channex_property_id, conn.is_sync_enabled)}
                     className="h-4 w-4 rounded border-edge accent-brand"
                   />
-                  <span className="text-xs text-content-2">Sync</span>
+                  <span className="text-xs text-content-2">{t('channex.pools.syncEnabled')}</span>
                 </label>
                 <Button
                   type="button"
@@ -210,7 +213,7 @@ export default function PoolDetail({ pool: initialPool, tenantId, onBack, onUpda
                   size="sm"
                   onClick={() => handleRemoveConnection(conn.channex_property_id)}
                 >
-                  Remove
+                  {t('channex.pools.remove')}
                 </Button>
               </div>
             ))}
