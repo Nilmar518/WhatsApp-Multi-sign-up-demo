@@ -600,6 +600,11 @@ export async function getChannels(tenantId: string): Promise<StoredChannel[]> {
   return apiFetch(`${BASE}/properties/channels?${params}`);
 }
 
+export async function getLiveChannels(tenantId: string): Promise<StoredChannel[]> {
+  const params = new URLSearchParams({ tenantId });
+  return apiFetch(`${BASE}/properties/channels/live?${params}`);
+}
+
 export async function activateChannel(channelId: string, tenantId: string): Promise<void> {
   const params = new URLSearchParams({ tenantId });
   await apiFetch(

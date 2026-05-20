@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getChannels, type StoredChannel } from '../../api/channexHubApi';
+import { getLiveChannels, type StoredChannel } from '../../api/channexHubApi';
 import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
@@ -27,11 +27,12 @@ export default function BdcChannelSelectModal({ tenantId, channelType, onConfirm
   const fetchChannels = () => {
     setLoading(true);
     setError(null);
-    getChannels(tenantId)
+    getLiveChannels(tenantId)
       .then((data) => {
         const filtered = data.filter((ch) => matchesType(ch, channelType));
         setChannels(filtered);
-        if (filtered.length === 1) setSelected(filtered[0].channel_id);
+        const inactive = filtered.filter((ch) => !ch.is_active);
+        if (inactive.length === 1) setSelected(inactive[0].channel_id);
       })
       .catch((err) => setError(err instanceof Error ? err.message : t('channex.bdcModal.err')))
       .finally(() => setLoading(false));
@@ -86,21 +87,42 @@ export default function BdcChannelSelectModal({ tenantId, channelType, onConfirm
 
           {!loading && !error && channels.length > 0 && (
             <ul className="space-y-2">
-              {channels.map((ch) => (
-                <li key={ch.channel_id}>
-                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-edge px-4 py-3 hover:bg-surface-subtle transition-colors has-[:checked]:border-brand has-[:checked]:bg-brand/5">
-                    <input
-                      type="radio"
-                      name="channel-select"
-                      value={ch.channel_id}
-                      checked={selected === ch.channel_id}
-                      onChange={() => setSelected(ch.channel_id)}
-                      className="accent-brand"
-                    />
-                    <span className="text-sm font-medium text-content">{ch.title}</span>
-                  </label>
-                </li>
-              ))}
+              {channels.map((ch) => {
+                const isActive = ch.is_active;
+                return (
+                  <li key={ch.channel_id}>
+                    <label
+                      className={[
+                        'flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors',
+                        isActive
+                          ? 'cursor-not-allowed border-edge bg-surface-subtle opacity-60'
+                          : 'cursor-pointer border-edge hover:bg-surface-subtle has-[:checked]:border-brand has-[:checked]:bg-brand/5',
+                      ].join(' ')}
+                    >
+                      <input
+                        type="radio"
+                        name="channel-select"
+                        value={ch.channel_id}
+                        checked={selected === ch.channel_id}
+                        disabled={isActive}
+                        onChange={() => { if (!isActive) setSelected(ch.channel_id); }}
+                        className="accent-brand"
+                      />
+                      <span className={['text-sm font-medium', isActive ? 'text-content-3' : 'text-content'].join(' ')}>
+                        {ch.title}
+                      </span>
+                      <span
+                        className={[
+                          'ml-auto shrink-0 text-xs font-medium rounded-full px-2 py-0.5',
+                          isActive ? 'bg-ok-bg text-ok-text' : 'bg-surface-subtle text-content-3',
+                        ].join(' ')}
+                      >
+                        {isActive ? t('channex.chanMgmt.active') : t('channex.chanMgmt.inactive')}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

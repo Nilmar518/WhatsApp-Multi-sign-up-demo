@@ -455,6 +455,25 @@ export class ChannexPropertyController {
   }
 
   /**
+   * GET /channex/properties/channels/live?tenantId=X
+   *
+   * Returns OTA channels fetched directly from Channex (no Firestore cache).
+   * Used by the channel-select modal to show real-time active/inactive status.
+   */
+  @Get('channels/live')
+  async getLiveChannels(
+    @Query('tenantId') tenantId: string,
+  ): Promise<StoredChannelDoc[]> {
+    this.logger.log(`[CTRL] GET /channex/properties/channels/live — tenantId=${tenantId}`);
+
+    if (!tenantId) {
+      throw new BadRequestException('tenantId query parameter is required.');
+    }
+
+    return this.channelMgmtService.getLiveChannelsForTenant(tenantId);
+  }
+
+  /**
    * POST /channex/properties/channels/:channelId/activate?tenantId=X
    *
    * Activates the given OTA channel in Channex and updates Firestore.
