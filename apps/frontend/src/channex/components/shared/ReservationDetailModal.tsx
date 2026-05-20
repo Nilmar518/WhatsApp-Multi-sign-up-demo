@@ -105,7 +105,8 @@ export default function ReservationDetailModal({
   const displayAmount =
     (r.gross_amount_rooms ?? 0) > 0 ? r.gross_amount_rooms : r.gross_amount;
 
-  const isBookingCom = propertyChannelCode === 'BookingCom';
+  const isBookingCom =
+    propertyChannelCode === 'BookingCom' || propertyChannelCode === 'booking_com';
   const noShowButtonVisible =
     isBookingCom &&
     r.booking_status !== 'cancelled' &&

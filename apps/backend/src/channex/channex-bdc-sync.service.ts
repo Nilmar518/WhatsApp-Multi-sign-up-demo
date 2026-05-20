@@ -23,6 +23,8 @@ interface BdcMappingEntry {
 export interface IsolatedBdcResult {
   otaRoomId: string;
   otaRoomTitle: string;
+  channexPropertyTitle: string;
+  channexRoomTitle: string;
   channexPropertyId: string;
   roomTypeId: string;
   ratePlanIds: string[];
@@ -189,8 +191,10 @@ export class ChannexBdcSyncService {
         // ── Step A: Create isolated Channex property ─────────────────────────
         currentStep = 'A';
         const override = nameOverrides?.[otaRoomId];
+        const propTitle = override?.propertyName ?? first.otaRoomTitle;
+        const roomTitle = override?.roomName ?? first.otaRoomTitle;
         const propResp = await this.channex.createProperty({
-          title: override?.propertyName ?? first.otaRoomTitle,
+          title: propTitle,
           currency: parentDoc.currency,
           timezone: parentDoc.timezone,
           property_type: 'apartment',
@@ -202,14 +206,14 @@ export class ChannexBdcSyncService {
         });
         newPropertyId = propResp.data.id;
         this.logger.log(
-          `[BDC_SYNC] ✓ A — Property created — "${first.otaRoomTitle}" newPropertyId=${newPropertyId}`,
+          `[BDC_SYNC] ✓ A — Property created — "${propTitle}" newPropertyId=${newPropertyId}`,
         );
 
         // ── Step B: Create room type under the new property ──────────────────
         currentStep = 'B';
         const rtResp = await this.channex.createRoomType({
           property_id: newPropertyId,
-          title: override?.roomName ?? first.otaRoomTitle,
+          title: roomTitle,
           count_of_rooms: 1,
           occ_adults: first.maxPersons,
           occ_children: 0,
@@ -283,7 +287,7 @@ export class ChannexBdcSyncService {
           );
         }
 
-        succeeded.push({ otaRoomId, otaRoomTitle: first.otaRoomTitle, channexPropertyId: newPropertyId, roomTypeId, ratePlanIds, webhookId });
+        succeeded.push({ otaRoomId, otaRoomTitle: first.otaRoomTitle, channexPropertyTitle: propTitle, channexRoomTitle: roomTitle, channexPropertyId: newPropertyId, roomTypeId, ratePlanIds, webhookId });
       } catch (err) {
         const reason = (err as Error).message ?? String(err);
         this.logger.error(
@@ -477,7 +481,7 @@ export class ChannexBdcSyncService {
 
       const roomType: StoredRoomType = {
         room_type_id: s.roomTypeId,
-        title: s.otaRoomTitle,
+        title: s.channexRoomTitle,
         count_of_rooms: 1,
         default_occupancy: 2,
         occ_adults: 2,
@@ -487,7 +491,7 @@ export class ChannexBdcSyncService {
         ota_room_id: s.otaRoomId,
         rate_plans: s.ratePlanIds.map((id) => ({
           rate_plan_id: id,
-          title: s.otaRoomTitle,
+          title: s.channexRoomTitle,
           currency: parentDoc.currency,
           rate: 0,
           occupancy: 2,
@@ -503,7 +507,7 @@ export class ChannexBdcSyncService {
         channex_channel_id: channexChannelId,
         channex_webhook_id: s.webhookId ?? null,
         connection_status: ChannexConnectionStatus.Active,
-        title: s.otaRoomTitle,
+        title: s.channexPropertyTitle,
         currency: parentDoc.currency,
         timezone: parentDoc.timezone,
         property_type: 'apartment',
@@ -516,7 +520,7 @@ export class ChannexBdcSyncService {
       });
 
       this.logger.log(
-        `[BDC_SYNC] ✓ Property doc written — channexPropertyId=${s.channexPropertyId} title="${s.otaRoomTitle}"`,
+        `[BDC_SYNC] ✓ Property doc written — channexPropertyId=${s.channexPropertyId} title="${s.channexPropertyTitle}"`,
       );
     }
 
@@ -532,5 +536,31 @@ export class ChannexBdcSyncService {
     this.logger.log(
       `[BDC_SYNC] ✓ Firestore updated — tenantId=${tenantId} succeeded=${succeeded.length}`,
     );
+
+    // Register channel doc so getPropertyBookings can resolve propertyChannelCode
+    try {
+      const ch = await this.channex.getChannelDetails(channexChannelId);
+      await db
+        .collection(COLLECTION)
+        .doc(tenantId)
+        .collection('channels')
+        .doc(channexChannelId)
+        .set({
+          channel_id: channexChannelId,
+          title: ch.title,
+          channel_code: ch.channel,
+          status: ch.status,
+          is_active: ch.isActive,
+          synced_at: now,
+          updated_at: now,
+        });
+      this.logger.log(
+        `[BDC_SYNC] ✓ Channel doc registered — channelId=${channexChannelId} channel_code=${ch.channel}`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[BDC_SYNC] WARN — Could not register channel doc (non-fatal): ${(err as Error).message}`,
+      );
+    }
   }
 }

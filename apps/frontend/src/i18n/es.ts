@@ -623,6 +623,10 @@ export const es = {
   'channex.chanMgmt.err.title':        'Error en la acción',
   'channex.chanMgmt.err.body':         'No se pudo actualizar el estado del canal. Contacta a tu administrador.',
   'channex.chanMgmt.close':            'Cerrar',
+  'channex.chanMgmt.syncBtn':          'Sincronizar',
+  'channex.chanMgmt.syncing':          'Sincronizando…',
+  'channex.chanMgmt.syncDone':         'Canales sincronizados',
+  'channex.chanMgmt.syncErr.extra':    'Se detectaron canales en el sistema que ya no existen en Channex. Por favor contacte a un administrador.',
 
   // NoPropertyGuide
   'channex.noPropGuide.intro':             'Todavía no tienes una propiedad en Channex. Sigue estos pasos para comenzar:',

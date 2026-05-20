@@ -637,6 +637,10 @@ export const en: Record<TranslationKey, string> = {
   'channex.chanMgmt.err.title':        'Action failed',
   'channex.chanMgmt.err.body':         'The channel status could not be updated. Please contact your administrator.',
   'channex.chanMgmt.close':            'Close',
+  'channex.chanMgmt.syncBtn':          'Sync channels',
+  'channex.chanMgmt.syncing':          'Syncing…',
+  'channex.chanMgmt.syncDone':         'Channels synced',
+  'channex.chanMgmt.syncErr.extra':    'Channels were found in the system that no longer exist in Channex. Please contact an administrator.',
 
   // BdcChannelSelectModal
   'channex.bdcModal.titleAirbnb':      'Select Airbnb Channel',

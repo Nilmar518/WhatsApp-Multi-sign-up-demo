@@ -621,6 +621,17 @@ export async function deactivateChannel(channelId: string, tenantId: string): Pr
   );
 }
 
+export interface ChannelSyncResult {
+  added: number;
+  alreadyInSync: number;
+  extraInFirestore: string[];
+}
+
+export async function syncChannels(tenantId: string): Promise<ChannelSyncResult> {
+  const params = new URLSearchParams({ tenantId });
+  return apiFetch(`${BASE}/properties/channels/sync?${params}`, { method: 'POST' });
+}
+
 export async function syncBdcListings(
   propertyId: string,
   tenantId: string,

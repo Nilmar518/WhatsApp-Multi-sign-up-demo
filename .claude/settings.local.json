@@ -7,7 +7,9 @@
       "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
       "Bash(pnpm exec *)",
       "Bash(pnpm --filter @migo-uit/backend build)",
-      "PowerShell(\\(Get-Content \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\backend\\\\src\\\\channex\\\\channex-ari.service.ts\" | Measure-Object -Line\\).Lines)"
+      "PowerShell(\\(Get-Content \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\backend\\\\src\\\\channex\\\\channex-ari.service.ts\" | Measure-Object -Line\\).Lines)",
+      "Bash(pnpm build *)",
+      "Bash(echo \"EXIT_CODE=$?\")"
     ]
   }
 }

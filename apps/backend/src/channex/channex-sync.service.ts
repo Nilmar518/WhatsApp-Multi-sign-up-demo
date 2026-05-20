@@ -1012,6 +1012,8 @@ export class ChannexSyncService {
 
     const docRef = snapshot.docs[0].ref;
 
+    let resolvedTenantId = '';
+
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(docRef);
       const data = snap.data() ?? {};
@@ -1035,6 +1037,7 @@ export class ChannexSyncService {
 
       // Mirror channel_id on the root integration doc for webhook routing
       const tenantId = data.tenant_id as string;
+      resolvedTenantId = tenantId ?? '';
       if (tenantId) {
         tx.update(db.collection(COLLECTION).doc(tenantId), {
           channex_channel_id: channelId,
@@ -1042,6 +1045,34 @@ export class ChannexSyncService {
         });
       }
     });
+
+    if (resolvedTenantId) {
+      const now = new Date().toISOString();
+      try {
+        const ch = await this.channex.getChannelDetails(channelId);
+        await db
+          .collection(COLLECTION)
+          .doc(resolvedTenantId)
+          .collection('channels')
+          .doc(channelId)
+          .set({
+            channel_id: channelId,
+            title: ch.title,
+            channel_code: ch.channel,
+            status: ch.status,
+            is_active: ch.isActive,
+            synced_at: now,
+            updated_at: now,
+          });
+        this.logger.log(
+          `[AIRBNB_SYNC] ✓ Channel doc registered — channelId=${channelId} channel_code=${ch.channel}`,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `[AIRBNB_SYNC] WARN — Could not register channel doc (non-fatal): ${(err as Error).message}`,
+        );
+      }
+    }
 
     this.logger.log(`[COMMIT] ✓ Firestore finalized — propertyId=${propertyId} status=active`);
   }
@@ -1700,5 +1731,32 @@ export class ChannexSyncService {
     this.logger.log(
       `[SYNC:1:1] ✓ Firestore updated — integrationDocId=${integrationDocId} succeeded=${succeeded.length} failed=${failed.length}`,
     );
+
+    if (tenantId) {
+      try {
+        const ch = await this.channex.getChannelDetails(channelId);
+        await db
+          .collection(COLLECTION)
+          .doc(tenantId)
+          .collection('channels')
+          .doc(channelId)
+          .set({
+            channel_id: channelId,
+            title: ch.title,
+            channel_code: ch.channel,
+            status: ch.status,
+            is_active: ch.isActive,
+            synced_at: now,
+            updated_at: now,
+          });
+        this.logger.log(
+          `[AIRBNB_SYNC] ✓ Channel doc registered (isolated) — channelId=${channelId} channel_code=${ch.channel}`,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `[AIRBNB_SYNC] WARN — Could not register channel doc (non-fatal): ${(err as Error).message}`,
+        );
+      }
+    }
   }
 }

@@ -685,6 +685,8 @@ export class ChannexService {
   async getChannelDetails(channelId: string): Promise<{
     id: string;
     channel: string;
+    title: string;
+    status: string;
     settings: Record<string, unknown>;
     isActive: boolean;
     properties: string[];
@@ -696,6 +698,8 @@ export class ChannexService {
         id: string;
         attributes: {
           channel: string;
+          title?: string;
+          status?: string;
           is_active: boolean;
           settings: Record<string, unknown>;
           properties?: string[];
@@ -727,6 +731,8 @@ export class ChannexService {
       return {
         id: response.data.id,
         channel: attrs?.channel ?? '',
+        title: attrs?.title ?? '',
+        status: attrs?.status ?? 'unknown',
         settings: attrs?.settings ?? {},
         isActive: attrs?.is_active ?? false,
         properties: Array.from(new Set([...fromAttributes, ...fromRelationships])),

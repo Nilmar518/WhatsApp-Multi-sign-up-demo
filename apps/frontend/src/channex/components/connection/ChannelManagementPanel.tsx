@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useChannexChannels } from '../../hooks/useChannexChannels';
-import { activateChannel, deactivateChannel } from '../../api/channexHubApi';
+import { activateChannel, deactivateChannel, getLiveChannels } from '../../api/channexHubApi';
 import { useLanguage } from '../../../context/LanguageContext';
 
 interface Props {
@@ -20,10 +20,18 @@ function channelLabel(code: string): string {
 
 export default function ChannelManagementPanel({ tenantId }: Props) {
   const { t } = useLanguage();
-  const { channels, loading, error: loadError, updateChannel } = useChannexChannels(tenantId);
+  const { channels, loading, error: loadError, updateChannel, refetch } = useChannexChannels(tenantId);
   const [isOpen, setIsOpen] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncDone, setSyncDone] = useState(false);
+
+  useEffect(() => {
+    if (!syncDone) return;
+    const tid = setTimeout(() => setSyncDone(false), 3000);
+    return () => clearTimeout(tid);
+  }, [syncDone]);
 
   const handleToggle = useCallback(
     async (channelId: string, currentlyActive: boolean) => {
@@ -46,6 +54,22 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
     },
     [tenantId, updateChannel],
   );
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    setSyncDone(false);
+    try {
+      await getLiveChannels(tenantId);
+      setSyncDone(true);
+      refetch();
+    } catch (err) {
+      setErrorModal(
+        err instanceof Error ? err.message : 'An unexpected error occurred.',
+      );
+    } finally {
+      setSyncing(false);
+    }
+  }, [tenantId, refetch]);
 
   return (
     <>
@@ -80,20 +104,48 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
               </p>
             </div>
           </div>
-          <svg
-            className={[
-              'h-4 w-4 shrink-0 text-content-2 transition-transform duration-200',
-              isOpen ? 'rotate-180' : '',
-            ].join(' ')}
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M4 6l4 4 4-4" />
-          </svg>
+
+          <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+            {syncDone && (
+              <span className="text-xs text-ok-text font-medium">
+                {t('channex.chanMgmt.syncDone')}
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={syncing}
+              onClick={(e) => { e.stopPropagation(); void handleSync(); }}
+              className={[
+                'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                syncing
+                  ? 'cursor-not-allowed bg-surface-subtle text-content-3'
+                  : 'bg-surface-subtle border border-edge text-content-2 hover:bg-edge hover:text-content',
+              ].join(' ')}
+            >
+              {syncing ? (
+                <>
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+                  {t('channex.chanMgmt.syncing')}
+                </>
+              ) : (
+                t('channex.chanMgmt.syncBtn')
+              )}
+            </button>
+            <svg
+              className={[
+                'h-4 w-4 text-content-2 transition-transform duration-200',
+                isOpen ? 'rotate-180' : '',
+              ].join(' ')}
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 6l4 4 4-4" />
+            </svg>
+          </div>
         </button>
 
         {/* Collapsible body */}
@@ -179,7 +231,7 @@ export default function ChannelManagementPanel({ tenantId }: Props) {
         )}
       </div>
 
-      {/* Error modal */}
+      {/* Error modal (reused for sync errors) */}
       {errorModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-surface-raised border border-edge p-6 shadow-xl">

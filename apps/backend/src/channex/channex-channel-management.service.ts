@@ -118,6 +118,7 @@ export class ChannexChannelManagementService {
   async getLiveChannelsForTenant(tenantId: string): Promise<StoredChannelDoc[]> {
     this.logger.log(`[CHANNEL_MGMT] Live fetch from Channex — tenantId=${tenantId}`);
 
+    const db = this.firebase.getFirestore();
     const groupId = await this.groupService.getGroupId(tenantId);
     if (!groupId) {
       throw new NotFoundException(
@@ -130,14 +131,30 @@ export class ChannexChannelManagementService {
       `[CHANNEL_MGMT] Live: ${channels.length} channels from Channex — groupId=${groupId}`,
     );
 
-    return channels.map((ch) => ({
-      channel_id: ch.id,
-      title: ch.attributes.title,
-      channel_code: ch.attributes.channel,
-      status: ch.attributes.status ?? (ch.attributes.is_active ? 'active' : 'inactive'),
-      is_active: ch.attributes.is_active ?? false,
-      synced_at: new Date().toISOString(),
-    }));
+    const now = new Date().toISOString();
+    const channelsCol = db.collection(COLLECTION).doc(tenantId).collection(CHANNELS_SUBCOLLECTION);
+    const batch = db.batch();
+
+    const result: StoredChannelDoc[] = channels.map((ch) => {
+      const doc: StoredChannelDoc = {
+        channel_id: ch.id,
+        title: ch.attributes.title,
+        channel_code: ch.attributes.channel,
+        status: ch.attributes.status ?? (ch.attributes.is_active ? 'active' : 'inactive'),
+        is_active: ch.attributes.is_active ?? false,
+        synced_at: now,
+        updated_at: now,
+      };
+      batch.set(channelsCol.doc(ch.id), doc);
+      return doc;
+    });
+
+    await batch.commit();
+    this.logger.log(
+      `[CHANNEL_MGMT] ✓ Live channels persisted to Firestore — tenantId=${tenantId} count=${result.length}`,
+    );
+
+    return result;
   }
 
   async deactivateChannel(channelId: string, tenantId: string): Promise<void> {
@@ -159,5 +176,63 @@ export class ChannexChannelManagementService {
       );
 
     this.logger.log(`[CHANNEL_MGMT] ✓ Channel deactivated — channelId=${channelId}`);
+  }
+
+  async syncChannelsForTenant(tenantId: string): Promise<{
+    added: number;
+    alreadyInSync: number;
+    extraInFirestore: string[];
+  }> {
+    this.logger.log(`[CHANNEL_MGMT] syncChannelsForTenant — tenantId=${tenantId}`);
+    const db = this.firebase.getFirestore();
+    const channelsCol = db
+      .collection(COLLECTION)
+      .doc(tenantId)
+      .collection(CHANNELS_SUBCOLLECTION);
+
+    const groupId = await this.groupService.getGroupId(tenantId);
+    if (!groupId) {
+      throw new NotFoundException(
+        `No Channex group found for tenant: ${tenantId}. Provision a property first.`,
+      );
+    }
+
+    const [channexChannels, firestoreSnap] = await Promise.all([
+      this.channex.getChannelsByGroup(groupId),
+      channelsCol.get(),
+    ]);
+
+    const channexIds = new Set(channexChannels.map((c) => c.id));
+    const firestoreIds = new Set(firestoreSnap.docs.map((d) => d.id));
+
+    const extraInFirestore = [...firestoreIds].filter((id) => !channexIds.has(id));
+    const missingInFirestore = channexChannels.filter((c) => !firestoreIds.has(c.id));
+
+    if (missingInFirestore.length > 0) {
+      const now = new Date().toISOString();
+      const batch = db.batch();
+      for (const ch of missingInFirestore) {
+        const doc: StoredChannelDoc = {
+          channel_id: ch.id,
+          title: ch.attributes.title,
+          channel_code: ch.attributes.channel,
+          status: ch.attributes.status ?? (ch.attributes.is_active ? 'active' : 'inactive'),
+          is_active: ch.attributes.is_active ?? false,
+          synced_at: now,
+        };
+        batch.set(channelsCol.doc(ch.id), doc);
+      }
+      await batch.commit();
+    }
+
+    this.logger.log(
+      `[CHANNEL_MGMT] ✓ syncChannelsForTenant — added=${missingInFirestore.length} alreadyInSync=${channexChannels.length - missingInFirestore.length} extraInFirestore=${extraInFirestore.length}`,
+    );
+
+    return {
+      added: missingInFirestore.length,
+      alreadyInSync: channexChannels.length - missingInFirestore.length,
+      extraInFirestore,
+    };
   }
 }

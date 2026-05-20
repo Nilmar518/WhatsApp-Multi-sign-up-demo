@@ -474,6 +474,31 @@ export class ChannexPropertyController {
   }
 
   /**
+   * POST /channex/properties/channels/sync?tenantId=X
+   *
+   * Reconciles Channex channels vs Firestore:
+   *   - Registers any channels present in Channex but missing in Firestore.
+   *   - Returns `extraInFirestore` if Firestore has channels unknown to Channex
+   *     (manual admin action required — this endpoint never deletes).
+   *
+   * Returns: { added, alreadyInSync, extraInFirestore }
+   * Status:  200 OK
+   */
+  @Post('channels/sync')
+  @HttpCode(HttpStatus.OK)
+  async syncChannels(
+    @Query('tenantId') tenantId: string,
+  ): Promise<{ added: number; alreadyInSync: number; extraInFirestore: string[] }> {
+    this.logger.log(`[CTRL] POST /channex/properties/channels/sync — tenantId=${tenantId}`);
+
+    if (!tenantId) {
+      throw new BadRequestException('tenantId query parameter is required.');
+    }
+
+    return this.channelMgmtService.syncChannelsForTenant(tenantId);
+  }
+
+  /**
    * POST /channex/properties/channels/:channelId/activate?tenantId=X
    *
    * Activates the given OTA channel in Channex and updates Firestore.

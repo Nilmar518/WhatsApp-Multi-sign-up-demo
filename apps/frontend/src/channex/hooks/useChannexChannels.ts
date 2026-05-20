@@ -6,12 +6,14 @@ interface Result {
   loading: boolean;
   error: string | null;
   updateChannel: (channelId: string, patch: Partial<StoredChannel>) => void;
+  refetch: () => void;
 }
 
 export function useChannexChannels(tenantId: string): Result {
   const [channels, setChannels] = useState<StoredChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (!tenantId) {
@@ -29,7 +31,7 @@ export function useChannexChannels(tenantId: string): Result {
         setError(err instanceof Error ? err.message : 'Failed to load channels.'),
       )
       .finally(() => setLoading(false));
-  }, [tenantId]);
+  }, [tenantId, tick]);
 
   const updateChannel = useCallback((channelId: string, patch: Partial<StoredChannel>) => {
     setChannels((prev) =>
@@ -37,5 +39,7 @@ export function useChannexChannels(tenantId: string): Result {
     );
   }, []);
 
-  return { channels, loading, error, updateChannel };
+  const refetch = useCallback(() => setTick((n) => n + 1), []);
+
+  return { channels, loading, error, updateChannel, refetch };
 }
