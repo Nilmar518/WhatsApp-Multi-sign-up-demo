@@ -111,7 +111,7 @@ export default function SideNav() {
   return (
     <nav
       className={[
-        'flex flex-col bg-surface-sidebar border-r border-edge/10',
+        'hidden md:flex flex-col bg-surface-sidebar border-r border-edge/10',
         'sticky top-0 h-screen overflow-y-auto transition-all duration-200',
         collapsed ? 'w-14' : 'w-56',
       ].join(' ')}

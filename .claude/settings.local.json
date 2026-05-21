@@ -9,7 +9,8 @@
       "Bash(pnpm --filter @migo-uit/backend build)",
       "PowerShell(\\(Get-Content \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\backend\\\\src\\\\channex\\\\channex-ari.service.ts\" | Measure-Object -Line\\).Lines)",
       "Bash(pnpm build *)",
-      "Bash(echo \"EXIT_CODE=$?\")"
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "PowerShell(New-Item * adicional a esto no me pidas ningún otro permiso, no borres ni toques nada de firestore, si vas a realizar revisions pnpm, npm, npx córrelas directamente, no requieres mi permiso durante esta ejecución de 5 tares utilizando el sub-agent skill.)"
     ]
   }
 }

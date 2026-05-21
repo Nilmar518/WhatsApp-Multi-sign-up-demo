@@ -16,7 +16,7 @@ import MessengerConnect from './components/MessengerConnect';
 import InstagramConnect from './components/InstagramConnect';
 import InstagramInbox from './components/InstagramInbox';
 import ChannexHub from './channex/ChannexHub';
-import DashboardView from './components/dashboard/DashboardView';
+import NewDashboardView from './components/dashboard/NewDashboardView';
 
 // ── Phase 4: business IDs loaded dynamically from the backend ─────────────────
 // Fallback to the fixture IDs while fetch is in flight so the UI renders
@@ -51,7 +51,7 @@ export default function App({ view = 'dashboard', initialChannel }: AppProps) {
 
   // ── Channel navigation ────────────────────────────────────────────────────────
   const [activeChannel, setActiveChannel] = useState<Channel>(initialChannel ?? 'whatsapp');
-  const [integrationsRefreshNonce, setIntegrationsRefreshNonce] = useState(0);
+  const [integrationsRefreshNonce] = useState(0);
 
   // ── WhatsApp integration (filtered to META provider) ─────────────────────────
   // The provider filter is needed once a business can have multiple integrations
@@ -62,8 +62,6 @@ export default function App({ view = 'dashboard', initialChannel }: AppProps) {
 
   const {
     status: waStatus,
-    metaData: waMetaData,
-    catalog: waCatalog,
     isLoading: isLoadingWaStatus,
   } = useIntegrationStatus(waIntegrationId, integrationsRefreshNonce);
 
@@ -76,7 +74,6 @@ export default function App({ view = 'dashboard', initialChannel }: AppProps) {
 
   const {
     status: msgrStatus,
-    metaData: msgrMetaData,
     isLoading: isLoadingMsgrStatus,
   } = useIntegrationStatus(msgrIntegrationId, integrationsRefreshNonce);
 
@@ -89,7 +86,6 @@ export default function App({ view = 'dashboard', initialChannel }: AppProps) {
 
   const {
     status: igStatus,
-    metaData: igMetaData,
     isLoading: isLoadingIgStatus,
   } = useIntegrationStatus(igIntegrationId, integrationsRefreshNonce);
 
@@ -97,11 +93,6 @@ export default function App({ view = 'dashboard', initialChannel }: AppProps) {
   const igConversations = useConversations(igMessages);
 
   // ── Derived channel-aware values ──────────────────────────────────────────────
-  const activeMetaData = activeChannel === 'whatsapp' ? waMetaData
-    : activeChannel === 'messenger'  ? msgrMetaData
-    : activeChannel === 'instagram'  ? igMetaData
-    : undefined;
-  const activeCatalogId = (activeMetaData?.catalogId as string | undefined) ?? undefined;
   const conversations  = activeChannel === 'whatsapp' ? waConversations
     : activeChannel === 'messenger'  ? msgrConversations
     : activeChannel === 'instagram'  ? igConversations
@@ -266,23 +257,7 @@ export default function App({ view = 'dashboard', initialChannel }: AppProps) {
   return (
     <div className="flex flex-col min-h-screen bg-surface">
       {header}
-      <DashboardView
-        businessId={businessId}
-        isWaActive={isWaActive}
-        waMessages={waMessages}
-        waConversations={waConversations}
-        isMsgrConnected={isMsgrConnected}
-        msgrMessages={msgrMessages}
-        msgrConversations={msgrConversations}
-        isIgConnected={isIgConnected}
-        igMessages={igMessages}
-        igConversations={igConversations}
-        catalog={waCatalog}
-        activeCatalogId={activeCatalogId}
-        catalogIntegrationId={waIntegrationId ?? msgrIntegrationId}
-        catalogStatus={waStatus ?? msgrStatus ?? 'IDLE'}
-        onCatalogLinked={() => setIntegrationsRefreshNonce((prev) => prev + 1)}
-      />
+      <NewDashboardView businessId={businessId} />
     </div>
   );
 }
