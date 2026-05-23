@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Reservation } from '../../api/channexHubApi';
 import NoShowConfirmModal from './NoShowConfirmModal';
 import { useLanguage } from '../../../context/LanguageContext';
+import DocumentsSection from '../../../documents/DocumentsSection';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 export interface ReservationDetailModalProps {
   reservation: Reservation | null;
   tenantId: string;
+  propertyTitle?: string;
   /** OTA channel code from the property (e.g. "BDC", "ABB"). Used to determine No Show eligibility. */
   propertyChannelCode: string | null;
   onClose: () => void;
@@ -77,6 +79,7 @@ export interface ReservationDetailModalProps {
 export default function ReservationDetailModal({
   reservation: r,
   tenantId,
+  propertyTitle,
   propertyChannelCode,
   onClose,
   onNoShowComplete,
@@ -224,6 +227,9 @@ export default function ReservationDetailModal({
           {/* Booking refs */}
           <SectionTitle>{t('channex.reservDetail.bookingInfo')}</SectionTitle>
           <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-1">
+            {propertyTitle && (
+              <InfoRow label={t('channex.reservDetail.property')} value={propertyTitle} />
+            )}
             {r.ota_unique_id && <InfoRow label={t('channex.reservDetail.otaId')} value={r.ota_unique_id} />}
             {r.reservation_id && r.reservation_id !== r.ota_unique_id && (
               <InfoRow label={t('channex.reservDetail.reservId')} value={r.reservation_id} />
@@ -248,6 +254,13 @@ export default function ReservationDetailModal({
               </div>
             </>
           )}
+
+          {/* Documentos */}
+          <SectionTitle>Documentos</SectionTitle>
+          <DocumentsSection
+            reservation={r}
+            businessId={tenantId}
+          />
 
           {/* No show — BDC only */}
           {noShowButtonVisible && (

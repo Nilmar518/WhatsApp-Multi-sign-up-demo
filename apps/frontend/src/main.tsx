@@ -5,6 +5,7 @@ import CatalogManagerApp from './catalog-manager/CatalogManagerApp';
 import InventoryPage from './inventory/InventoryPage';
 import ChannexHub from './channex/ChannexHub';
 import SettingsPage from './settings/SettingsPage';
+import DocumentsPage from './documents/DocumentsPage';
 import AuthGate from './auth/AuthGate';
 import MainLayout from './layout/MainLayout';
 import { ThemeProvider } from './context/ThemeContext';
@@ -70,6 +71,7 @@ function AppShell() {
   else if (path.startsWith('/mensajes'))   content = <App view="mensajes" initialChannel={channelParam ?? undefined} />;
   else if (path.startsWith('/channex'))    content = <ChannexPage initialTab={channexTab(path)} />;
   else if (path.startsWith('/configuracion')) content = <SettingsPage />;
+  else if (path.startsWith('/documentos'))  content = <DocumentsPage />;
   else                                     content = <App view="dashboard" />;
 
   return <MainLayout transitioning={transitioning}>{content}</MainLayout>;

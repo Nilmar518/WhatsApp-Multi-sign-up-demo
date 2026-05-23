@@ -607,9 +607,11 @@ export class ChannexARIService {
     propertyId: string,
     tenantId: string,
     limit = 50,
+    dateFrom?: string,
+    dateTo?: string,
   ): Promise<{ bookings: FirestoreReservationDoc[]; propertyChannelCode: string | null }> {
     this.logger.log(
-      `[ARI] getPropertyBookings — propertyId=${propertyId} tenantId=${tenantId} limit=${limit}`,
+      `[ARI] getPropertyBookings — propertyId=${propertyId} tenantId=${tenantId} limit=${limit} dateFrom=${dateFrom ?? '-'} dateTo=${dateTo ?? '-'}`,
     );
 
     const db = this.firebase.getFirestore();
@@ -644,13 +646,14 @@ export class ChannexARIService {
     );
 
     // ── 1. Flat collection (new path) ─────────────────────────────────────────
-    const newSnap = await db
+    let flatQuery = db
       .collection(INTEGRATIONS_COLLECTION)
       .doc(tenantId)
       .collection('bookings')
-      .where('propertyId', '==', propertyId)
-      .limit(limit)
-      .get();
+      .where('propertyId', '==', propertyId) as FirebaseFirestore.Query;
+    if (dateFrom) flatQuery = flatQuery.where('check_in', '>=', dateFrom);
+    if (dateTo) flatQuery = flatQuery.where('check_in', '<=', dateTo);
+    const newSnap = await flatQuery.limit(limit).get();
 
     if (!newSnap.empty) {
       const bookings: FirestoreReservationDoc[] = newSnap.docs
@@ -665,15 +668,16 @@ export class ChannexARIService {
     }
 
     // ── 2. Nested fallback (historical data) ──────────────────────────────────
-    const oldSnap = await db
+    let oldQuery = db
       .collection(INTEGRATIONS_COLLECTION)
       .doc(tenantId)
       .collection('properties')
       .doc(propertyId)
       .collection('bookings')
-      .orderBy('check_in', 'desc')
-      .limit(limit)
-      .get();
+      .orderBy('check_in', 'desc') as FirebaseFirestore.Query;
+    if (dateFrom) oldQuery = oldQuery.where('check_in', '>=', dateFrom);
+    if (dateTo) oldQuery = oldQuery.where('check_in', '<=', dateTo);
+    const oldSnap = await oldQuery.limit(limit).get();
 
     const bookings: FirestoreReservationDoc[] = oldSnap.docs.map(
       (d) => ({ ...d.data(), id: d.id }) as unknown as FirestoreReservationDoc,

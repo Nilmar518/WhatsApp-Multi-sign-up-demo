@@ -263,6 +263,7 @@ export interface Reservation {
   /** OTA source — 'airbnb' | 'booking_com' | … */
   channel: string;
   channex_property_id: string;
+  arrival_date?: string | null;
   room_type_id: string | null;
   ota_listing_id?: string | null;
   check_in: string;
@@ -303,8 +304,12 @@ export async function getPropertyBookings(
   propertyId: string,
   tenantId: string,
   limit = 50,
+  dateFrom?: string,
+  dateTo?: string,
 ): Promise<PropertyBookingsResponse> {
   const params = new URLSearchParams({ tenantId, limit: String(limit) });
+  if (dateFrom) params.set('dateFrom', dateFrom);
+  if (dateTo) params.set('dateTo', dateTo);
   return apiFetch(
     `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings?${params}`,
   );

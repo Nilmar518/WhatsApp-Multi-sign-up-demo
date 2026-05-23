@@ -297,11 +297,13 @@ export class ChannexARIController {
     @Param('propertyId') propertyId: string,
     @Query('tenantId') tenantId: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ): Promise<{ bookings: FirestoreReservationDoc[]; propertyChannelCode: string | null }> {
     this.logger.log(
-      `[CTRL] GET /bookings — propertyId=${propertyId} tenantId=${tenantId} limit=${limit}`,
+      `[CTRL] GET /bookings — propertyId=${propertyId} tenantId=${tenantId} limit=${limit} dateFrom=${dateFrom ?? '-'} dateTo=${dateTo ?? '-'}`,
     );
-    return this.ariService.getPropertyBookings(propertyId, tenantId, limit);
+    return this.ariService.getPropertyBookings(propertyId, tenantId, limit, dateFrom, dateTo);
   }
 
   /**

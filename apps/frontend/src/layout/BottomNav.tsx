@@ -6,8 +6,9 @@ import { useLanguage } from '../context/LanguageContext';
 import { navigate } from '../lib/navigate';
 import {
   LayoutDashboard,
-  Hotel, Globe, Settings, Moon, Sun, LogOut,
-  Home, Languages, ChevronUp,
+  Hotel, Globe, Moon, Sun, LogOut,
+  Home, Languages, ChevronUp, MoreHorizontal,
+  Settings, FileText,
 } from 'lucide-react';
 
 interface TabProps {
@@ -23,7 +24,7 @@ function Tab({ icon, label, active, onClick }: TabProps) {
       onClick={onClick}
       className={[
         'relative flex flex-col items-center justify-center gap-0.5',
-        'min-w-[64px] px-2 py-2 flex-shrink-0 h-full',
+        'w-full h-full px-2 py-2',
         'transition-colors duration-150 select-none',
         active ? 'text-brand' : 'text-content-sidebar hover:text-content-inv',
       ].join(' ')}
@@ -44,7 +45,7 @@ export default function BottomNav() {
   const { lang, toggleLanguage, t } = useLanguage();
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
-  const [expandedMenu, setExpandedMenu] = useState<'channex' | null>(null);
+  const [expandedMenu, setExpandedMenu] = useState<'channex' | 'more' | null>(null);
 
   useEffect(() => {
     const onPop = () => {
@@ -56,11 +57,14 @@ export default function BottomNav() {
 
   useEffect(() => {
     if (!currentPath.startsWith('/channex')) {
-      setExpandedMenu(null);
+      setExpandedMenu((prev) => prev === 'channex' ? null : prev);
     }
   }, [currentPath]);
 
   const channexIsActive = currentPath.startsWith('/channex');
+  const moreIsActive =
+    currentPath.startsWith('/configuracion') ||
+    currentPath.startsWith('/documentos');
 
   const handleChannexTap = () => {
     if (expandedMenu === 'channex') {
@@ -69,6 +73,10 @@ export default function BottomNav() {
     } else {
       setExpandedMenu('channex');
     }
+  };
+
+  const handleMoreTap = () => {
+    setExpandedMenu(expandedMenu === 'more' ? null : 'more');
   };
 
   const handleSubNav = (href: string) => {
@@ -82,10 +90,10 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* Channex sub-menu — slides up from above the bar */}
+      {/* Channex sub-menu */}
       <div
         className={[
-          'fixed bottom-16 left-0 right-0 z-40 md:hidden',
+          'fixed bottom-16 left-0 right-0 z-[30] md:hidden',
           'bg-surface-sidebar border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.3)]',
           'transition-all duration-200',
           expandedMenu === 'channex'
@@ -124,20 +132,76 @@ export default function BottomNav() {
         </div>
       </div>
 
+      {/* More sub-menu — stacked list */}
+      <div
+        className={[
+          'fixed bottom-16 left-0 right-0 z-[30] md:hidden',
+          'bg-surface-sidebar border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.3)]',
+          'transition-all duration-200',
+          expandedMenu === 'more'
+            ? 'opacity-100 pointer-events-auto translate-y-0'
+            : 'opacity-0 pointer-events-none translate-y-2',
+        ].join(' ')}
+      >
+        <div className="flex flex-col py-1">
+          <button
+            onClick={() => handleSubNav('/documentos')}
+            className={[
+              'flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors',
+              currentPath.startsWith('/documentos')
+                ? 'text-brand bg-white/5'
+                : 'text-content-sidebar hover:bg-white/5',
+            ].join(' ')}
+          >
+            <FileText size={16} />
+            Documentos
+          </button>
+          <button
+            onClick={() => handleSubNav('/configuracion')}
+            className={[
+              'flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors',
+              currentPath.startsWith('/configuracion')
+                ? 'text-brand bg-white/5'
+                : 'text-content-sidebar hover:bg-white/5',
+            ].join(' ')}
+          >
+            <Settings size={16} />
+            {t('nav.settings')}
+          </button>
+          <button
+            onClick={() => { toggleTheme(); }}
+            className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-content-sidebar hover:bg-white/5 transition-colors"
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            {theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
+          </button>
+          <button
+            onClick={() => { toggleLanguage(); }}
+            className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-content-sidebar hover:bg-white/5 transition-colors"
+          >
+            <Languages size={16} />
+            {lang === 'es' ? 'English' : 'Español'}
+          </button>
+          <div className="mx-4 my-1 border-t border-white/10" />
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-danger hover:bg-white/5 transition-colors"
+          >
+            <LogOut size={16} />
+            {t('nav.logout')}
+          </button>
+        </div>
+      </div>
+
       {/* Bottom navigation bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 bg-surface-sidebar border-t border-white/10 md:hidden shadow-[0_-2px_8px_rgba(0,0,0,0.2)]">
-        <div className="flex h-full overflow-x-auto scrollbar-none">
-          {/* Main section */}
+      <nav className="fixed bottom-0 left-0 right-0 z-[35] h-16 bg-surface-sidebar border-t border-white/10 md:hidden shadow-[0_-2px_8px_rgba(0,0,0,0.2)]">
+        <div className="grid grid-cols-3 h-full w-full">
           <Tab
             icon={<LayoutDashboard size={17} />}
             label={t('nav.dashboard')}
             active={currentPath === '/'}
-            onClick={() => navigate('/')}
+            onClick={() => { navigate('/'); setExpandedMenu(null); }}
           />
-
-          <div className="flex items-center px-1 shrink-0">
-            <div className="w-px h-8 bg-white/10" />
-          </div>
 
           {/* Channex — expandable */}
           <Tab
@@ -154,34 +218,19 @@ export default function BottomNav() {
             onClick={handleChannexTap}
           />
 
-          <div className="flex items-center px-1 shrink-0">
-            <div className="w-px h-8 bg-white/10" />
-          </div>
-
-          {/* System */}
+          {/* More — expandable */}
           <Tab
-            icon={<Settings size={17} />}
-            label={t('nav.settings')}
-            active={currentPath.startsWith('/configuracion')}
-            onClick={() => navigate('/configuracion')}
-          />
-          <Tab
-            icon={theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-            label={theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
-            active={false}
-            onClick={toggleTheme}
-          />
-          <Tab
-            icon={<Languages size={17} />}
-            label={lang.toUpperCase()}
-            active={false}
-            onClick={toggleLanguage}
-          />
-          <Tab
-            icon={<LogOut size={17} />}
-            label={t('nav.logout')}
-            active={false}
-            onClick={handleLogout}
+            icon={
+              <span className="relative inline-flex items-center justify-center">
+                <MoreHorizontal size={17} />
+                {expandedMenu === 'more' && (
+                  <ChevronUp size={9} className="absolute -top-2 -right-2.5 text-brand" />
+                )}
+              </span>
+            }
+            label="Más"
+            active={moreIsActive || expandedMenu === 'more'}
+            onClick={handleMoreTap}
           />
         </div>
       </nav>

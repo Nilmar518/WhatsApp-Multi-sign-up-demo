@@ -25,9 +25,10 @@ type SyncStep = 'idle' | 'channelSelect' | 'loadingPreview' | 'naming' | 'syncin
 interface Props {
   tenantId: string;
   onNavigateToProperties: () => void;
+  configOnly?: boolean;
 }
 
-export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties }: Props) {
+export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties, configOnly = false }: Props) {
   const { t } = useLanguage();
   const { properties: allProperties, loading } = useChannexProperties(tenantId);
   const { properties: airbnbProperties } = useChannexProperties(tenantId, { source: 'airbnb' });
@@ -103,7 +104,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
 
   const syncing = syncStep === 'syncing';
 
-  if (selectedProperty) {
+  if (!configOnly && selectedProperty) {
     return (
       <div>
         <button
@@ -269,7 +270,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
         />
       )}
 
-      {airbnbProperties.length > 0 && (
+      {!configOnly && airbnbProperties.length > 0 && (
         <>
           <div>
             <h3 className="mb-3 text-sm font-semibold text-content">{t('channex.airbnbConn.messages')}</h3>

@@ -220,9 +220,11 @@ interface Props {
   threads: ChannexThread[];
   loading: boolean;
   initialThreadId?: string;
+  /** When provided, shows a property name badge on each thread row (for multi-property views). */
+  propertyTitleById?: Record<string, string>;
 }
 
-export default function MessagesInbox({ tenantId, threads, loading, initialThreadId }: Props) {
+export default function MessagesInbox({ tenantId, threads, loading, initialThreadId, propertyTitleById }: Props) {
   const { t } = useLanguage();
   const [selectedThread, setSelectedThread] = useState<ChannexThread | null>(null);
 
@@ -261,6 +263,57 @@ export default function MessagesInbox({ tenantId, threads, loading, initialThrea
     );
   }
 
+  // Group by property when propertyTitleById is provided
+  const groupEntries = propertyTitleById
+    ? Object.entries(
+        threads.reduce<Record<string, ChannexThread[]>>((acc, th) => {
+          (acc[th.propertyId] ??= []).push(th);
+          return acc;
+        }, {}),
+      ).sort(([a], [b]) =>
+        (propertyTitleById[a] ?? a).localeCompare(propertyTitleById[b] ?? b),
+      )
+    : null;
+
+  function renderThreadItem(thread: ChannexThread, showPropertyBadge: boolean) {
+    const isSelected = selectedThread?.id === thread.id && selectedThread.propertyId === thread.propertyId;
+    return (
+      <button
+        key={`${thread.propertyId}-${thread.id}`}
+        type="button"
+        onClick={() => setSelectedThread(thread)}
+        className={[
+          'w-full border-b border-edge px-4 py-3 text-left transition-colors border-l-2',
+          isSelected
+            ? 'bg-brand/10 border-l-brand'
+            : 'hover:bg-surface-subtle border-l-transparent',
+        ].join(' ')}
+      >
+        <div className="flex items-start justify-between gap-1">
+          <p className="truncate text-sm font-medium text-content">{thread.guestName}</p>
+          <p className="shrink-0 text-[10px] text-content-3">
+            {formatTimestamp(thread.updatedAt)}
+          </p>
+        </div>
+        {thread.lastMessage && (
+          <p className="mt-0.5 truncate text-xs text-content-2">{thread.lastMessage}</p>
+        )}
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          {showPropertyBadge && propertyTitleById?.[thread.propertyId] && (
+            <span className="inline-block rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand truncate max-w-[120px]">
+              {propertyTitleById[thread.propertyId]}
+            </span>
+          )}
+          {thread.isInquiry && (
+            <span className="inline-block rounded-full bg-notice-bg px-1.5 py-0.5 text-[10px] font-medium text-notice-text">
+              {t('channex.messages.inquiry')}
+            </span>
+          )}
+        </div>
+      </button>
+    );
+  }
+
   return (
     <div className="flex flex-col md:flex-row md:h-[480px] overflow-hidden rounded-2xl border border-edge bg-surface-raised">
       {/* Thread list */}
@@ -269,37 +322,20 @@ export default function MessagesInbox({ tenantId, threads, loading, initialThrea
         'w-full md:w-64',
         selectedThread ? 'hidden md:block' : 'block',
       ].join(' ')}>
-        {threads.map((thread) => {
-          const isSelected = selectedThread?.id === thread.id && selectedThread.propertyId === thread.propertyId;
-          return (
-            <button
-              key={`${thread.propertyId}-${thread.id}`}
-              type="button"
-              onClick={() => setSelectedThread(thread)}
-              className={[
-                'w-full border-b border-edge px-4 py-3 text-left transition-colors border-l-2',
-                isSelected
-                  ? 'bg-brand/10 border-l-brand'
-                  : 'hover:bg-surface-subtle border-l-transparent',
-              ].join(' ')}
-            >
-              <div className="flex items-start justify-between gap-1">
-                <p className="truncate text-sm font-medium text-content">{thread.guestName}</p>
-                <p className="shrink-0 text-[10px] text-content-3">
-                  {formatTimestamp(thread.updatedAt)}
-                </p>
+        {groupEntries
+          ? groupEntries.map(([propId, propThreads]) => (
+              <div key={propId}>
+                <div className="flex items-center gap-2 px-4 py-2 bg-surface-subtle border-b border-edge sticky top-0 z-10">
+                  <span className="text-xs font-semibold text-content uppercase tracking-wider truncate">
+                    {propertyTitleById![propId] ?? propId}
+                  </span>
+                  <span className="shrink-0 text-xs text-content-2">({propThreads.length})</span>
+                </div>
+                {propThreads.map((thread) => renderThreadItem(thread, true))}
               </div>
-              {thread.lastMessage && (
-                <p className="mt-0.5 truncate text-xs text-content-2">{thread.lastMessage}</p>
-              )}
-              {thread.isInquiry && (
-                <span className="mt-1 inline-block rounded-full bg-notice-bg px-1.5 py-0.5 text-[10px] font-medium text-notice-text">
-                  {t('channex.messages.inquiry')}
-                </span>
-              )}
-            </button>
-          );
-        })}
+            ))
+          : threads.map((thread) => renderThreadItem(thread, !!propertyTitleById))
+        }
       </div>
 
       {/* Conversation pane */}

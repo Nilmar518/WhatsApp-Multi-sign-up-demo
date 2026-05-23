@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import AirbnbConnectionPanel from './components/connection/AirbnbConnectionPanel';
-import BookingConnectionPanel from './components/connection/BookingConnectionPanel';
+import IntegrationView from './components/IntegrationView';
 import { useChannexProperties } from './hooks/useChannexProperties';
 import PropertiesList from './components/PropertiesList';
 import PropertyDetail from './components/shared/PropertyDetail';
@@ -67,14 +66,14 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
       </div>
 
       {/* Sub-tab bar */}
-      <div className="flex items-end gap-0 border-b border-edge px-3 sm:px-6 overflow-x-auto whitespace-nowrap">
+      <div className="flex items-end border-b border-edge px-3 sm:px-6">
         {SUB_TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveSubTab(tab.id)}
             className={[
-              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+              'flex-1 text-center px-2 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors truncate',
               activeSubTab === tab.id
                 ? 'border-brand-light text-brand bg-surface-raised'
                 : 'border-transparent text-content-2 hover:text-content hover:border-edge',
@@ -86,9 +85,9 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {activeSubTab === 'properties' && (
-          <>
+          <div className="h-full overflow-auto">
             {showWizard ? (
               <div className="px-3 py-4 sm:px-6 sm:py-6">
                 <PropertySetupWizard
@@ -151,29 +150,28 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
                 )}
               </div>
             )}
-          </>
+          </div>
         )}
 
         {activeSubTab === 'airbnb' && (
-          <div className="px-3 py-4 sm:px-6 sm:py-6">
-            <AirbnbConnectionPanel
-              tenantId={businessId}
-              onNavigateToProperties={() => setActiveSubTab('properties')}
-            />
-          </div>
+          <IntegrationView
+            tenantId={businessId}
+            source="airbnb"
+            onNavigateToProperties={() => setActiveSubTab('properties')}
+          />
         )}
 
         {activeSubTab === 'booking' && (
-          <div className="px-3 py-4 sm:px-6 sm:py-6">
-            <BookingConnectionPanel
-              tenantId={businessId}
-              onNavigateToProperties={() => setActiveSubTab('properties')}
-            />
-          </div>
+          <IntegrationView
+            tenantId={businessId}
+            source="booking"
+            onNavigateToProperties={() => setActiveSubTab('properties')}
+          />
         )}
 
         {activeSubTab === 'pools' && (
-          <div className="px-3 py-4 sm:px-6 sm:py-6">
+          <div className="h-full overflow-auto">
+            <div className="px-3 py-4 sm:px-6 sm:py-6">
             {showPoolCreate ? (
               <PoolCreateForm
                 tenantId={businessId}
@@ -204,6 +202,7 @@ export default function ChannexHub({ businessId, initialTab = 'properties' }: Pr
                 )}
               </>
             )}
+            </div>
           </div>
         )}
       </div>

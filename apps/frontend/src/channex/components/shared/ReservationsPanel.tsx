@@ -172,6 +172,7 @@ function channelStyle(channel: string): string {
 export interface ReservationsPanelProps {
   propertyId: string;
   tenantId: string;
+  propertyTitle?: string;
   /** Optional filter — show only bookings from these channel keys ('airbnb', 'booking_com', …). All shown when empty. */
   channels?: string[];
   /** Polling interval in ms. Default 30 000. Pass 0 to disable. */
@@ -183,6 +184,7 @@ export interface ReservationsPanelProps {
 export default function ReservationsPanel({
   propertyId,
   tenantId,
+  propertyTitle,
   channels,
   pollInterval = 30_000,
   initialBookingId,
@@ -405,6 +407,7 @@ export default function ReservationsPanel({
       <ReservationDetailModal
         reservation={selectedReservation}
         tenantId={tenantId}
+        propertyTitle={propertyTitle}
         propertyChannelCode={propertyChannelCode}
         onClose={() => setSelectedReservation(null)}
         onNoShowComplete={() => {

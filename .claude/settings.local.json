@@ -10,7 +10,24 @@
       "PowerShell(\\(Get-Content \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\backend\\\\src\\\\channex\\\\channex-ari.service.ts\" | Measure-Object -Line\\).Lines)",
       "Bash(pnpm build *)",
       "Bash(echo \"EXIT_CODE=$?\")",
-      "PowerShell(New-Item * adicional a esto no me pidas ningún otro permiso, no borres ni toques nada de firestore, si vas a realizar revisions pnpm, npm, npx córrelas directamente, no requieres mi permiso durante esta ejecución de 5 tares utilizando el sub-agent skill.)"
+      "PowerShell(New-Item * adicional a esto no me pidas ningún otro permiso, no borres ni toques nada de firestore, si vas a realizar revisions pnpm, npm, npx córrelas directamente, no requieres mi permiso durante esta ejecución de 5 tares utilizando el sub-agent skill.)",
+      "Bash(not exist *)",
+      "Bash(pnpm --filter @migo-uit/backend add @nestjs/mapped-types)",
+      "Bash(pnpm --filter @migo-uit/backend add puppeteer)",
+      "Bash(pnpm approve-builds *)",
+      "Bash(pnpm --version)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm --filter @migo-uit/frontend add @dnd-kit/core @dnd-kit/sortable)",
+      "Bash(node -e \"const p = require\\('./apps/frontend/package.json'\\); console.log\\('@dnd-kit/core:', p.dependencies['@dnd-kit/core']\\); console.log\\('@dnd-kit/sortable:', p.dependencies['@dnd-kit/sortable']\\);\")",
+      "Bash(pnpm --filter @migo-uit/frontend add uuid)",
+      "Bash(pnpm --filter @migo-uit/frontend add -D @types/uuid)",
+      "PowerShell(New-Item *)",
+      "Bash(node *)",
+      "Bash(pnpm --filter @migo-uit/frontend add @dnd-kit/utilities)",
+      "Bash(pnpm tsc *)",
+      "Bash(pnpm --filter @migo-uit/frontend test --passWithNoTests)",
+      "PowerShell(ls \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\frontend\\\\src\\\\channex\\\\components\\\\\")",
+      "PowerShell(ls \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\frontend\\\\src\\\\channex\\\\components\\\\shared\\\\\")"
     ]
   }
 }

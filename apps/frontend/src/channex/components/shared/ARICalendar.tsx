@@ -689,7 +689,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                         key={ds}
                         onClick={() => handleCellClick(ds)}
                         className={[
-                          'flex flex-col items-start p-1.5 border border-edge cursor-pointer min-h-[56px] transition-colors',
+                          'relative flex flex-col items-start p-1.5 border border-edge cursor-pointer min-h-[56px] transition-colors',
                           sel ? 'bg-brand-subtle ring-2 ring-inset ring-brand-light z-10' : `hover:bg-surface-subtle ${cellBg}`,
                           !inMonth ? 'bg-surface-subtle/70' : '',
                           isPopup && !sel ? 'ring-2 ring-inset ring-brand-light z-10' : '',
@@ -699,6 +699,17 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                         <span className={`text-sm font-medium ${inMonth ? 'text-content' : 'text-content-3'}`}>
                           {date.getUTCDate()}
                         </span>
+                        {inMonth && anyStopSell && (
+                          <svg
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 h-full w-full text-danger-text opacity-30"
+                            viewBox="0 0 100 100"
+                            preserveAspectRatio="none"
+                          >
+                            <line x1="5" y1="5" x2="95" y2="95" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+                            <line x1="95" y1="5" x2="5" y2="95" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+                          </svg>
+                        )}
                         {inMonth && minRate !== null && (
                           <span className="text-[10px] font-semibold text-content-2 leading-tight">
                             {currency}&nbsp;{minRate.toFixed(2)}

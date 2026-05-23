@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<title>Tab 2 — Opción A: Sub-tabs Reservas | Mensajes</title>
+<style>
+  body{font-family:system-ui;background:#0f1117;color:#e2e8f0;margin:0;padding:20px}
+  .hub{background:#1a1d27;border:1px solid #2d3748;border-radius:12px;overflow:hidden;max-width:700px}
+  .header{padding:16px 24px;border-bottom:1px solid #2d3748}
+  .header small{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.1em}
+  .header h2{margin:4px 0 0;font-size:16px}
+  /* Top tabs */
+  .tabs-top{display:flex;border-bottom:1px solid #2d3748;padding:0 24px}
+  .tab-top{padding:10px 16px;font-size:13px;border-bottom:2px solid transparent;cursor:pointer;color:#94a3b8}
+  .tab-top.active{border-bottom-color:#6366f1;color:#a5b4fc}
+  /* Sub-tabs */
+  .subtabs{display:flex;gap:4px;padding:14px 24px 0;border-bottom:1px solid #2d3748}
+  .subtab{padding:6px 14px;font-size:12px;border-radius:6px 6px 0 0;cursor:pointer;color:#94a3b8;background:transparent;border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
+  .subtab.active{background:#242736;border-color:#2d3748;color:#e2e8f0}
+  .body{padding:20px 24px}
+  .res-row{display:flex;align-items:center;gap:12px;padding:10px;background:#242736;border-radius:8px;margin-bottom:8px}
+  .badge{background:#1a3a2a;color:#34d399;font-size:10px;padding:2px 8px;border-radius:999px}
+  .res-info{flex:1}
+  .res-name{font-size:13px;font-weight:500}
+  .res-sub{font-size:11px;color:#64748b}
+  .note{font-size:11px;color:#6366f1;margin-top:12px;padding:8px 12px;background:#1e2035;border-radius:6px;border-left:3px solid #6366f1}
+</style>
+</head>
+<body>
+<div class="hub">
+  <div class="header">
+    <small>Integración</small>
+    <h2>Booking.com</h2>
+  </div>
+  <div class="tabs-top">
+    <div class="tab-top">Propiedades</div>
+    <div class="tab-top active">Reservas / Mensajes</div>
+    <div class="tab-top">Configuración</div>
+  </div>
+  <!-- sub-tabs dentro del tab 2 -->
+  <div class="subtabs">
+    <div class="subtab active">Reservas</div>
+    <div class="subtab">Mensajes</div>
+  </div>
+  <div class="body">
+    <div class="res-row">
+      <div class="res-info">
+        <div class="res-name">John Doe — Villa Sunset</div>
+        <div class="res-sub">24 may – 28 may · 3 noches</div>
+      </div>
+      <span class="badge">Confirmada</span>
+    </div>
+    <div class="res-row">
+      <div class="res-info">
+        <div class="res-name">Ana García — Casa del Mar</div>
+        <div class="res-sub">30 may – 2 jun · 2 noches</div>
+      </div>
+      <span class="badge">Pendiente</span>
+    </div>
+    <div class="note">2 niveles de tabs: arriba los 3 principales, dentro de Reservas/Mensajes hay sub-tabs para alternar entre las dos vistas</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<title>Tab Reservas — con filtros</title>
+<style>
+  body{font-family:system-ui;background:#0f1117;color:#e2e8f0;margin:0;padding:20px}
+  .hub{background:#1a1d27;border:1px solid #2d3748;border-radius:12px;overflow:hidden;max-width:760px}
+  .header{padding:16px 24px;border-bottom:1px solid #2d3748}
+  .header small{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.1em}
+  .header h2{margin:4px 0 0;font-size:16px}
+  .tabs-top{display:flex;border-bottom:1px solid #2d3748;padding:0 24px}
+  .tab-top{padding:10px 16px;font-size:13px;border-bottom:2px solid transparent;cursor:pointer;color:#94a3b8}
+  .tab-top.active{border-bottom-color:#6366f1;color:#a5b4fc}
+  /* Filters bar */
+  .filters{display:flex;align-items:center;gap:10px;padding:14px 24px;border-bottom:1px solid #2d3748;flex-wrap:wrap}
+  .filter-label{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-right:2px}
+  .filter-select{background:#242736;border:1px solid #2d3748;border-radius:6px;color:#e2e8f0;font-size:12px;padding:5px 10px;cursor:pointer;outline:none}
+  .filter-select:focus{border-color:#6366f1}
+  .date-range{display:flex;align-items:center;gap:6px}
+  .date-input{background:#242736;border:1px solid #2d3748;border-radius:6px;color:#e2e8f0;font-size:12px;padding:5px 10px;outline:none;width:120px}
+  .date-input:focus{border-color:#6366f1}
+  .date-sep{color:#475569;font-size:12px}
+  .filter-clear{font-size:11px;color:#6366f1;cursor:pointer;padding:4px 8px;border-radius:4px;background:transparent;border:none;color:#6366f1}
+  .filter-clear:hover{background:#1e2035}
+  /* Results */
+  .body{padding:16px 24px}
+  .results-count{font-size:11px;color:#64748b;margin-bottom:12px}
+  .res-row{display:flex;align-items:center;gap:12px;padding:10px 12px;background:#242736;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background .15s}
+  .res-row:hover{background:#2a2e42}
+  .prop-chip{font-size:10px;background:#1e2035;color:#a5b4fc;padding:2px 7px;border-radius:999px;border:1px solid #3b4261}
+  .res-info{flex:1}
+  .res-name{font-size:13px;font-weight:500}
+  .res-sub{font-size:11px;color:#64748b;margin-top:2px;display:flex;align-items:center;gap:8px}
+  .badge{font-size:10px;padding:2px 8px;border-radius:999px}
+  .badge.ok{background:#1a3a2a;color:#34d399}
+  .badge.pending{background:#2a2010;color:#f59e0b}
+  .badge.cancelled{background:#2a1010;color:#f87171}
+</style>
+</head>
+<body>
+<div class="hub">
+  <div class="header">
+    <small>Integración</small>
+    <h2>Booking.com</h2>
+  </div>
+  <div class="tabs-top">
+    <div class="tab-top">Propiedades</div>
+    <div class="tab-top active">Reservas</div>
+    <div class="tab-top">Mensajes</div>
+    <div class="tab-top">Configuración</div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters">
+    <span class="filter-label">Propiedad</span>
+    <select class="filter-select">
+      <option>Todas</option>
+      <option>Villa Sunset</option>
+      <option>Casa del Mar</option>
+      <option>Apartamento Centro</option>
+    </select>
+
+    <span class="filter-label" style="margin-left:8px">Fechas</span>
+    <div class="date-range">
+      <input class="date-input" type="date" value="2026-05-01">
+      <span class="date-sep">→</span>
+      <input class="date-input" type="date" value="2026-05-31">
+    </div>
+
+    <button class="filter-clear">Limpiar filtros</button>
+  </div>
+
+  <div class="body">
+    <div class="results-count">3 reservas encontradas</div>
+
+    <div class="res-row">
+      <div class="res-info">
+        <div class="res-name">John Doe <span class="prop-chip">Villa Sunset</span></div>
+        <div class="res-sub">
+          <span>24 may – 28 may · 4 noches</span>
+          <span class="badge ok">Confirmada</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="res-row">
+      <div class="res-info">
+        <div class="res-name">Ana García <span class="prop-chip">Casa del Mar</span></div>
+        <div class="res-sub">
+          <span>30 may – 2 jun · 3 noches</span>
+          <span class="badge pending">Pendiente</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="res-row">
+      <div class="res-info">
+        <div class="res-name">Carlos López <span class="prop-chip">Apartamento Centro</span></div>
+        <div class="res-sub">
+          <span>15 may – 17 may · 2 noches</span>
+          <span class="badge cancelled">Cancelada</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

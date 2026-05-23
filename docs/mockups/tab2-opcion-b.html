@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<title>Tab 2 — Opción B: 4 tabs al mismo nivel</title>
+<style>
+  body{font-family:system-ui;background:#0f1117;color:#e2e8f0;margin:0;padding:20px}
+  .hub{background:#1a1d27;border:1px solid #2d3748;border-radius:12px;overflow:hidden;max-width:700px}
+  .header{padding:16px 24px;border-bottom:1px solid #2d3748}
+  .header small{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.1em}
+  .header h2{margin:4px 0 0;font-size:16px}
+  .tabs-top{display:flex;border-bottom:1px solid #2d3748;padding:0 24px}
+  .tab-top{padding:10px 16px;font-size:13px;border-bottom:2px solid transparent;cursor:pointer;color:#94a3b8}
+  .tab-top.active{border-bottom-color:#6366f1;color:#a5b4fc}
+  .body{padding:20px 24px}
+  .msg-row{display:flex;align-items:flex-start;gap:12px;padding:10px;background:#242736;border-radius:8px;margin-bottom:8px}
+  .avatar{width:34px;height:34px;border-radius:50%;background:#3b4261;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+  .msg-info{flex:1}
+  .msg-name{font-size:13px;font-weight:500}
+  .msg-preview{font-size:11px;color:#64748b;margin-top:2px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#6366f1;margin-top:4px;flex-shrink:0}
+  .note{font-size:11px;color:#6366f1;margin-top:12px;padding:8px 12px;background:#1e2035;border-radius:6px;border-left:3px solid #6366f1}
+</style>
+</head>
+<body>
+<div class="hub">
+  <div class="header">
+    <small>Integración</small>
+    <h2>Booking.com</h2>
+  </div>
+  <div class="tabs-top">
+    <div class="tab-top">Propiedades</div>
+    <div class="tab-top">Reservas</div>
+    <div class="tab-top active">Mensajes</div>
+    <div class="tab-top">Configuración</div>
+  </div>
+  <div class="body">
+    <div class="msg-row">
+      <div class="avatar">👤</div>
+      <div class="msg-info">
+        <div class="msg-name">John Doe · Villa Sunset</div>
+        <div class="msg-preview">Hola, ¿podrían confirmar el check-in...?</div>
+      </div>
+      <div class="dot"></div>
+    </div>
+    <div class="msg-row">
+      <div class="avatar">👤</div>
+      <div class="msg-info">
+        <div class="msg-name">Ana García · Casa del Mar</div>
+        <div class="msg-preview">Gracias por la bienvenida, todo perfecto.</div>
+      </div>
+    </div>
+    <div class="note">4 tabs al mismo nivel: Propiedades | Reservas | Mensajes | Configuración — más plano, sin sub-tabs</div>
+  </div>
+</div>
+</body>
+</html>

@@ -166,6 +166,7 @@ export default function PropertyDetail({ property, tenantId, initialTab, initial
         <ReservationsPanel
           propertyId={property.channex_property_id}
           tenantId={tenantId}
+          propertyTitle={property.title}
           initialBookingId={initialBookingId}
         />
       )}

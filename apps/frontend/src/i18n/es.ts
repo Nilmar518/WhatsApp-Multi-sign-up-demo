@@ -13,6 +13,7 @@ export const es = {
   'nav.airbnb':                  'Airbnb',
   'nav.booking':                 'Booking.com',
   'nav.settings':                'Configuración',
+  'nav.documents':               'Documentos',
   'nav.myAccount':               'Mi cuenta',
   'nav.logout':                  'Cerrar sesión',
   'nav.lightMode':               'Modo claro',
@@ -259,6 +260,19 @@ export const es = {
   'channex.tab.airbnb':          'Airbnb',
   'channex.tab.booking':         'Booking.com',
   'channex.tab.pools':           'Pools',
+
+  // IntegrationView tabs & filters
+  'channex.integration.tab.properties':    'Propiedades',
+  'channex.integration.tab.reservations':  'Reservas',
+  'channex.integration.tab.messages':      'Mensajes',
+  'channex.integration.tab.settings':      'Configuración',
+  'channex.integration.filter.property':   'Propiedad',
+  'channex.integration.filter.allProps':   'Todas las propiedades',
+  'channex.integration.filter.from':       'Desde',
+  'channex.integration.filter.to':         'Hasta',
+  'channex.integration.filter.clear':      'Limpiar filtros',
+  'channex.integration.reservations.loading': 'Cargando reservas…',
+  'channex.integration.reservations.empty':   'No se encontraron reservas.',
 
   // Airbnb
   'airbnb.integration':          'Airbnb Integration',
@@ -748,6 +762,7 @@ export const es = {
   'channex.reservDetail.phone':        'Teléfono',
   'channex.reservDetail.country':      'País',
   'channex.reservDetail.bookingInfo':  'Información de reserva',
+  'channex.reservDetail.property':     'Propiedad',
   'channex.reservDetail.otaId':        'ID de reserva OTA',
   'channex.reservDetail.reservId':     'ID de reservación',
   'channex.reservDetail.channel':      'Canal',

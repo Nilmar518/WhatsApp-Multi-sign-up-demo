@@ -1,0 +1,108 @@
+<h2>Pregunta 1: ¿Cómo se usa el documento?</h2>
+<p class="subtitle">Esta decisión define toda la arquitectura del builder. Elige el modo que mejor describe el uso real.</p>
+
+<div class="cards">
+  <div class="card" data-choice="digital" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 16px; background: #0f172a; border-radius: 8px; margin-bottom: 0;">
+      <div style="background: #1e293b; border-radius: 6px; padding: 12px; font-family: sans-serif;">
+        <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">FICHA DE REGISTRO #643</div>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <div style="flex: 1;">
+            <div style="font-size: 9px; color: #64748b; margin-bottom: 3px;">FECHA</div>
+            <div style="background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 5px 8px; font-size: 11px; color: #e2e8f0;">21/14/26</div>
+          </div>
+          <div style="flex: 1;">
+            <div style="font-size: 9px; color: #64748b; margin-bottom: 3px;">HABITACIÓN</div>
+            <div style="background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 5px 8px; font-size: 11px; color: #e2e8f0;">8A</div>
+          </div>
+        </div>
+        <div style="margin-bottom: 8px;">
+          <div style="font-size: 9px; color: #64748b; margin-bottom: 3px;">NOMBRES</div>
+          <div style="background: #0f172a; border: 1px solid #3b82f6; border-radius: 4px; padding: 5px 8px; font-size: 11px; color: #e2e8f0;">Diego (Mary)|</div>
+        </div>
+        <div style="margin-bottom: 8px;">
+          <div style="font-size: 9px; color: #64748b; margin-bottom: 3px;">FORMA DE COBRO</div>
+          <div style="display: flex; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 3px; background: #1d4ed8; border-radius: 4px; padding: 3px 7px;">
+              <div style="width: 10px; height: 10px; background: #3b82f6; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white;">✓</div>
+              <span style="font-size: 9px; color: #bfdbfe;">Banco Bs</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 3px; border: 1px solid #334155; border-radius: 4px; padding: 3px 7px;">
+              <div style="width: 10px; height: 10px; border: 1px solid #475569; border-radius: 2px;"></div>
+              <span style="font-size: 9px; color: #64748b;">Efectivo $</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px;">
+          <div style="background: #334155; border-radius: 4px; padding: 4px 10px; font-size: 9px; color: #94a3b8;">Cancelar</div>
+          <div style="background: #3b82f6; border-radius: 4px; padding: 4px 10px; font-size: 9px; color: white;">Guardar</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Digital (llenado en pantalla)</h3>
+      <p>El documento se llena directamente en la app. Los datos se guardan en la base de datos. Puede pre-llenarse con datos de la reserva (nombre, habitación, fechas).</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="print" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 16px; background: #0f172a; border-radius: 8px; margin-bottom: 0;">
+      <div style="background: white; border-radius: 4px; padding: 10px; font-family: serif; color: #111; transform: scale(0.95);">
+        <div style="text-align: center; font-size: 11px; font-weight: bold; border-bottom: 2px solid #111; padding-bottom: 4px; margin-bottom: 6px;">FICHA DE REGISTRO</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9px;">
+          <div style="border: 1px solid #999; padding: 3px 5px;">
+            <span style="font-weight: bold;">FECHA:</span> ___________
+          </div>
+          <div style="border: 1px solid #999; padding: 3px 5px;">
+            <span style="font-weight: bold;">N°:</span> ___________
+          </div>
+          <div style="border: 1px solid #999; padding: 3px 5px; grid-column: span 2;">
+            <span style="font-weight: bold;">NOMBRES:</span> _______________________
+          </div>
+          <div style="border: 1px solid #999; padding: 3px 5px; grid-column: span 2; display: flex; gap: 8px; align-items: center;">
+            <span style="font-weight: bold;">COBRO:</span>
+            <span>☐ Efect.</span><span>☐ Banco Bs</span><span>☐ Efect. $</span><span>☐ Banco $</span>
+          </div>
+          <div style="border: 1px solid #999; padding: 3px 5px; grid-column: span 2;">
+            <span style="font-weight: bold;">MONTO:</span> _______________________
+          </div>
+        </div>
+        <div style="text-align: right; font-size: 8px; color: #666; margin-top: 6px;">Firma: ___________</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Imprimible (PDF / papel)</h3>
+      <p>El documento se genera como PDF o vista de impresión. Se llena a mano (como la ficha de la foto) o se imprime con datos pre-cargados.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 16px; background: #0f172a; border-radius: 8px; margin-bottom: 0;">
+      <div style="font-family: sans-serif; display: flex; flex-direction: column; gap: 8px;">
+        <div style="background: #1e293b; border-radius: 5px; padding: 8px; font-size: 9px; color: #94a3b8;">
+          <div style="color: #3b82f6; font-size: 10px; margin-bottom: 4px;">● Llenado digital</div>
+          <div style="background: #0f172a; border: 1px solid #3b82f6; border-radius: 3px; padding: 4px 6px; color: #e2e8f0; margin-bottom: 3px;">Diego (Mary)</div>
+          <div style="display: flex; gap: 4px;">
+            <div style="background: #1d4ed8; border-radius: 3px; padding: 3px 6px; color: #bfdbfe; font-size: 8px;">✓ Banco Bs</div>
+            <div style="border: 1px solid #334155; border-radius: 3px; padding: 3px 6px; color: #475569; font-size: 8px;">☐ Efect.</div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 6px;">
+          <div style="height: 1px; flex: 1; background: #334155;"></div>
+          <div style="background: #065f46; color: #6ee7b7; font-size: 8px; padding: 2px 6px; border-radius: 3px;">→ Exportar PDF</div>
+          <div style="height: 1px; flex: 1; background: #334155;"></div>
+        </div>
+        <div style="background: white; border-radius: 4px; padding: 8px; font-family: serif; color: #111; font-size: 8px;">
+          <div style="text-align: center; font-weight: bold; border-bottom: 1px solid #999; margin-bottom: 4px;">FICHA #643</div>
+          <div><b>NOMBRES:</b> Diego (Mary)</div>
+          <div><b>COBRO:</b> [✓] Banco Bs</div>
+          <div><b>MONTO:</b> 300</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Híbrido (digital + exportar)</h3>
+      <p>Se llena digitalmente en la app y también se puede exportar/imprimir como PDF. Los datos quedan guardados Y se genera el documento físico.</p>
+    </div>
+  </div>
+</div>

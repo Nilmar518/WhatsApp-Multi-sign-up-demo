@@ -27,9 +27,10 @@ type SyncStep = 'idle' | 'channelSelect' | 'loadingPreview' | 'naming' | 'syncin
 interface Props {
   tenantId: string;
   onNavigateToProperties: () => void;
+  configOnly?: boolean;
 }
 
-export default function BookingConnectionPanel({ tenantId, onNavigateToProperties }: Props) {
+export default function BookingConnectionPanel({ tenantId, onNavigateToProperties, configOnly = false }: Props) {
   const { t } = useLanguage();
   const { properties: allProperties, loading } = useChannexProperties(tenantId);
   const { properties: bookingProperties } = useChannexProperties(tenantId, { source: 'booking' });
@@ -104,7 +105,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
 
   const syncing = syncStep === 'syncing';
 
-  if (selectedProperty) {
+  if (!configOnly && selectedProperty) {
     return (
       <div>
         <button
@@ -272,7 +273,7 @@ export default function BookingConnectionPanel({ tenantId, onNavigateToPropertie
         />
       )}
 
-      {bookingProperties.length > 0 && (
+      {!configOnly && bookingProperties.length > 0 && (
         <>
           <div>
             <h3 className="mb-3 text-sm font-semibold text-content">{t('channex.bdcConn.messages')}</h3>

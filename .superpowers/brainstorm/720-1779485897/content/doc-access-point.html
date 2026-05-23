@@ -1,0 +1,86 @@
+<h2>Pregunta 3: ¿Desde dónde se accede a los documentos?</h2>
+<p class="subtitle">¿Cómo llega el usuario al formulario de check-in o check-out en el flujo real?</p>
+
+<div class="cards">
+  <div class="card" data-choice="from-reservation" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:12px; background:#0f172a; border-radius:8px;">
+      <div style="font-family:sans-serif; font-size:9px; color:#94a3b8;">
+        <!-- Reservation card -->
+        <div style="background:#1e293b; border-radius:6px; padding:8px; margin-bottom:6px;">
+          <div style="color:#e2e8f0; font-size:10px; font-weight:600; margin-bottom:4px;">Reserva #1042 — Diego Mary</div>
+          <div style="color:#64748b; margin-bottom:6px;">Hab. 8A · 21 May → 22 May</div>
+          <div style="display:flex; gap:4px;">
+            <div style="background:#1d4ed8; color:#bfdbfe; padding:3px 8px; border-radius:4px; font-size:8px; cursor:pointer;">📄 Check-in</div>
+            <div style="background:#065f46; color:#6ee7b7; padding:3px 8px; border-radius:4px; font-size:8px; cursor:pointer;">📄 Check-out</div>
+            <div style="background:#334155; color:#94a3b8; padding:3px 8px; border-radius:4px; font-size:8px; cursor:pointer;">+ Otro</div>
+          </div>
+        </div>
+        <div style="background:#1e293b; border-radius:6px; padding:8px; opacity:0.5;">
+          <div style="color:#e2e8f0; font-size:10px; font-weight:600; margin-bottom:4px;">Reserva #1041 — Carlos López</div>
+          <div style="color:#64748b;">Hab. 12A · 20 May → 23 May</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Desde la reserva</h3>
+      <p>Botones de check-in/out dentro de cada reserva. El formulario se pre-llena automáticamente con los datos del huésped, habitación y fechas.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="standalone" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:12px; background:#0f172a; border-radius:8px;">
+      <div style="font-family:sans-serif; font-size:9px;">
+        <!-- Side nav -->
+        <div style="display:flex; gap:6px; height:100px;">
+          <div style="background:#1e293b; border-radius:6px; padding:8px; width:70px;">
+            <div style="color:#64748b; font-size:8px; margin-bottom:6px;">MENÚ</div>
+            <div style="color:#64748b; font-size:8px; margin-bottom:4px;">📅 Reservas</div>
+            <div style="color:#64748b; font-size:8px; margin-bottom:4px;">🏨 Propiedades</div>
+            <div style="background:#1d4ed8; color:#bfdbfe; font-size:8px; padding:2px 4px; border-radius:3px; margin-bottom:4px;">📄 Documentos</div>
+            <div style="color:#64748b; font-size:8px;">⚙ Config</div>
+          </div>
+          <div style="flex:1; background:#1e293b; border-radius:6px; padding:8px;">
+            <div style="color:#e2e8f0; font-size:10px; font-weight:600; margin-bottom:6px;">Documentos</div>
+            <div style="display:flex; gap:4px; margin-bottom:6px;">
+              <div style="background:#0f172a; border:1px solid #334155; border-radius:4px; padding:4px 6px; font-size:8px; color:#e2e8f0;">📋 Check-in</div>
+              <div style="background:#0f172a; border:1px solid #334155; border-radius:4px; padding:4px 6px; font-size:8px; color:#e2e8f0;">📋 Check-out</div>
+              <div style="background:#0f172a; border:1px dashed #475569; border-radius:4px; padding:4px 6px; font-size:8px; color:#475569;">+ Nueva</div>
+            </div>
+            <div style="background:#0f172a; border-radius:4px; padding:6px; font-size:8px; color:#64748b;">Historial de documentos generados...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Sección independiente</h3>
+      <p>Una sección "Documentos" en el menú principal. El usuario navega ahí, elige la plantilla, llena los datos manualmente y guarda.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="both" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:12px; background:#0f172a; border-radius:8px;">
+      <div style="font-family:sans-serif; font-size:9px; display:flex; flex-direction:column; gap:5px;">
+        <div style="background:#1e293b; border-radius:5px; padding:6px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="color:#e2e8f0; font-size:9px; font-weight:600;">Reserva #1042</div>
+            <div style="color:#64748b; font-size:8px;">Diego Mary · Hab 8A</div>
+          </div>
+          <div style="background:#1d4ed8; color:#bfdbfe; padding:3px 7px; border-radius:4px; font-size:8px;">📄 Check-in →</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <div style="height:1px; flex:1; background:#1e293b;"></div>
+          <div style="color:#475569; font-size:8px;">también desde</div>
+          <div style="height:1px; flex:1; background:#1e293b;"></div>
+        </div>
+        <div style="background:#1e293b; border-radius:5px; padding:6px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="color:#94a3b8; font-size:9px; font-weight:600;">📄 Documentos</div>
+          <div style="color:#64748b; font-size:8px;">Plantillas + historial</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Ambos</h3>
+      <p>Desde la reserva para acceso rápido con datos pre-llenados, Y una sección "Documentos" para gestionar plantillas, ver historial y crear documentos sueltos.</p>
+    </div>
+  </div>
+</div>

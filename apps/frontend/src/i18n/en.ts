@@ -15,6 +15,7 @@ export const en: Record<TranslationKey, string> = {
   'nav.airbnb':                  'Airbnb',
   'nav.booking':                 'Booking.com',
   'nav.settings':                'Settings',
+  'nav.documents':               'Documents',
   'nav.myAccount':               'My account',
   'nav.logout':                  'Log out',
   'nav.lightMode':               'Light mode',
@@ -261,6 +262,19 @@ export const en: Record<TranslationKey, string> = {
   'channex.tab.airbnb':          'Airbnb',
   'channex.tab.booking':         'Booking.com',
   'channex.tab.pools':           'Pools',
+
+  // IntegrationView tabs & filters
+  'channex.integration.tab.properties':    'Properties',
+  'channex.integration.tab.reservations':  'Reservations',
+  'channex.integration.tab.messages':      'Messages',
+  'channex.integration.tab.settings':      'Configuration',
+  'channex.integration.filter.property':   'Property',
+  'channex.integration.filter.allProps':   'All properties',
+  'channex.integration.filter.from':       'From',
+  'channex.integration.filter.to':         'To',
+  'channex.integration.filter.clear':      'Clear filters',
+  'channex.integration.reservations.loading': 'Loading reservations…',
+  'channex.integration.reservations.empty':   'No reservations found.',
 
   // Airbnb
   'airbnb.integration':          'Airbnb Integration',
@@ -750,6 +764,7 @@ export const en: Record<TranslationKey, string> = {
   'channex.reservDetail.phone':        'Phone',
   'channex.reservDetail.country':      'Country',
   'channex.reservDetail.bookingInfo':  'Booking info',
+  'channex.reservDetail.property':     'Property',
   'channex.reservDetail.otaId':        'OTA booking ID',
   'channex.reservDetail.reservId':     'Reservation ID',
   'channex.reservDetail.channel':      'Channel',

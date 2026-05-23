@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diseño — Sección 3: Form Filler + Modal de Reserva</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #020817; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; font-size: 13px; padding: 24px; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .subtitle { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+  .section-label { font-size: 18px; font-weight: 700; margin-bottom: 4px; margin-top: 8px; }
+  .section-desc { color: #64748b; font-size: 12px; margin-bottom: 14px; }
+  .divider { height: 1px; background: #1e293b; margin: 28px 0; }
+  .badge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 1px 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .badge-ok { background: #052e16; color: #86efac; }
+  .badge-caution { background: #451a03; color: #fcd34d; }
+  .badge-info { background: #0c1a2e; color: #93c5fd; }
+  .badge-purple { background: #2e1065; color: #c4b5fd; }
+  .btn { padding: 5px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; border: none; font-weight: 500; }
+  .btn-primary { background: #3b82f6; color: white; }
+  .btn-ghost { background: #1e293b; color: #94a3b8; }
+  .btn-success { background: #065f46; color: #6ee7b7; }
+  .btn-sm { padding: 3px 8px; font-size: 10px; border-radius: 4px; }
+  .section-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: #475569; margin: 16px 0 6px; }
+  .info-row { display: flex; align-items: flex-start; gap: 12px; padding: 7px 0; border-bottom: 1px solid #1e293b; }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { width: 130px; flex-shrink: 0; font-size: 11px; color: #475569; }
+  .info-value { flex: 1; font-size: 13px; color: #e2e8f0; }
+  .card-box { border: 1px solid #1e293b; border-radius: 10px; padding: 12px 16px; background: #0a0f1a; }
+  .modal-panel { background: #0d1117; border: 1px solid #1e293b; border-radius: 16px; width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,.7); }
+  .modal-header { position: sticky; top: 0; z-index: 10; background: #0d1117; border-bottom: 1px solid #1e293b; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; border-radius: 16px 16px 0 0; }
+  .modal-body { padding: 16px 20px 20px; }
+
+  /* Form fields */
+  .form-field { display: flex; flex-direction: column; gap: 4px; }
+  .form-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; display: flex; align-items: center; gap: 4px; }
+  .form-input { background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; padding: 7px 10px; font-size: 12px; color: #e2e8f0; width: 100%; }
+  .form-input:focus { outline: none; border-color: #3b82f6; }
+  .form-input.autofilled { border-color: #1d4ed8; background: #0c1a2e; color: #93c5fd; }
+  .autofill-tag { font-size: 8px; background: #1d4ed8; color: #bfdbfe; border-radius: 2px; padding: 1px 4px; }
+  .row-grid-1 { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .row-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .checkbox-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cb-option { display: flex; align-items: center; gap: 5px; border: 1px solid #1e293b; border-radius: 5px; padding: 5px 9px; cursor: pointer; font-size: 11px; color: #64748b; }
+  .cb-option.checked { border-color: #3b82f6; background: #0d1b30; color: #93c5fd; }
+  .cb-box { width: 13px; height: 13px; border: 1.5px solid #475569; border-radius: 3px; flex-shrink: 0; }
+  .cb-box.checked { background: #3b82f6; border-color: #3b82f6; display: flex; align-items: center; justify-content: center; color: white; font-size: 9px; }
+  .form-section-header { font-size: 14px; font-weight: 700; color: #e2e8f0; border-left: 3px solid #3b82f6; padding-left: 10px; margin: 8px 0 4px; }
+  .form-rows { display: flex; flex-direction: column; gap: 12px; }
+  .amount-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .amount-label { font-size: 11px; color: #64748b; }
+  .amount-input { background: #0f172a; border: 1px solid #1e293b; border-radius: 5px; padding: 5px 8px; font-size: 12px; color: #e2e8f0; width: 80px; }
+  .sig-line { border-bottom: 1px solid #334155; height: 36px; display: flex; align-items: flex-end; padding-bottom: 4px; }
+  .sig-hint { font-size: 9px; color: #334155; }
+
+  /* Document section in reservation modal */
+  .doc-section { background: #080d16; border: 1px solid #1e293b; border-radius: 8px; overflow: hidden; }
+  .doc-section-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid #1e293b; }
+  .doc-section-row:last-child { border-bottom: none; }
+  .doc-icon { font-size: 14px; margin-right: 8px; }
+  .doc-info { flex: 1; }
+  .doc-name { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+  .doc-meta { font-size: 10px; color: #475569; margin-top: 1px; }
+  .doc-actions { display: flex; gap: 5px; align-items: center; }
+
+  /* Completed document view */
+  .filled-doc { background: #080d16; border: 1px solid #334155; border-radius: 8px; padding: 14px; }
+  .filled-field-row { display: grid; gap: 8px; margin-bottom: 8px; }
+  .filled-field { background: #0a0f1a; border-radius: 5px; padding: 7px 10px; }
+  .filled-field .fl { font-size: 9px; color: #475569; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px; }
+  .filled-field .fv { font-size: 12px; color: #e2e8f0; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+
+  .scene { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+  .scene-label { font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+  .arrow-label { font-size: 20px; color: #334155; align-self: center; padding-top: 30px; }
+</style>
+</head>
+<body>
+
+<h1>Diseño — Sección 3: Form Filler + Integración con Modal de Reserva</h1>
+<p class="subtitle">Tres estados del flujo: (A) modal de reserva con documentos pendientes → (B) llenado del formulario → (C) documento completado.</p>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STATE A: Reservation modal with doc section    -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-label">A — Modal de reserva: sección "Documentos" integrada</div>
+<div class="section-desc">Al abrir una reserva, aparece la sección Documentos al final del modal. Las plantillas se muestran según el estado de la reserva (o "siempre").</div>
+
+<div class="scene">
+  <div style="flex-shrink:0;">
+    <div class="scene-label">Estado: "confirmed" → muestra Check-in</div>
+    <div class="modal-panel" style="max-width:460px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:15px; font-weight:600;">Diego (Mary)</span>
+          <span class="badge badge-ok">confirmed</span>
+        </div>
+        <button class="btn btn-ghost btn-sm">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Existing sections (condensed) -->
+        <div class="section-title">Estadía</div>
+        <div class="card-box" style="margin-bottom:10px;">
+          <div class="info-row"><span class="info-label">Check-in</span><span class="info-value">2026-05-21</span></div>
+          <div class="info-row"><span class="info-label">Check-out</span><span class="info-value">2026-05-22</span></div>
+          <div class="info-row"><span class="info-label">Duración</span><span class="info-value">1 noche</span></div>
+        </div>
+
+        <div class="section-title">Financiero</div>
+        <div class="card-box" style="margin-bottom:10px;">
+          <div class="info-row"><span class="info-label">Total bruto</span><span class="info-value">BOB 300</span></div>
+          <div class="info-row"><span class="info-label">Canal</span><span class="info-value">Booking.com</span></div>
+        </div>
+
+        <!-- ← NEW: Documents section -->
+        <div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">
+          <span>Documentos</span>
+          <span style="font-size:9px; color:#475569; text-transform:none; letter-spacing:0;">según estado de reserva</span>
+        </div>
+
+        <div class="doc-section">
+          <!-- Check-in template: visible because status=confirmed -->
+          <div class="doc-section-row">
+            <span class="doc-icon">📋</span>
+            <div class="doc-info">
+              <div class="doc-name">Ficha de Registro</div>
+              <div class="doc-meta">Check-in · mostrar cuando: <b style="color:#e2e8f0;">confirmed</b></div>
+            </div>
+            <div class="doc-actions">
+              <span style="background:#451a03; color:#fcd34d; border-radius:4px; padding:2px 7px; font-size:9px;">Pendiente</span>
+              <button class="btn btn-primary btn-sm">Llenar →</button>
+            </div>
+          </div>
+          <!-- Check-out: hidden because status≠checked_in (but shown with "siempre") -->
+          <div class="doc-section-row" style="opacity:0.45;">
+            <span class="doc-icon">📋</span>
+            <div class="doc-info">
+              <div class="doc-name">Cierre de Habitación</div>
+              <div class="doc-meta">Check-out · mostrar cuando: <b>checked_in</b> <span style="color:#334155;">(estado actual: confirmed)</span></div>
+            </div>
+            <div class="doc-actions">
+              <span style="background:#1e293b; color:#475569; border-radius:4px; padding:2px 7px; font-size:9px;">No aplica aún</span>
+            </div>
+          </div>
+          <!-- Custom: always visible -->
+          <div class="doc-section-row">
+            <span class="doc-icon">📋</span>
+            <div class="doc-info">
+              <div class="doc-name">Inventario Habitación</div>
+              <div class="doc-meta">Personalizado · mostrar: <b style="color:#c4b5fd;">siempre</b></div>
+            </div>
+            <div class="doc-actions">
+              <span style="background:#451a03; color:#fcd34d; border-radius:4px; padding:2px 7px; font-size:9px;">Pendiente</span>
+              <button class="btn btn-primary btn-sm">Llenar →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-label">→</div>
+
+  <!-- STATE B: Form filler modal (opens on top) -->
+  <div style="flex-shrink:0;">
+    <div class="scene-label">Al hacer click "Llenar →" → abre form filler</div>
+    <div class="modal-panel" style="max-width:480px; border-color:#1d4ed8;">
+
+      <div class="modal-header" style="background:#0a1628; border-color:#1d4ed8;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="btn btn-ghost btn-sm">← Volver</button>
+          <span style="font-size:14px; font-weight:600;">Ficha de Registro</span>
+          <span class="badge badge-info">Check-in</span>
+        </div>
+        <div style="display:flex; gap:5px;">
+          <button class="btn btn-ghost btn-sm">Guardar borrador</button>
+          <button class="btn btn-primary btn-sm">Guardar ✓</button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <!-- Auto-fill notice -->
+        <div style="background:#0c1a2e; border:1px solid #1d4ed8; border-radius:6px; padding:8px 12px; margin-bottom:14px; font-size:11px; color:#93c5fd; display:flex; align-items:center; gap:6px;">
+          <span>⚡</span>
+          <span>Los campos marcados con <b>⚡</b> fueron pre-llenados con datos de la reserva.</span>
+        </div>
+
+        <div class="form-rows">
+
+          <!-- Row: 2 cols — fecha + N° ficha -->
+          <div class="row-grid-2">
+            <div class="form-field">
+              <div class="form-label">Fecha de Registro <span class="autofill-tag">⚡ auto</span></div>
+              <input class="form-input autofilled" value="21/05/2026" readonly />
+            </div>
+            <div class="form-field">
+              <div class="form-label">N° Ficha</div>
+              <input class="form-input autofilled" value="#643" style="color:#c4b5fd; border-color:#7c3aed; background:#1a0a2e;" readonly />
+            </div>
+          </div>
+
+          <!-- Section header -->
+          <div class="form-section-header">Datos del Huésped</div>
+
+          <!-- Row: 3 cols -->
+          <div class="row-grid-3">
+            <div class="form-field" style="grid-column: span 1;">
+              <div class="form-label">Nombres <span class="autofill-tag">⚡ auto</span></div>
+              <input class="form-input autofilled" value="Diego (Mary)" readonly />
+            </div>
+            <div class="form-field">
+              <div class="form-label">Habitación <span class="autofill-tag">⚡ auto</span></div>
+              <input class="form-input autofilled" value="8A" readonly />
+            </div>
+            <div class="form-field">
+              <div class="form-label">Piso</div>
+              <input class="form-input" placeholder="Ej: 2" />
+            </div>
+          </div>
+
+          <!-- Row: 1 col — checkbox+amount -->
+          <div class="form-field">
+            <div class="form-label">Forma y Monto de Cobro <span style="color:#f87171; font-size:9px;">*</span></div>
+            <div class="checkbox-group">
+              <div class="cb-option"><div class="cb-box"></div>Efectivo Bs</div>
+              <div class="cb-option checked"><div class="cb-box checked">✓</div>Banco Bs</div>
+              <div class="cb-option"><div class="cb-box"></div>Efectivo $</div>
+              <div class="cb-option"><div class="cb-box"></div>Banco $</div>
+            </div>
+            <div class="amount-row">
+              <span class="amount-label">Monto:</span>
+              <input class="amount-input" value="300" />
+            </div>
+          </div>
+
+          <!-- Row: 2 cols — noches + aplicativo -->
+          <div class="row-grid-2">
+            <div class="form-field">
+              <div class="form-label">Cantidad de Noches <span class="autofill-tag">⚡ auto</span></div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input class="form-input autofilled" value="1" style="width:60px;" readonly />
+                <span style="font-size:12px; color:#64748b;">Noche(s)</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <div class="form-label">Aplicativo</div>
+              <div class="checkbox-group" style="gap:4px;">
+                <div class="cb-option"><div class="cb-box"></div>Externo</div>
+                <div class="cb-option checked" style="border-color:#059669; background:#022c1f; color:#6ee7b7;"><div class="cb-box checked" style="background:#059669; border-color:#059669;">✓</div>Booking</div>
+                <div class="cb-option"><div class="cb-box"></div>Airbnb</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row: 1 col — Lugar y tipo habitación -->
+          <div class="form-field">
+            <div class="form-label">Lugar y Tipo de Habitación</div>
+            <div class="checkbox-group" style="gap:5px;">
+              <div class="cb-option" style="font-size:10px;"><div class="cb-box"></div>LP Backpacker</div>
+              <div class="cb-option" style="font-size:10px;"><div class="cb-box"></div>LP Full</div>
+              <div class="cb-option checked" style="font-size:10px; border-color:#3b82f6; background:#0d1b30; color:#93c5fd;"><div class="cb-box checked">✓</div>LP Blan/34</div>
+              <div class="cb-option" style="font-size:10px;"><div class="cb-box"></div>Torre ARA-RB 12A</div>
+              <div class="cb-option" style="font-size:10px;"><div class="cb-box"></div>Torre ARA-RB 12B</div>
+              <div class="cb-option" style="font-size:10px;"><div class="cb-box"></div>Baruc Liz 22</div>
+            </div>
+          </div>
+
+          <!-- Row: firma -->
+          <div class="form-field">
+            <div class="form-label">Firma del Huésped</div>
+            <div class="sig-line">
+              <span class="sig-hint">_________________________________</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
+          <button class="btn btn-ghost">Guardar borrador</button>
+          <button class="btn btn-success">✓ Guardar y completar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STATE C: Completed + PDF export                -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-label">C — Modal de reserva: documento completado</div>
+<div class="section-desc">Después de guardar, el documento aparece como completado. El usuario puede verlo, editarlo o exportar el PDF.</div>
+
+<div style="max-width:480px;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:15px; font-weight:600;">Diego (Mary)</span>
+        <span class="badge badge-ok">confirmed</span>
+      </div>
+      <button class="btn btn-ghost btn-sm">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-title">Estadía</div>
+      <div class="card-box" style="margin-bottom:10px;">
+        <div class="info-row"><span class="info-label">Check-in</span><span class="info-value">2026-05-21</span></div>
+        <div class="info-row"><span class="info-label">Check-out</span><span class="info-value">2026-05-22</span></div>
+      </div>
+
+      <div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">
+        <span>Documentos</span>
+      </div>
+
+      <div class="doc-section">
+        <!-- Completed check-in -->
+        <div class="doc-section-row" style="background:#031a0e;">
+          <span class="doc-icon">📋</span>
+          <div class="doc-info">
+            <div class="doc-name" style="display:flex; align-items:center; gap:6px;">
+              Ficha de Registro
+              <span style="background:#065f46; color:#6ee7b7; border-radius:4px; padding:1px 7px; font-size:9px;">✓ Completado</span>
+              <span style="color:#7c3aed; font-size:10px; font-weight:600;">#643</span>
+            </div>
+            <div class="doc-meta">Check-in · Diego (Mary) · 21/05/2026</div>
+          </div>
+          <div class="doc-actions">
+            <button class="btn btn-ghost btn-sm">Ver</button>
+            <button class="btn btn-ghost btn-sm">Editar</button>
+            <button class="btn btn-primary btn-sm">↓ PDF</button>
+          </div>
+        </div>
+        <!-- Check-out still pending/hidden -->
+        <div class="doc-section-row" style="opacity:0.4;">
+          <span class="doc-icon">📋</span>
+          <div class="doc-info">
+            <div class="doc-name">Cierre de Habitación</div>
+            <div class="doc-meta">Check-out · espera estado: checked_in</div>
+          </div>
+          <div class="doc-actions">
+            <span style="background:#1e293b; color:#475569; border-radius:4px; padding:2px 7px; font-size:9px;">No aplica aún</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filled doc preview (collapsed/expandable) -->
+      <div style="margin-top:12px;">
+        <div style="font-size:11px; color:#64748b; margin-bottom:6px;">Vista previa — Ficha #643</div>
+        <div class="filled-doc">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:6px;">
+            <div class="filled-field"><div class="fl">Fecha de Registro</div><div class="fv">21/05/2026</div></div>
+            <div class="filled-field"><div class="fl">N° Ficha</div><div class="fv" style="color:#c4b5fd; font-weight:700;">#643</div></div>
+          </div>
+          <div style="border-left:3px solid #3b82f6; padding-left:8px; font-size:13px; font-weight:700; color:#e2e8f0; margin-bottom:6px;">Datos del Huésped</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:6px;">
+            <div class="filled-field"><div class="fl">Nombres</div><div class="fv">Diego (Mary)</div></div>
+            <div class="filled-field"><div class="fl">Habitación</div><div class="fv">8A</div></div>
+            <div class="filled-field"><div class="fl">Piso</div><div class="fv">2</div></div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+            <div class="filled-field">
+              <div class="fl">Forma y Monto de Cobro</div>
+              <div class="fv" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">
+                <span style="background:#1d4ed8; color:#bfdbfe; border-radius:3px; padding:1px 6px; font-size:10px;">☑ Banco Bs</span>
+                <span style="color:#64748b; font-size:11px; align-self:center;">Monto: <b style="color:#e2e8f0;">300</b></span>
+              </div>
+            </div>
+            <div class="filled-field"><div class="fl">Aplicativo</div><div class="fv"><span style="background:#065f46; color:#6ee7b7; border-radius:3px; padding:1px 6px; font-size:10px;">☑ Booking</span></div></div>
+          </div>
+          <div style="margin-top:10px; padding-top:10px; border-top:1px solid #1e293b; display:flex; gap:8px; justify-content:flex-end;">
+            <button class="btn btn-ghost btn-sm">✏ Editar</button>
+            <button class="btn btn-primary btn-sm">↓ Exportar PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:20px; padding:12px 16px; background:#0f172a; border:1px solid #1e293b; border-radius:8px; font-size:11px; color:#64748b;">
+  <b style="color:#94a3b8;">Flujo de PDF:</b> "Exportar PDF" → <code style="background:#1e293b; padding:1px 5px; border-radius:3px; color:#93c5fd;">POST /document-builder/instances/:id/pdf</code> → NestJS renderiza el template con los valores → devuelve PDF → descarga automática en el navegador.
+</div>
+
+</body>
+</html>

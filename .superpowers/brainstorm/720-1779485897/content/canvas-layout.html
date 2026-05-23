@@ -1,0 +1,150 @@
+<h2>Pregunta 5: ¿Cómo se organiza el canvas del builder?</h2>
+<p class="subtitle">Esto define cómo el usuario arrastra y acomoda los campos. Cada enfoque tiene distinto nivel de libertad vs. simplicidad.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="row-blocks" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:12px; background:#0f172a; border-radius:8px;">
+      <div style="font-family:sans-serif; font-size:9px; color:#94a3b8;">
+        <div style="font-size:8px; color:#475569; margin-bottom:6px; text-align:center;">— CANVAS —</div>
+
+        <!-- Row 1: full width -->
+        <div style="background:#1e293b; border:1px dashed #334155; border-radius:4px; padding:5px 8px; margin-bottom:3px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:7px; color:#64748b; text-transform:uppercase;">Encabezado de sección</div>
+            <div style="font-size:10px; color:#e2e8f0; font-weight:600;">Datos del huésped</div>
+          </div>
+          <div style="color:#334155; font-size:10px;">⠿</div>
+        </div>
+
+        <!-- Row 2: 2 columns -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-bottom:3px;">
+          <div style="background:#1e293b; border:1px dashed #334155; border-radius:4px; padding:5px 8px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:7px; color:#64748b; text-transform:uppercase;">Texto corto</div>
+              <div style="font-size:9px; color:#e2e8f0;">NOMBRES</div>
+            </div>
+            <div style="color:#334155; font-size:10px;">⠿</div>
+          </div>
+          <div style="background:#1e293b; border:1px dashed #334155; border-radius:4px; padding:5px 8px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:7px; color:#64748b; text-transform:uppercase;">Fecha</div>
+              <div style="font-size:9px; color:#e2e8f0;">FECHA DE REG.</div>
+            </div>
+            <div style="color:#334155; font-size:10px;">⠿</div>
+          </div>
+        </div>
+
+        <!-- Row 3: 3 columns -->
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:3px; margin-bottom:3px;">
+          <div style="background:#1e293b; border:1px dashed #334155; border-radius:4px; padding:5px 6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:7px; color:#64748b; text-transform:uppercase;">Número</div>
+              <div style="font-size:9px; color:#e2e8f0;">HABITACIÓN</div>
+            </div>
+            <div style="color:#334155; font-size:9px;">⠿</div>
+          </div>
+          <div style="background:#1e293b; border:1px dashed #334155; border-radius:4px; padding:5px 6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:7px; color:#64748b; text-transform:uppercase;">Número</div>
+              <div style="font-size:9px; color:#e2e8f0;">PISO</div>
+            </div>
+            <div style="color:#334155; font-size:9px;">⠿</div>
+          </div>
+          <div style="background:#1e293b; border:1px dashed #334155; border-radius:4px; padding:5px 6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:7px; color:#64748b; text-transform:uppercase;">N° Auto</div>
+              <div style="font-size:9px; color:#e2e8f0;">N° FICHA</div>
+            </div>
+            <div style="color:#334155; font-size:9px;">⠿</div>
+          </div>
+        </div>
+
+        <!-- Add row -->
+        <div style="border:1px dashed #1e293b; border-radius:4px; padding:4px; text-align:center; color:#334155; font-size:8px;">+ agregar fila</div>
+
+        <!-- Legend -->
+        <div style="margin-top:6px; display:flex; gap:8px; justify-content:center;">
+          <div style="font-size:7px; color:#475569;">⠿ = arrastrar fila</div>
+          <div style="font-size:7px; color:#475569;">Columnas: 1, 2 o 3 por fila</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Filas con columnas (recomendado)</h3>
+      <p>El documento se divide en filas. Cada fila puede tener 1, 2 o 3 campos lado a lado. Las filas se reordenan arrastrando. Genera PDFs limpios y predecibles.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="free-canvas" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:12px; background:#0f172a; border-radius:8px;">
+      <div style="font-family:sans-serif; font-size:9px; color:#94a3b8; position:relative; height:110px;">
+        <div style="font-size:8px; color:#475569; margin-bottom:4px; text-align:center;">— CANVAS LIBRE —</div>
+
+        <!-- Free positioned fields -->
+        <div style="position:absolute; top:18px; left:4px; background:#1e293b; border:1px solid #334155; border-radius:4px; padding:4px 6px; font-size:8px; color:#e2e8f0; cursor:move;">
+          📋 NOMBRES
+        </div>
+        <div style="position:absolute; top:18px; right:20px; background:#1e293b; border:1px solid #334155; border-radius:4px; padding:4px 6px; font-size:8px; color:#e2e8f0; cursor:move;">
+          📅 FECHA
+        </div>
+        <div style="position:absolute; top:50px; left:30px; background:#1e293b; border:1px solid #334155; border-radius:4px; padding:4px 6px; font-size:8px; color:#e2e8f0; cursor:move;">
+          ☑ COBRO
+        </div>
+        <div style="position:absolute; top:55px; right:10px; background:#1e293b; border:1px solid #334155; border-radius:4px; padding:4px 6px; font-size:8px; color:#e2e8f0; cursor:move;">
+          #️⃣ N°
+        </div>
+        <div style="position:absolute; top:82px; left:10px; background:#1e293b; border:1px solid #334155; border-radius:4px; padding:4px 6px; font-size:8px; color:#e2e8f0; cursor:move;">
+          ✍ FIRMA
+        </div>
+
+        <!-- Grid overlay hint -->
+        <div style="position:absolute; inset:14px 0 0 0; background:repeating-linear-gradient(transparent, transparent 19px, #1a2535 19px, #1a2535 20px), repeating-linear-gradient(90deg, transparent, transparent 19px, #1a2535 19px, #1a2535 20px); opacity:0.3; pointer-events:none; border-radius:4px;"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Canvas libre (arrastrar a posición exacta)</h3>
+      <p>El usuario posiciona cada campo libremente como si fuera Figma. Máxima flexibilidad, pero más complejo de implementar y difícil de exportar a PDF limpio.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="sections-grid" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:12px; background:#0f172a; border-radius:8px;">
+      <div style="font-family:sans-serif; font-size:9px; color:#94a3b8;">
+        <div style="font-size:8px; color:#475569; margin-bottom:4px; text-align:center;">— SECCIONES + GRILLA —</div>
+
+        <!-- Section 1 -->
+        <div style="border:1px solid #1d4ed8; border-radius:5px; margin-bottom:4px; overflow:hidden;">
+          <div style="background:#1e3a5f; padding:3px 8px; display:flex; justify-content:space-between;">
+            <span style="color:#93c5fd; font-size:8px; font-weight:600;">SECCIÓN: Datos del huésped</span>
+            <span style="color:#334155; font-size:9px;">⠿</span>
+          </div>
+          <div style="padding:5px; display:grid; grid-template-columns:1fr 1fr; gap:3px;">
+            <div style="background:#0f172a; border:1px dashed #334155; border-radius:3px; padding:4px 6px; font-size:8px; color:#e2e8f0;">NOMBRES</div>
+            <div style="background:#0f172a; border:1px dashed #334155; border-radius:3px; padding:4px 6px; font-size:8px; color:#e2e8f0;">FECHA</div>
+          </div>
+        </div>
+
+        <!-- Section 2 -->
+        <div style="border:1px solid #065f46; border-radius:5px; overflow:hidden;">
+          <div style="background:#052e1c; padding:3px 8px; display:flex; justify-content:space-between;">
+            <span style="color:#6ee7b7; font-size:8px; font-weight:600;">SECCIÓN: Pago</span>
+            <span style="color:#334155; font-size:9px;">⠿</span>
+          </div>
+          <div style="padding:5px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:3px;">
+            <div style="background:#0f172a; border:1px dashed #334155; border-radius:3px; padding:4px 6px; font-size:8px; color:#e2e8f0;">COBRO</div>
+            <div style="background:#0f172a; border:1px dashed #334155; border-radius:3px; padding:4px 6px; font-size:8px; color:#e2e8f0;">MONTO</div>
+            <div style="background:#0f172a; border:1px dashed #334155; border-radius:3px; padding:4px 6px; font-size:8px; color:#64748b; border-style:dashed;">+ campo</div>
+          </div>
+        </div>
+
+        <div style="margin-top:4px; text-align:center; font-size:7px; color:#334155;">+ agregar sección</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Secciones agrupadas con grilla interna</h3>
+      <p>El documento tiene secciones colapsables (Datos del huésped, Pago, etc.). Dentro de cada sección se acomodan campos en grilla. Secciones y campos se reordenan por separado.</p>
+    </div>
+  </div>
+
+</div>

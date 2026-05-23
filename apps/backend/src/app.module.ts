@@ -19,6 +19,7 @@ import { ChannexModule } from './channex/channex.module';
 import { AuthGuardModule } from './auth-guard/auth-guard.module';
 import { UsersModule } from './users/users.module';
 import { MigoPropertyModule } from './migo-property/migo-property.module';
+import { DocumentBuilderModule } from './document-builder/document-builder.module';
 
 @Module({
   imports: [
@@ -58,6 +59,8 @@ import { MigoPropertyModule } from './migo-property/migo-property.module';
     UsersModule,
     // Migo Property Pool — multi-property availability management
     MigoPropertyModule,
+    // Document Builder — template + instance CRUD with PDF generation
+    DocumentBuilderModule,
   ],
 })
 export class AppModule {}

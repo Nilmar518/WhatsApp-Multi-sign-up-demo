@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diseño — Sección 2: Builder UI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #020817; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; font-size: 13px; padding: 24px; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .subtitle { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+
+  /* ── DOCUMENTS INDEX PAGE ── */
+  .page-title { font-size: 11px; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .section-block { margin-bottom: 32px; }
+  .section-label { font-size: 12px; color: #3b82f6; font-weight: 600; margin-bottom: 10px; border-left: 3px solid #3b82f6; padding-left: 8px; }
+
+  /* Documents list */
+  .doc-list { display: flex; gap: 10px; flex-wrap: wrap; }
+  .doc-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; width: 160px; cursor: pointer; transition: border-color .15s; }
+  .doc-card:hover { border-color: #3b82f6; }
+  .doc-card .tag { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; padding: 2px 6px; border-radius: 3px; display: inline-block; margin-bottom: 8px; }
+  .tag-checkin  { background: #1d4ed8; color: #bfdbfe; }
+  .tag-checkout { background: #065f46; color: #6ee7b7; }
+  .tag-custom   { background: #44403c; color: #d6d3d1; }
+  .doc-card .doc-name { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .doc-card .doc-meta { font-size: 10px; color: #475569; }
+  .doc-card-new { background: #0f172a; border: 1px dashed #334155; border-radius: 8px; padding: 14px; width: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; color: #475569; height: 90px; }
+  .doc-card-new:hover { border-color: #3b82f6; color: #3b82f6; }
+
+  /* ── BUILDER LAYOUT ── */
+  .builder-wrap { display: flex; gap: 0; border: 1px solid #1e293b; border-radius: 10px; overflow: hidden; height: 540px; }
+
+  /* Left: field palette */
+  .palette { width: 170px; background: #0a0f1a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
+  .palette-header { padding: 10px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #475569; border-bottom: 1px solid #1e293b; }
+  .palette-items { padding: 8px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; flex: 1; }
+  .palette-item { background: #0f172a; border: 1px solid #1e293b; border-radius: 5px; padding: 6px 8px; font-size: 10px; color: #94a3b8; cursor: grab; display: flex; align-items: center; gap: 6px; transition: border-color .15s, color .15s; }
+  .palette-item:hover { border-color: #3b82f6; color: #e2e8f0; }
+  .palette-item .pi { font-size: 12px; }
+
+  /* Center: canvas */
+  .canvas { flex: 1; background: #080d16; display: flex; flex-direction: column; overflow: hidden; }
+  .canvas-topbar { background: #0a0f1a; border-bottom: 1px solid #1e293b; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .canvas-topbar .doc-title-input { background: transparent; border: none; color: #e2e8f0; font-size: 13px; font-weight: 600; outline: none; width: 200px; }
+  .canvas-topbar .btns { display: flex; gap: 6px; }
+  .btn { padding: 4px 10px; border-radius: 4px; font-size: 10px; cursor: pointer; border: none; }
+  .btn-ghost { background: #1e293b; color: #94a3b8; }
+  .btn-ghost:hover { background: #334155; }
+  .btn-primary { background: #3b82f6; color: white; }
+  .btn-danger-sm { background: #1e293b; color: #f87171; font-size: 9px; padding: 2px 6px; border-radius: 3px; cursor: pointer; border: none; }
+
+  .canvas-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+
+  /* Rows on canvas */
+  .canvas-row { background: #0f172a; border: 1px dashed #1e293b; border-radius: 6px; padding: 8px; display: flex; gap: 6px; position: relative; }
+  .canvas-row:hover { border-color: #3b82f6; }
+  .canvas-row.active { border-color: #3b82f6; border-style: solid; }
+  .row-drag-handle { position: absolute; left: -16px; top: 50%; transform: translateY(-50%); color: #334155; font-size: 14px; cursor: grab; }
+  .row-col-badge { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); background: #1e293b; border: 1px solid #334155; border-radius: 3px; padding: 1px 5px; font-size: 8px; color: #475569; white-space: nowrap; }
+
+  /* Fields inside rows */
+  .field-block { flex: 1; background: #080d16; border: 1px solid #1e293b; border-radius: 5px; padding: 8px 10px; position: relative; cursor: pointer; min-height: 52px; }
+  .field-block:hover { border-color: #3b82f6; }
+  .field-block.selected { border-color: #3b82f6; background: #0d1b30; }
+  .field-block .field-label { font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .field-block .field-preview { font-size: 10px; color: #94a3b8; }
+  .field-type-badge { position: absolute; top: 4px; right: 4px; font-size: 7px; background: #1e293b; color: #475569; border-radius: 2px; padding: 1px 4px; }
+
+  /* Empty field slot */
+  .field-empty { flex: 1; border: 1px dashed #1e293b; border-radius: 5px; min-height: 52px; display: flex; align-items: center; justify-content: center; color: #334155; font-size: 10px; cursor: pointer; }
+  .field-empty:hover { border-color: #3b82f6; color: #3b82f6; }
+
+  /* Add row button */
+  .add-row-btn { border: 1px dashed #1e293b; border-radius: 6px; padding: 8px; text-align: center; color: #334155; font-size: 10px; cursor: pointer; }
+  .add-row-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+
+  /* Right: config panel */
+  .config-panel { width: 200px; background: #0a0f1a; border-left: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
+  .config-header { padding: 10px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #475569; border-bottom: 1px solid #1e293b; }
+  .config-body { padding: 10px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .config-field { display: flex; flex-direction: column; gap: 3px; }
+  .config-label { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; }
+  .config-input { background: #0f172a; border: 1px solid #1e293b; border-radius: 4px; padding: 5px 8px; font-size: 11px; color: #e2e8f0; width: 100%; }
+  .config-input:focus { outline: none; border-color: #3b82f6; }
+  .config-select { background: #0f172a; border: 1px solid #1e293b; border-radius: 4px; padding: 5px 8px; font-size: 11px; color: #e2e8f0; width: 100%; }
+  .config-toggle { display: flex; align-items: center; justify-content: space-between; }
+  .toggle { width: 28px; height: 16px; background: #1d4ed8; border-radius: 8px; position: relative; cursor: pointer; }
+  .toggle::after { content:''; position:absolute; width:12px; height:12px; background: white; border-radius: 50%; top:2px; right:2px; }
+  .toggle.off { background: #334155; }
+  .toggle.off::after { right: auto; left: 2px; }
+  .options-list { display: flex; flex-direction: column; gap: 3px; }
+  .option-item { display: flex; align-items: center; gap: 4px; background: #0f172a; border: 1px solid #1e293b; border-radius: 3px; padding: 3px 6px; font-size: 10px; color: #94a3b8; }
+  .option-remove { color: #475569; cursor: pointer; margin-left: auto; font-size: 10px; }
+  .add-option { font-size: 9px; color: #3b82f6; cursor: pointer; margin-top: 2px; }
+
+  .autofill-badge { background: #1d4ed8; color: #bfdbfe; border-radius: 3px; padding: 2px 5px; font-size: 8px; }
+
+  /* Row columns selector */
+  .col-selector { display: flex; gap: 4px; }
+  .col-btn { flex: 1; background: #0f172a; border: 1px solid #1e293b; border-radius: 4px; padding: 4px; text-align: center; font-size: 9px; color: #475569; cursor: pointer; }
+  .col-btn.active { border-color: #3b82f6; color: #3b82f6; background: #0d1b30; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+
+  .page-section-label { font-size: 18px; font-weight: 700; margin-bottom: 4px; margin-top: 8px; }
+  .divider { height: 1px; background: #1e293b; margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<h1>Diseño — Sección 2: UI del Document Builder</h1>
+<p class="subtitle">Mockup interactivo. Muestra la lista de plantillas y el builder con paleta + canvas + panel de configuración.</p>
+
+<!-- ── PART A: DOCUMENTS INDEX ── -->
+<div class="section-block">
+  <div class="page-section-label">A — Sección /documentos (índice de plantillas)</div>
+  <p style="color:#64748b; font-size:12px; margin-bottom:14px;">El usuario ve sus plantillas y puede crear una nueva o editar una existente.</p>
+
+  <div style="background:#080d16; border:1px solid #1e293b; border-radius:10px; padding:16px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+      <div>
+        <div style="font-size:16px; font-weight:700;">Plantillas de Documentos</div>
+        <div style="font-size:11px; color:#475569; margin-top:2px;">Configura los formularios que se usan en check-in, check-out y otras operaciones.</div>
+      </div>
+      <button class="btn btn-primary">+ Nueva plantilla</button>
+    </div>
+
+    <div class="doc-list">
+      <div class="doc-card">
+        <div class="tag tag-checkin">Check-in</div>
+        <div class="doc-name">Ficha de Registro</div>
+        <div class="doc-meta">8 campos · 4 filas</div>
+        <div class="doc-meta" style="margin-top:4px; color:#3b82f6; font-size:9px; cursor:pointer;">✏ Editar plantilla</div>
+      </div>
+      <div class="doc-card">
+        <div class="tag tag-checkout">Check-out</div>
+        <div class="doc-name">Cierre de Habitación</div>
+        <div class="doc-meta">6 campos · 3 filas</div>
+        <div class="doc-meta" style="margin-top:4px; color:#3b82f6; font-size:9px; cursor:pointer;">✏ Editar plantilla</div>
+      </div>
+      <div class="doc-card">
+        <div class="tag tag-custom">Personalizado</div>
+        <div class="doc-name">Inventario Hab.</div>
+        <div class="doc-meta">12 campos · 6 filas</div>
+        <div class="doc-meta" style="margin-top:4px; color:#3b82f6; font-size:9px; cursor:pointer;">✏ Editar plantilla</div>
+      </div>
+      <div class="doc-card-new">
+        <div style="font-size:20px;">+</div>
+        <div style="font-size:10px;">Nueva plantilla</div>
+      </div>
+    </div>
+
+    <!-- Instances history -->
+    <div style="margin-top:20px;">
+      <div style="font-size:12px; font-weight:600; color:#94a3b8; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+        <span>Documentos generados (historial)</span>
+        <div style="display:flex; gap:6px;">
+          <select class="config-select" style="width:auto; font-size:9px; padding:2px 6px;">
+            <option>Todos los tipos</option>
+            <option>Check-in</option>
+            <option>Check-out</option>
+          </select>
+          <input class="config-input" placeholder="Buscar..." style="width:120px; font-size:10px; padding:3px 7px;" />
+        </div>
+      </div>
+      <table style="width:100%; border-collapse:collapse; font-size:11px;">
+        <thead>
+          <tr style="color:#475569; font-size:9px; text-transform:uppercase; letter-spacing:.5px;">
+            <td style="padding:4px 8px;">N°</td>
+            <td style="padding:4px 8px;">Tipo</td>
+            <td style="padding:4px 8px;">Huésped</td>
+            <td style="padding:4px 8px;">Habitación</td>
+            <td style="padding:4px 8px;">Fecha</td>
+            <td style="padding:4px 8px;">Estado</td>
+            <td style="padding:4px 8px;"></td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top:1px solid #1e293b; color:#e2e8f0;">
+            <td style="padding:6px 8px; color:#7c3aed; font-weight:600;">#643</td>
+            <td style="padding:6px 8px;"><span class="tag tag-checkin" style="font-size:8px;">Check-in</span></td>
+            <td style="padding:6px 8px;">Diego (Mary)</td>
+            <td style="padding:6px 8px;">8A</td>
+            <td style="padding:6px 8px; color:#64748b;">21/05/2026</td>
+            <td style="padding:6px 8px;"><span style="background:#065f46; color:#6ee7b7; border-radius:3px; padding:1px 6px; font-size:9px;">Completado</span></td>
+            <td style="padding:6px 8px; display:flex; gap:4px;">
+              <button class="btn btn-ghost" style="font-size:9px; padding:2px 7px;">Ver</button>
+              <button class="btn btn-ghost" style="font-size:9px; padding:2px 7px;">PDF</button>
+            </td>
+          </tr>
+          <tr style="border-top:1px solid #1e293b; color:#e2e8f0;">
+            <td style="padding:6px 8px; color:#7c3aed; font-weight:600;">#642</td>
+            <td style="padding:6px 8px;"><span class="tag tag-checkout" style="font-size:8px;">Check-out</span></td>
+            <td style="padding:6px 8px;">Carlos López</td>
+            <td style="padding:6px 8px;">12A</td>
+            <td style="padding:6px 8px; color:#64748b;">20/05/2026</td>
+            <td style="padding:6px 8px;"><span style="background:#065f46; color:#6ee7b7; border-radius:3px; padding:1px 6px; font-size:9px;">Completado</span></td>
+            <td style="padding:6px 8px; display:flex; gap:4px;">
+              <button class="btn btn-ghost" style="font-size:9px; padding:2px 7px;">Ver</button>
+              <button class="btn btn-ghost" style="font-size:9px; padding:2px 7px;">PDF</button>
+            </td>
+          </tr>
+          <tr style="border-top:1px solid #1e293b; color:#e2e8f0; opacity:0.6;">
+            <td style="padding:6px 8px; color:#7c3aed; font-weight:600;">#641</td>
+            <td style="padding:6px 8px;"><span class="tag tag-checkin" style="font-size:8px;">Check-in</span></td>
+            <td style="padding:6px 8px;">Ana Torres</td>
+            <td style="padding:6px 8px;">4B</td>
+            <td style="padding:6px 8px; color:#64748b;">19/05/2026</td>
+            <td style="padding:6px 8px;"><span style="background:#1e293b; color:#f59e0b; border-radius:3px; padding:1px 6px; font-size:9px;">Borrador</span></td>
+            <td style="padding:6px 8px; display:flex; gap:4px;">
+              <button class="btn btn-ghost" style="font-size:9px; padding:2px 7px;">Editar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ── PART B: BUILDER CANVAS ── -->
+<div class="section-block">
+  <div class="page-section-label">B — Builder (editor de plantilla)</div>
+  <p style="color:#64748b; font-size:12px; margin-bottom:14px;">El usuario arrastra campos desde la paleta izquierda al canvas. Hace click en un campo para configurarlo en el panel derecho. Las filas se reordenan arrastrando el handle izquierdo.</p>
+
+  <div class="builder-wrap">
+
+    <!-- LEFT: Palette -->
+    <div class="palette">
+      <div class="palette-header">Componentes</div>
+      <div class="palette-items">
+        <div class="palette-item"><span class="pi">Aa</span> Texto corto</div>
+        <div class="palette-item"><span class="pi">¶</span> Texto largo</div>
+        <div class="palette-item"><span class="pi">12</span> Número</div>
+        <div class="palette-item"><span class="pi">📅</span> Fecha</div>
+        <div class="palette-item"><span class="pi">☑</span> Checkboxes</div>
+        <div class="palette-item"><span class="pi">☑$</span> Check+Monto</div>
+        <div class="palette-item"><span class="pi">#</span> N° Automático</div>
+        <div class="palette-item"><span class="pi">—</span> Encabezado</div>
+        <div class="palette-item"><span class="pi">✍</span> Firma</div>
+        <div class="palette-item"><span class="pi">•</span> Lista bullets</div>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px solid #1e293b;">
+          <div style="font-size:9px; color:#475569; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px;">Plantilla</div>
+          <div class="config-field">
+            <div class="config-label">Nombre</div>
+            <input class="config-input" value="Ficha de Registro" />
+          </div>
+          <div class="config-field" style="margin-top:6px;">
+            <div class="config-label">Tipo</div>
+            <select class="config-select">
+              <option selected>Check-in</option>
+              <option>Check-out</option>
+              <option>Personalizado</option>
+            </select>
+          </div>
+          <div class="config-field" style="margin-top:6px;">
+            <div class="config-label">Mostrar en reserva</div>
+            <select class="config-select">
+              <option>Siempre</option>
+              <option selected>Con estado: Confirmada</option>
+              <option>Con estado: En curso</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: Canvas -->
+    <div class="canvas">
+      <div class="canvas-topbar">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="btn btn-ghost" style="font-size:9px;">← Plantillas</button>
+          <input class="doc-title-input" value="Ficha de Registro" />
+          <span style="font-size:9px; background:#065f46; color:#6ee7b7; padding:2px 7px; border-radius:3px;">Check-in</span>
+        </div>
+        <div class="btns">
+          <button class="btn btn-ghost">Vista previa</button>
+          <button class="btn btn-primary">Guardar plantilla</button>
+        </div>
+      </div>
+      <div class="canvas-body">
+
+        <!-- Row 1: 2 cols -->
+        <div style="position:relative; padding-left:18px;">
+          <span class="row-drag-handle">⠿</span>
+          <div class="canvas-row">
+            <span class="row-col-badge">2 columnas</span>
+            <div class="field-block">
+              <div class="field-label">FECHA DE REGISTRO</div>
+              <div class="field-preview">📅 21/05/2026</div>
+              <span class="field-type-badge">Fecha</span>
+              <div style="position:absolute; top:4px; left:4px; font-size:8px; color:#1d4ed8;">⚡</div>
+            </div>
+            <div class="field-block">
+              <div class="field-label">N° FICHA</div>
+              <div class="field-preview" style="color:#7c3aed; font-weight:600;">#643</div>
+              <span class="field-type-badge">Auto-N°</span>
+            </div>
+            <button class="btn-danger-sm" style="align-self:flex-start; margin-top:2px;">✕</button>
+          </div>
+        </div>
+
+        <!-- Row 2: full width (section header) -->
+        <div style="position:relative; padding-left:18px;">
+          <span class="row-drag-handle">⠿</span>
+          <div class="canvas-row">
+            <span class="row-col-badge">1 columna</span>
+            <div class="field-block" style="background:#0d1b30; border-color:#1d4ed8;">
+              <div style="font-size:13px; font-weight:700; color:#e2e8f0; border-left:3px solid #3b82f6; padding-left:8px;">Datos del Huésped</div>
+              <span class="field-type-badge" style="color:#3b82f6;">Encabezado</span>
+            </div>
+            <button class="btn-danger-sm" style="align-self:flex-start; margin-top:2px;">✕</button>
+          </div>
+        </div>
+
+        <!-- Row 3: 3 cols -->
+        <div style="position:relative; padding-left:18px;">
+          <span class="row-drag-handle">⠿</span>
+          <div class="canvas-row active">
+            <span class="row-col-badge" style="color:#3b82f6; border-color:#3b82f6;">3 columnas</span>
+            <div class="field-block selected">
+              <div class="field-label">NOMBRES</div>
+              <div class="field-preview">Diego (Mary)</div>
+              <span class="field-type-badge" style="color:#3b82f6;">Texto</span>
+              <div style="position:absolute; top:4px; left:4px; font-size:8px; color:#1d4ed8;">⚡</div>
+            </div>
+            <div class="field-block">
+              <div class="field-label">HABITACIÓN</div>
+              <div class="field-preview">8A</div>
+              <span class="field-type-badge">Texto</span>
+              <div style="position:absolute; top:4px; left:4px; font-size:8px; color:#1d4ed8;">⚡</div>
+            </div>
+            <div class="field-block">
+              <div class="field-label">PISO</div>
+              <div class="field-preview">2</div>
+              <span class="field-type-badge">Número</span>
+            </div>
+            <button class="btn-danger-sm" style="align-self:flex-start; margin-top:2px;">✕</button>
+          </div>
+        </div>
+
+        <!-- Row 4: full width checkboxes+amount -->
+        <div style="position:relative; padding-left:18px;">
+          <span class="row-drag-handle">⠿</span>
+          <div class="canvas-row">
+            <span class="row-col-badge">1 columna</span>
+            <div class="field-block">
+              <div class="field-label">FORMA Y MONTO DE COBRO</div>
+              <div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:3px;">
+                <span style="background:#1d4ed8; color:#bfdbfe; border-radius:3px; padding:1px 6px; font-size:9px;">☑ Banco Bs</span>
+                <span style="border:1px solid #1e293b; border-radius:3px; padding:1px 6px; font-size:9px; color:#475569;">☐ Efect. Bs</span>
+                <span style="border:1px solid #1e293b; border-radius:3px; padding:1px 6px; font-size:9px; color:#475569;">☐ Efect. $</span>
+                <span style="border:1px solid #1e293b; border-radius:3px; padding:1px 6px; font-size:9px; color:#475569;">☐ Banco $</span>
+                <span style="color:#64748b; font-size:9px; margin-left:6px;">Monto: <b style="color:#e2e8f0;">300</b></span>
+              </div>
+              <span class="field-type-badge">Check+Monto</span>
+            </div>
+            <button class="btn-danger-sm" style="align-self:flex-start; margin-top:2px;">✕</button>
+          </div>
+        </div>
+
+        <!-- Row 5: 2 cols -->
+        <div style="position:relative; padding-left:18px;">
+          <span class="row-drag-handle">⠿</span>
+          <div class="canvas-row">
+            <span class="row-col-badge">2 columnas</span>
+            <div class="field-block">
+              <div class="field-label">CANTIDAD DE NOCHES</div>
+              <div class="field-preview">1 <span style="color:#64748b;">Noche(s)</span></div>
+              <span class="field-type-badge">Número</span>
+            </div>
+            <div class="field-block">
+              <div class="field-label">APLICATIVO</div>
+              <div style="display:flex; gap:4px; margin-top:3px;">
+                <span style="background:#065f46; color:#6ee7b7; border-radius:3px; padding:1px 6px; font-size:9px;">☑ Externo</span>
+                <span style="border:1px solid #1e293b; border-radius:3px; padding:1px 6px; font-size:9px; color:#475569;">☐ Booking</span>
+              </div>
+              <span class="field-type-badge">Checkboxes</span>
+            </div>
+            <button class="btn-danger-sm" style="align-self:flex-start; margin-top:2px;">✕</button>
+          </div>
+        </div>
+
+        <!-- Add row -->
+        <div class="add-row-btn">+ Agregar fila (arrastrar componente aquí o hacer click)</div>
+
+        <!-- Legend -->
+        <div style="display:flex; gap:12px; font-size:9px; color:#334155; margin-top:4px;">
+          <span><span style="color:#1d4ed8;">⚡</span> = campo con auto-relleno desde reserva</span>
+          <span>⠿ = drag para reordenar fila</span>
+          <span>Fila activa = panel config activo →</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Config Panel -->
+    <div class="config-panel">
+      <div class="config-header">Configurar campo</div>
+      <div class="config-body">
+        <div style="font-size:10px; color:#3b82f6; font-weight:600; margin-bottom:2px;">Campo seleccionado: NOMBRES</div>
+
+        <div class="config-field">
+          <div class="config-label">Tipo de campo</div>
+          <select class="config-select">
+            <option selected>Texto corto</option>
+            <option>Texto largo</option>
+            <option>Número</option>
+            <option>Fecha</option>
+          </select>
+        </div>
+
+        <div class="config-field">
+          <div class="config-label">Etiqueta (label)</div>
+          <input class="config-input" value="NOMBRES" />
+        </div>
+
+        <div class="config-toggle">
+          <div class="config-label">Obligatorio</div>
+          <div class="toggle"></div>
+        </div>
+
+        <div class="config-field">
+          <div class="config-label">Auto-rellenar desde reserva</div>
+          <select class="config-select">
+            <option selected>Nombre del huésped</option>
+            <option>N° habitación</option>
+            <option>Fecha check-in</option>
+            <option>Fecha check-out</option>
+            <option>N° noches</option>
+            <option>— ninguno —</option>
+          </select>
+          <div style="margin-top:4px;"><span class="autofill-badge">⚡ reservation.guestName</span></div>
+        </div>
+
+        <div style="height:1px; background:#1e293b;"></div>
+
+        <div class="config-field">
+          <div class="config-label">Columnas de esta fila</div>
+          <div class="col-selector">
+            <div class="col-btn">1</div>
+            <div class="col-btn">2</div>
+            <div class="col-btn active">3</div>
+          </div>
+        </div>
+
+        <div style="height:1px; background:#1e293b;"></div>
+
+        <button class="btn btn-ghost" style="width:100%; font-size:10px; color:#f87171; border:1px solid #f871711a;">🗑 Eliminar campo</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="margin-top:16px; padding:12px; background:#0f172a; border:1px solid #1e293b; border-radius:6px; font-size:11px; color:#64748b;">
+  <b style="color:#94a3b8;">¿Esto refleja lo que tienes en mente?</b> Confirma o dime qué ajustar antes de pasar a la Sección 3 (form filler + integración con modal de reserva).
+</div>
+
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<title>Opción B — Reservas/Mensajes a nivel integración</title>
+<style>
+  body{font-family:system-ui;background:#0f1117;color:#e2e8f0;margin:0;padding:20px}
+  .hub{background:#1a1d27;border:1px solid #2d3748;border-radius:12px;overflow:hidden;max-width:700px}
+  .header{padding:16px 24px;border-bottom:1px solid #2d3748}
+  .header small{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.1em}
+  .header h2{margin:4px 0 0;font-size:16px}
+  .tabs{display:flex;border-bottom:1px solid #2d3748;padding:0 24px}
+  .tab{padding:10px 16px;font-size:13px;border-bottom:2px solid transparent;cursor:pointer;color:#94a3b8}
+  .tab.active{border-bottom-color:#6366f1;color:#a5b4fc}
+  .body{padding:20px 24px}
+  .res-row{display:flex;align-items:center;gap:12px;padding:10px;background:#242736;border-radius:8px;margin-bottom:8px}
+  .badge{background:#1a3a2a;color:#34d399;font-size:10px;padding:2px 8px;border-radius:999px}
+  .res-info{flex:1}
+  .res-name{font-size:13px;font-weight:500}
+  .res-sub{font-size:11px;color:#64748b}
+  .note{font-size:11px;color:#f59e0b;margin-top:12px;padding:8px 12px;background:#1e1a0f;border-radius:6px;border-left:3px solid #f59e0b}
+</style>
+</head>
+<body>
+<div class="hub">
+  <div class="header">
+    <small>Integración</small>
+    <h2>Booking.com</h2>
+  </div>
+  <div class="tabs">
+    <div class="tab">Propiedades</div>
+    <div class="tab active">Reservas</div>
+    <div class="tab">Mensajes</div>
+    <div class="tab">Configuración</div>
+  </div>
+  <div class="body">
+    <div class="res-row">
+      <div class="res-info">
+        <div class="res-name">John Doe — Villa Sunset</div>
+        <div class="res-sub">24 may – 28 may · 3 noches</div>
+      </div>
+      <span class="badge">Confirmada</span>
+    </div>
+    <div class="res-row">
+      <div class="res-info">
+        <div class="res-name">Ana García — Casa del Mar</div>
+        <div class="res-sub">30 may – 2 jun · 2 noches</div>
+      </div>
+      <span class="badge">Pendiente</span>
+    </div>
+    <div class="note">Reservas y Mensajes se muestran de TODAS las propiedades juntas — requiere refactor de hooks de datos</div>
+  </div>
+</div>
+</body>
+</html>

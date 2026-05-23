@@ -6,7 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import {
   LayoutDashboard, MessageSquare, Package, Smartphone,
   Hotel, Globe, Settings, Moon, Sun, User, LogOut,
-  ChevronLeft, ChevronRight, MessageCircle, Camera, Home, Languages,
+  ChevronLeft, ChevronRight, MessageCircle, Camera, Home, Languages, FileText,
 } from 'lucide-react';
 
 const LS_KEY = 'sidenav_collapsed';
@@ -138,6 +138,7 @@ export default function SideNav() {
         <NavRow icon={<LayoutDashboard size={16} />} label={t('nav.dashboard')}  href="/"         collapsed={collapsed} currentPath={currentPath} />
         <NavRow icon={<MessageSquare size={16} />}   label={t('nav.messages')}   href="/mensajes"  collapsed={collapsed} currentPath={currentPath} />
         <NavRow icon={<Package size={16} />}         label={t('nav.inventory')} href="/inventory" collapsed={collapsed} currentPath={currentPath} />
+        <NavRow icon={<FileText size={16} />}        label={t('nav.documents')} href="/documentos" collapsed={collapsed} currentPath={currentPath} />
 
         {!collapsed && (
           <p className="text-content-sidebar-muted text-[10px] font-semibold uppercase tracking-widest px-2.5 pt-4 pb-2">

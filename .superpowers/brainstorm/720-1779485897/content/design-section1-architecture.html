@@ -1,0 +1,155 @@
+<h2>Diseño — Sección 1: Arquitectura y Modelo de Datos</h2>
+<p class="subtitle">Dos colecciones Firestore + un módulo NestJS + builder React. ¿Todo esto tiene sentido?</p>
+
+<div class="section">
+  <h3>Colecciones Firestore</h3>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px;">
+
+    <!-- Collection 1: Templates -->
+    <div style="background:#0f172a; border:1px solid #1d4ed8; border-radius:8px; padding:12px; font-family:monospace; font-size:10px;">
+      <div style="color:#3b82f6; font-size:11px; font-weight:600; margin-bottom:8px;">📁 documentTemplates / {templateId}</div>
+      <div style="color:#64748b; margin-bottom:3px;">// Quién lo posee</div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">businessId</span>: <span style="color:#86efac;">"biz-001"</span></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">name</span>: <span style="color:#86efac;">"Check-in"</span></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">type</span>: <span style="color:#86efac;">"check-in" | "check-out" | "custom"</span></div>
+      <div style="height:6px;"></div>
+      <div style="color:#64748b; margin-bottom:3px;">// Cuándo mostrarlo en reserva</div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">showOn</span>: <span style="color:#fbbf24;">["confirmed"] | "always"</span></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">isUnique</span>: <span style="color:#f97316;">false</span></div>
+      <div style="height:6px;"></div>
+      <div style="color:#64748b; margin-bottom:3px;">// El schema del formulario</div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">rows</span>: [</div>
+      <div style="color:#e2e8f0; padding-left:12px;">&#123; <span style="color:#7dd3fc;">id</span>, <span style="color:#7dd3fc;">columns</span>: <span style="color:#f97316;">2</span>, <span style="color:#7dd3fc;">fields</span>: [...] &#125;</div>
+      <div style="color:#e2e8f0;">]</div>
+      <div style="height:6px;"></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">createdAt</span>: Timestamp</div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">updatedAt</span>: Timestamp</div>
+    </div>
+
+    <!-- Collection 2: Instances -->
+    <div style="background:#0f172a; border:1px solid #059669; border-radius:8px; padding:12px; font-family:monospace; font-size:10px;">
+      <div style="color:#10b981; font-size:11px; font-weight:600; margin-bottom:8px;">📁 documentInstances / {instanceId}</div>
+      <div style="color:#64748b; margin-bottom:3px;">// Contexto</div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">businessId</span>: <span style="color:#86efac;">"biz-001"</span></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">templateId</span>: <span style="color:#86efac;">"tmpl-abc" | null</span></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">reservationId</span>: <span style="color:#86efac;">"res-xyz"</span> <span style="color:#475569;">// opcional</span></div>
+      <div style="height:6px;"></div>
+      <div style="color:#64748b; margin-bottom:3px;">// Los valores llenados</div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">values</span>: &#123;</div>
+      <div style="color:#e2e8f0; padding-left:12px;"><span style="color:#86efac;">"field-nombres"</span>: <span style="color:#86efac;">"Diego"</span>,</div>
+      <div style="color:#e2e8f0; padding-left:12px;"><span style="color:#86efac;">"field-cobro"</span>: <span style="color:#86efac;">["Banco Bs"]</span>,</div>
+      <div style="color:#e2e8f0; padding-left:12px;"><span style="color:#86efac;">"field-monto"</span>: <span style="color:#f97316;">300</span></div>
+      <div style="color:#e2e8f0;">&#125;</div>
+      <div style="height:6px;"></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">docNumber</span>: <span style="color:#f97316;">643</span> <span style="color:#475569;">// auto-incremental</span></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">status</span>: <span style="color:#86efac;">"draft" | "completed"</span></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">createdBy</span>: <span style="color:#86efac;">"userId"</span></div>
+      <div style="color:#e2e8f0;"><span style="color:#7dd3fc;">createdAt</span>: Timestamp</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Flujo general del sistema</h3>
+
+  <div style="background:#0f172a; border-radius:8px; padding:16px; font-family:sans-serif; font-size:9px; color:#94a3b8;">
+    <div style="display:flex; gap:8px; align-items:flex-start; justify-content:center; flex-wrap:wrap;">
+
+      <!-- Block 1: Builder -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div style="background:#1e293b; border:1px solid #1d4ed8; border-radius:6px; padding:10px 14px; text-align:center; width:90px;">
+          <div style="font-size:16px; margin-bottom:3px;">🔧</div>
+          <div style="color:#93c5fd; font-size:9px; font-weight:600;">Builder</div>
+          <div style="color:#475569; font-size:8px; margin-top:2px;">Sección /docs</div>
+          <div style="color:#475569; font-size:8px;">Drag & Drop</div>
+        </div>
+        <div style="font-size:8px; color:#334155; text-align:center;">Crea/edita<br>plantillas</div>
+      </div>
+
+      <!-- Arrow -->
+      <div style="display:flex; align-items:center; padding-top:10px; color:#334155; font-size:16px;">→</div>
+
+      <!-- Block 2: Firestore Templates -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div style="background:#1e293b; border:1px solid #1d4ed8; border-radius:6px; padding:10px 14px; text-align:center; width:90px;">
+          <div style="font-size:16px; margin-bottom:3px;">🗄️</div>
+          <div style="color:#93c5fd; font-size:9px; font-weight:600;">Templates</div>
+          <div style="color:#475569; font-size:8px; margin-top:2px;">Firestore</div>
+          <div style="color:#475569; font-size:8px;">JSON schema</div>
+        </div>
+        <div style="font-size:8px; color:#334155; text-align:center;">CRUD via<br>NestJS</div>
+      </div>
+
+      <!-- Arrow -->
+      <div style="display:flex; align-items:center; padding-top:10px; color:#334155; font-size:16px;">→</div>
+
+      <!-- Block 3: Form Filler -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div style="background:#1e293b; border:1px solid #059669; border-radius:6px; padding:10px 14px; text-align:center; width:90px;">
+          <div style="font-size:16px; margin-bottom:3px;">📝</div>
+          <div style="color:#6ee7b7; font-size:9px; font-weight:600;">Filler</div>
+          <div style="color:#475569; font-size:8px; margin-top:2px;">Formulario</div>
+          <div style="color:#475569; font-size:8px;">desde reserva</div>
+        </div>
+        <div style="font-size:8px; color:#334155; text-align:center;">Llena y<br>guarda</div>
+      </div>
+
+      <!-- Arrow -->
+      <div style="display:flex; align-items:center; padding-top:10px; color:#334155; font-size:16px;">→</div>
+
+      <!-- Block 4: Instances -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div style="background:#1e293b; border:1px solid #059669; border-radius:6px; padding:10px 14px; text-align:center; width:90px;">
+          <div style="font-size:16px; margin-bottom:3px;">🗄️</div>
+          <div style="color:#6ee7b7; font-size:9px; font-weight:600;">Instancias</div>
+          <div style="color:#475569; font-size:8px; margin-top:2px;">Firestore</div>
+          <div style="color:#475569; font-size:8px;">valores reales</div>
+        </div>
+        <div style="font-size:8px; color:#334155; text-align:center;">Historial<br>completo</div>
+      </div>
+
+      <!-- Arrow -->
+      <div style="display:flex; align-items:center; padding-top:10px; color:#334155; font-size:16px;">→</div>
+
+      <!-- Block 5: PDF -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div style="background:#1e293b; border:1px solid #7c3aed; border-radius:6px; padding:10px 14px; text-align:center; width:90px;">
+          <div style="font-size:16px; margin-bottom:3px;">📄</div>
+          <div style="color:#c4b5fd; font-size:9px; font-weight:600;">PDF</div>
+          <div style="color:#475569; font-size:8px; margin-top:2px;">NestJS</div>
+          <div style="color:#475569; font-size:8px;">Puppeteer</div>
+        </div>
+        <div style="font-size:8px; color:#334155; text-align:center;">Exportar<br>/ imprimir</div>
+      </div>
+
+    </div>
+
+    <!-- NestJS label -->
+    <div style="margin-top:12px; border-top:1px solid #1e293b; padding-top:8px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+      <div style="background:#1e293b; border-radius:4px; padding:3px 8px; font-size:8px; color:#94a3b8;">POST /document-builder/templates</div>
+      <div style="background:#1e293b; border-radius:4px; padding:3px 8px; font-size:8px; color:#94a3b8;">GET /document-builder/templates?businessId=</div>
+      <div style="background:#1e293b; border-radius:4px; padding:3px 8px; font-size:8px; color:#94a3b8;">POST /document-builder/instances</div>
+      <div style="background:#1e293b; border-radius:4px; padding:3px 8px; font-size:8px; color:#94a3b8;">GET /document-builder/instances?reservationId=</div>
+      <div style="background:#1e293b; border-radius:4px; padding:3px 8px; font-size:8px; color:#94a3b8;">POST /document-builder/instances/:id/pdf</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Field schema (dentro de cada fila)</h3>
+  <div style="background:#0f172a; border-radius:6px; padding:12px; font-family:monospace; font-size:10px;">
+    <div style="color:#e2e8f0;">&#123;</div>
+    <div style="color:#e2e8f0; padding-left:14px;"><span style="color:#7dd3fc;">id</span>: <span style="color:#86efac;">"field-uuid"</span>,</div>
+    <div style="color:#e2e8f0; padding-left:14px;"><span style="color:#7dd3fc;">type</span>: <span style="color:#86efac;">"text" | "textarea" | "number" | "date" | "checkbox-group" |</span></div>
+    <div style="color:#86efac; padding-left:62px;">"checkbox-amount" | "auto-number" | "section-header" | "signature" | "bullet-list"</span>,</div>
+    <div style="color:#e2e8f0; padding-left:14px;"><span style="color:#7dd3fc;">label</span>: <span style="color:#86efac;">"NOMBRES"</span>,</div>
+    <div style="color:#e2e8f0; padding-left:14px;"><span style="color:#7dd3fc;">required</span>: <span style="color:#f97316;">true</span>,</div>
+    <div style="color:#e2e8f0; padding-left:14px;"><span style="color:#7dd3fc;">options</span>?: <span style="color:#fbbf24;">["Efectivo Bs","Banco Bs","Efectivo $","Banco $"]</span>, <span style="color:#475569;">// checkbox-group</span></div>
+    <div style="color:#e2e8f0; padding-left:14px;"><span style="color:#7dd3fc;">suffix</span>?: <span style="color:#86efac;">"Noche(s)"</span>, <span style="color:#475569;">// number</span></div>
+    <div style="color:#e2e8f0; padding-left:14px;"><span style="color:#7dd3fc;">autoFillFrom</span>?: <span style="color:#86efac;">"reservation.guestName" | "reservation.roomNumber" | "reservation.checkIn"</span></div>
+    <div style="color:#e2e8f0;">&#125;</div>
+  </div>
+</div>
+
+<p style="margin-top:16px; color:#94a3b8; font-size:11px;">¿Este modelo de datos tiene sentido? ¿Falta algún campo importante en los schemas?</p>
