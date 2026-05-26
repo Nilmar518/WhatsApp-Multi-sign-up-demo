@@ -672,6 +672,9 @@ export const es = {
   'channex.syncNaming.rate':           'Tarifa',
   'channex.syncNaming.sync':           'Sincronizar',
   'channex.syncNaming.cancel':         'Cancelar',
+  'channex.syncNaming.hotel':          'Hotel',
+  'channex.syncNaming.migoRoomId':     'ID de Habitación Migo',
+  'channex.syncNaming.migoRoomIdPlaceholder': 'Opcional — ej. migo-room-001',
 
   // AirbnbConnectionPanel
   'channex.airbnbConn.title':          'Conexión Airbnb',
@@ -714,6 +717,16 @@ export const es = {
   'channex.bdcConn.back':              '← Volver a Booking.com',
   'channex.bdcConn.err.preview':       'No se pudo cargar la previsualización de la habitación.',
   'channex.bdcConn.err.sync':          'Error en la sincronización.',
+  'channex.bdcConn.err.provision':     'No se pudo crear el hotel. Intenta de nuevo.',
+  'channex.bdcConn.provisionDesc':     'Primero crea una propiedad de hotel en Channex. Aquí estarán todas tus habitaciones de Booking.com.',
+  'channex.bdcConn.hotelName':         'Nombre del Hotel',
+  'channex.bdcConn.hotelNamePlaceholder': 'ej. Gran Hotel Barcelona',
+  'channex.bdcConn.currency':          'Moneda',
+  'channex.bdcConn.timezone':          'Zona Horaria',
+  'channex.bdcConn.migoHotelId':       'ID de Hotel Migo (opcional)',
+  'channex.bdcConn.migoHotelIdPlaceholder': 'ej. hotel-001',
+  'channex.bdcConn.provisioning':      'Creando hotel…',
+  'channex.bdcConn.createHotel':       'Crear Hotel y Conectar',
 
   // ReservationsPanel
   'channex.reserv.count.one':          '1 reservación',

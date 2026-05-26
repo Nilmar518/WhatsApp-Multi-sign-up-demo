@@ -265,6 +265,7 @@ export default function AirbnbConnectionPanel({ tenantId, onNavigateToProperties
       {syncStep === 'naming' && preview && (
         <SyncNamingModal
           preview={preview}
+          channel="airbnb"
           onConfirm={(overrides) => void handleNamingConfirmed(overrides)}
           onClose={handleCloseModals}
         />

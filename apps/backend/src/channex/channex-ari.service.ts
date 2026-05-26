@@ -62,6 +62,7 @@ export interface StoredRoomType {
   source: 'manual' | 'airbnb' | 'booking';
   ota_listing_id?: string;
   ota_room_id?: string;
+  migo_property_id?: string;   // per room type — used by BDC single-property model
   rate_plans: StoredRatePlan[];
 }
 

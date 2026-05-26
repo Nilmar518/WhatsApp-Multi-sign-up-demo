@@ -2,9 +2,9 @@ import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from
 import { FirebaseService } from '../firebase/firebase.service';
 import { SecretManagerService } from '../common/secrets/secret-manager.service';
 import { ChannexService } from './channex.service';
-import { StoredRoomType, StoredRatePlan } from './channex-ari.service';
+import { StoredRoomType, StoredRatePlan, mergeRoomTypes } from './channex-ari.service';
 import { ChannexConnectionStatus, ChannexWebhookPayload } from './channex.types';
-import { ListingPreviewProperty, SyncNameOverrides } from './channex-sync.service';
+import { ListingPreviewProperty, ListingPreviewRoom, SyncNameOverrides } from './channex-sync.service';
 
 const COLLECTION = 'channex_integrations';
 const BDC_EVENT_MASK =
@@ -20,47 +20,46 @@ interface BdcMappingEntry {
   pricingType: string;
 }
 
-export interface IsolatedBdcResult {
+export interface BdcRoomResult {
   otaRoomId: string;
   otaRoomTitle: string;
-  channexPropertyTitle: string;
-  channexRoomTitle: string;
-  channexPropertyId: string;
+  channexRoomTitle: string;    // user-provided name (from SyncNameOverrides)
   roomTypeId: string;
   ratePlanIds: string[];
-  webhookId: string | null;
 }
 
-export interface IsolatedBdcFailure {
+export interface BdcRoomFailure {
   otaRoomId: string;
   otaRoomTitle: string;
-  step: 'A' | 'B' | 'C' | 'D' | 'E';
+  step: 'A' | 'B';            // A = room type creation, B = rate plan creation
   reason: string;
 }
 
 export interface BdcSyncResult {
   channexChannelId: string;
-  succeeded: IsolatedBdcResult[];
-  failed: IsolatedBdcFailure[];
+  channexPropertyId: string;  // base property (single, permanent)
+  webhookId: string | null;
+  succeeded: BdcRoomResult[];
+  failed: BdcRoomFailure[];
 }
 
 /**
- * ChannexBdcSyncService — 1:1 Isolated Provisioning for Booking.com.
+ * ChannexBdcSyncService — Single-property BDC pipeline.
  *
- * Mirrors the Airbnb isolated model: one dedicated Channex property per BDC
- * room type. The base property (used for the IFrame OAuth) is never modified.
+ * Uses one shared base property for all rooms. The BDC channel stays assigned
+ * to the base property permanently. No re-assignment.
  *
  * Pipeline per BDC room (from mapping_details):
- *   A  POST /api/v1/properties       → isolated Channex property (title = BDC room title)
- *   B  POST /api/v1/room_types        → room type under A
- *   C  POST /api/v1/rate_plans        → rate plan(s) under B
- *   D  POST /api/v1/applications/install → Messages App on A
+ *   A  POST /api/v1/room_types   → room type under parentPropertyId
+ *   B  POST /api/v1/rate_plans   → rate plan(s) under A
  *
  * After all rooms:
- *   E  PUT  /api/v1/channels/:id      → apply all room/rate mappings on base BDC channel
- *   F  POST /api/v1/channels/:id/activate
- *   G  POST /api/v1/webhooks          → webhook on BASE property (where BDC channel lives)
- *   H  Persist isolated property docs + root metadata to Firestore
+ *   C  PUT  /api/v1/channels/:id → apply all room/rate mappings on BDC channel
+ *   D  POST /api/v1/channels/:id/activate
+ *   E  POST /api/v1/webhooks     → webhook on parentPropertyId (once)
+ *   F  POST /api/v1/applications/install → Messages App on parentPropertyId (once)
+ *   G  Install Booking CRS App (non-fatal)
+ *   H  Persist base property doc + root metadata to Firestore
  */
 @Injectable()
 export class ChannexBdcSyncService {
@@ -96,39 +95,45 @@ export class ChannexBdcSyncService {
     const raw = await this.channex.getMappingDetails(channelDetails.channel, channelDetails.settings);
     const entries = this.parseMappingDetails(raw);
 
+    // Group all rates by room
     const roomsMap = new Map<string, BdcMappingEntry[]>();
     for (const entry of entries) {
       const group = roomsMap.get(entry.otaRoomId) ?? [];
       roomsMap.set(entry.otaRoomId, [...group, entry]);
     }
 
-    const result: ListingPreviewProperty[] = [];
+    // Single property with all BDC rooms nested inside
+    const rooms: ListingPreviewRoom[] = [];
     for (const [otaRoomId, roomEntries] of roomsMap) {
-      const first = roomEntries[0];
-      result.push({
+      rooms.push({
         id: otaRoomId,
-        propertyName: first.otaRoomTitle,
-        rooms: [
-          {
-            id: otaRoomId,
-            roomName: first.otaRoomTitle,
-            rates: roomEntries.map((e) => ({ id: e.otaRateId, rateName: e.otaRateTitle })),
-          },
-        ],
+        roomName: roomEntries[0].otaRoomTitle,
+        rates: roomEntries.map((e) => ({ id: e.otaRateId, rateName: e.otaRateTitle })),
       });
     }
 
-    return result;
+    return [
+      {
+        id: propertyId,
+        propertyName: '',
+        rooms,
+      },
+    ];
   }
 
-  async syncBdc(propertyId: string, tenantId: string, channelId?: string, nameOverrides?: SyncNameOverrides): Promise<BdcSyncResult> {
+  async syncBdc(
+    propertyId: string,
+    tenantId: string,
+    channelId?: string,
+    nameOverrides?: SyncNameOverrides,
+  ): Promise<BdcSyncResult> {
     this.logger.log(`[BDC_SYNC] ▶ Starting — parentPropertyId=${propertyId} tenantId=${tenantId}`);
 
-    // ── Step 0: Resolve BDC channel ID ────────────────────────────────────────
+    // ── Step 0: Resolve BDC channel ID ─────────────────────────────────────────
     let channexChannelId: string;
     if (channelId) {
       channexChannelId = channelId;
-      this.logger.log(`[BDC_SYNC] BDC channel provided directly — channelId=${channexChannelId}`);
+      this.logger.log(`[BDC_SYNC] BDC channel provided — channelId=${channexChannelId}`);
     } else {
       const channels = await this.channex.getChannels(propertyId);
       const bdcChannel = channels.find(
@@ -136,24 +141,19 @@ export class ChannexBdcSyncService {
           c.attributes?.channel === 'BookingCom' ||
           c.attributes?.channel_design_id === 'booking_com',
       );
-
       if (!bdcChannel) {
         throw new HttpException(
           'No Booking.com channel found for this property. Complete the Channex IFrame popup first.',
           HttpStatus.UNPROCESSABLE_ENTITY,
         );
       }
-
       channexChannelId = bdcChannel.id;
       this.logger.log(`[BDC_SYNC] BDC channel discovered — channelId=${channexChannelId}`);
     }
 
-    // ── Step 1: Fetch mapping_details (BDC room/rate catalog) ─────────────────
+    // ── Step 1: Fetch mapping_details ──────────────────────────────────────────
     const channelDetails = await this.channex.getChannelDetails(channexChannelId);
-    const raw = await this.channex.getMappingDetails(
-      channelDetails.channel,
-      channelDetails.settings,
-    );
+    const raw = await this.channex.getMappingDetails(channelDetails.channel, channelDetails.settings);
     const entries = this.parseMappingDetails(raw);
     this.logger.log(`[BDC_SYNC] mapping_details ✓ — entries=${entries.length}`);
 
@@ -164,55 +164,36 @@ export class ChannexBdcSyncService {
       );
     }
 
-    // ── Step 2: Resolve parent doc for timezone / groupId / currency ───────────
+    // ── Step 2: Resolve parent doc metadata ────────────────────────────────────
     const parentDoc = await this.resolveParentDoc(propertyId);
 
-    // ── Step 3: 1:1 — one isolated Channex property per BDC room ──────────────
-    const succeeded: IsolatedBdcResult[] = [];
-    const failed: IsolatedBdcFailure[] = [];
+    // ── Phase 1: Create room types + rate plans under parentPropertyId ─────────
+    const succeeded: BdcRoomResult[] = [];
+    const failed: BdcRoomFailure[] = [];
+    const roomTypesForFirestore: StoredRoomType[] = [];
 
-    // Group entries by room so each room is processed once with all its rates
+    // room mapping accumulator: otaRoomId → channexRoomTypeId
+    const roomMappings: Record<string, string> = {};
+    // rate plan mapping accumulator for channel update body
+    const ratePlanMappings: Array<Record<string, unknown>> = [];
+
     const roomsMap = new Map<string, BdcMappingEntry[]>();
     for (const entry of entries) {
       const group = roomsMap.get(entry.otaRoomId) ?? [];
       roomsMap.set(entry.otaRoomId, [...group, entry]);
     }
 
-    // Accumulators for the BDC channel update (Step E)
-    const roomMappings: Record<string, string> = {};
-    const ratePlanMappings: Array<Record<string, unknown>> = [];
-
     for (const [otaRoomId, roomEntries] of roomsMap) {
       const first = roomEntries[0];
-      let newPropertyId: string | null = null;
-      let currentStep: IsolatedBdcFailure['step'] = 'A';
+      const override = nameOverrides?.[otaRoomId];
+      const roomTitle = override?.roomName ?? first.otaRoomTitle;
+      let currentStep: BdcRoomFailure['step'] = 'A';
 
       try {
-        // ── Step A: Create isolated Channex property ─────────────────────────
+        // ── Step A: Create room type under parentPropertyId ───────────────────
         currentStep = 'A';
-        const override = nameOverrides?.[otaRoomId];
-        const propTitle = override?.propertyName ?? first.otaRoomTitle;
-        const roomTitle = override?.roomName ?? first.otaRoomTitle;
-        const propResp = await this.channex.createProperty({
-          title: propTitle,
-          currency: parentDoc.currency,
-          timezone: parentDoc.timezone,
-          property_type: 'apartment',
-          ...(parentDoc.channex_group_id ? { group_id: parentDoc.channex_group_id } : {}),
-          settings: {
-            min_stay_type: 'arrival',
-            allow_availability_autoupdate_on_confirmation: true,
-          },
-        });
-        newPropertyId = propResp.data.id;
-        this.logger.log(
-          `[BDC_SYNC] ✓ A — Property created — "${propTitle}" newPropertyId=${newPropertyId}`,
-        );
-
-        // ── Step B: Create room type under the new property ──────────────────
-        currentStep = 'B';
         const rtResp = await this.channex.createRoomType({
-          property_id: newPropertyId,
+          property_id: propertyId,
           title: roomTitle,
           count_of_rooms: 1,
           occ_adults: first.maxPersons,
@@ -222,16 +203,16 @@ export class ChannexBdcSyncService {
         });
         const roomTypeId = rtResp.data.id;
         this.logger.log(
-          `[BDC_SYNC] ✓ B — Room Type created — roomTypeId=${roomTypeId} capacity=${first.maxPersons}`,
+          `[BDC_SYNC] ✓ A — Room type created — "${roomTitle}" roomTypeId=${roomTypeId}`,
         );
 
-        // ── Step C: Create rate plans for all rates of this room ─────────────
-        currentStep = 'C';
+        // ── Step B: Create rate plans under parentPropertyId ─────────────────
+        currentStep = 'B';
         const ratePlanIds: string[] = [];
         for (const rateEntry of roomEntries) {
           const rateName = override?.rates?.[rateEntry.otaRateId] ?? rateEntry.otaRateTitle;
           const rpResp = await this.channex.createRatePlan({
-            property_id: newPropertyId,
+            property_id: propertyId,
             room_type_id: roomTypeId,
             title: rateName,
             options: [{ occupancy: rateEntry.maxPersons, is_primary: true, rate: 0 }],
@@ -239,9 +220,8 @@ export class ChannexBdcSyncService {
           const ratePlanId = rpResp.data.id;
           ratePlanIds.push(ratePlanId);
           this.logger.log(
-            `[BDC_SYNC] ✓ C — Rate Plan created — "${rateEntry.otaRateTitle}" ratePlanId=${ratePlanId}`,
+            `[BDC_SYNC] ✓ B — Rate plan created — "${rateName}" ratePlanId=${ratePlanId}`,
           );
-
           ratePlanMappings.push({
             rate_plan_id: ratePlanId,
             settings: {
@@ -257,41 +237,41 @@ export class ChannexBdcSyncService {
         }
 
         roomMappings[otaRoomId] = roomTypeId;
-
-        // ── Step D: Register webhook on isolated property (non-fatal) ────────
-        currentStep = 'D';
-        const webhookId = await this.registerPropertyWebhook(newPropertyId);
-        this.logger.log(
-          `[BDC_SYNC] ✓ D — Webhook — newPropertyId=${newPropertyId} webhookId=${webhookId ?? 'none'}`,
-        );
-
-        // ── Step E: Install Messages App on isolated property ────────────────
-        currentStep = 'E';
-        await this.channex.installApplication(
-          newPropertyId,
-          ChannexService.APP_IDS.channex_messages,
-        );
-        this.logger.log(
-          `[BDC_SYNC] ✓ E — Messages App installed — newPropertyId=${newPropertyId}`,
-        );
-
-        // ── Step F: Install Booking CRS App (non-fatal) ──────────────────────
-        try {
-          await this.channex.installBookingCrsApp(newPropertyId);
-          this.logger.log(
-            `[BDC_SYNC] ✓ F — Booking CRS installed — newPropertyId=${newPropertyId}`,
-          );
-        } catch (err) {
-          this.logger.warn(
-            `[BDC_SYNC] Booking CRS install failed (non-fatal) — newPropertyId=${newPropertyId}: ${(err as Error).message}`,
-          );
-        }
-
-        succeeded.push({ otaRoomId, otaRoomTitle: first.otaRoomTitle, channexPropertyTitle: propTitle, channexRoomTitle: roomTitle, channexPropertyId: newPropertyId, roomTypeId, ratePlanIds, webhookId });
+        succeeded.push({
+          otaRoomId,
+          otaRoomTitle: first.otaRoomTitle,
+          channexRoomTitle: roomTitle,
+          roomTypeId,
+          ratePlanIds,
+        });
+        roomTypesForFirestore.push({
+          room_type_id: roomTypeId,
+          title: roomTitle,
+          count_of_rooms: 1,
+          default_occupancy: first.maxPersons,
+          occ_adults: first.maxPersons,
+          occ_children: 0,
+          occ_infants: 0,
+          source: 'booking',
+          ota_room_id: otaRoomId,
+          migo_property_id: override?.migoPropertyId ?? undefined,
+          rate_plans: roomEntries.map((rateEntry, i) => {
+            const rateName = override?.rates?.[rateEntry.otaRateId] ?? rateEntry.otaRateTitle;
+            return {
+              rate_plan_id: ratePlanIds[i],
+              title: rateName,
+              currency: parentDoc.currency,
+              rate: 0,
+              occupancy: rateEntry.maxPersons,
+              is_primary: i === 0,
+              ota_rate_id: rateEntry.otaRateId,   // ← correct: per-rate BDC ID
+            } as StoredRatePlan;
+          }),
+        });
       } catch (err) {
         const reason = (err as Error).message ?? String(err);
         this.logger.error(
-          `[BDC_SYNC] Step ${currentStep} failed — otaRoomId=${otaRoomId} title="${first.otaRoomTitle}": ${reason}`,
+          `[BDC_SYNC] Step ${currentStep} failed — otaRoomId=${otaRoomId}: ${reason}`,
         );
         failed.push({ otaRoomId, otaRoomTitle: first.otaRoomTitle, step: currentStep, reason });
       }
@@ -304,45 +284,66 @@ export class ChannexBdcSyncService {
       );
     }
 
-    // ── Step E: Apply channel mappings on the BDC channel (base property) ────
+    // ── Phase 2: Channel + webhook + app — all on parentPropertyId ─────────────
+
+    // ── Step C: Apply full room+rate mapping on BDC channel ───────────────────
     await this.channex.updateChannel(channexChannelId, {
       settings: { ...channelDetails.settings, mappingSettings: { rooms: roomMappings } },
       rate_plans: ratePlanMappings,
     });
     this.logger.log(
-      `[BDC_SYNC] ✓ E — Channel mappings applied — rooms=${Object.keys(roomMappings).length} rates=${ratePlanMappings.length}`,
+      `[BDC_SYNC] ✓ C — Channel mappings applied — rooms=${Object.keys(roomMappings).length} rates=${ratePlanMappings.length}`,
     );
 
-    // ── Step E.5: Re-assign channel property to first isolated property ───────
-    // BDC channels are created under the base property (used only for the IFrame
-    // popup). Channex delivers booking webhooks to the channel's assigned property.
-    // We must update property_id to the first isolated property before activation
-    // so webhooks route there instead of to the base property (which has no webhook).
-    const webhookTargetPropertyId = succeeded[0].channexPropertyId;
-    await this.channex.updateChannel(channexChannelId, {
-      property_id: webhookTargetPropertyId,
-    });
-    this.logger.log(
-      `[BDC_SYNC] ✓ E.5 — Channel re-assigned to isolated property — propertyId=${webhookTargetPropertyId}`,
-    );
-
-    // ── Step F: Activate BDC channel ─────────────────────────────────────────
+    // ── Step D: Activate BDC channel ─────────────────────────────────────────
     try {
       await this.channex.activateChannelAction(channexChannelId);
     } catch {
       this.logger.warn('[BDC_SYNC] activateChannelAction failed — falling back to PUT is_active');
       await this.channex.activateChannel(channexChannelId);
     }
-    this.logger.log(`[BDC_SYNC] ✓ F — BDC channel activated`);
+    this.logger.log(`[BDC_SYNC] ✓ D — BDC channel activated`);
 
-    // ── Step G: Persist to Firestore ──────────────────────────────────────────
-    await this.persistToFirestore(propertyId, tenantId, channexChannelId, succeeded, parentDoc);
+    // ── Step E: Register webhook on parentPropertyId (once) ──────────────────
+    const webhookId = await this.registerPropertyWebhook(propertyId);
+    this.logger.log(
+      `[BDC_SYNC] ✓ E — Webhook — propertyId=${propertyId} webhookId=${webhookId ?? 'none'}`,
+    );
+
+    // ── Step F: Install Messages App on parentPropertyId (once, non-fatal) ──────
+    try {
+      await this.channex.installApplication(propertyId, ChannexService.APP_IDS.channex_messages);
+      this.logger.log(`[BDC_SYNC] ✓ F — Messages App installed — propertyId=${propertyId}`);
+    } catch (err) {
+      this.logger.warn(
+        `[BDC_SYNC] Messages App install failed (non-fatal): ${(err as Error).message}`,
+      );
+    }
+
+    // ── Step G: Install Booking CRS App (non-fatal) ───────────────────────────
+    try {
+      await this.channex.installBookingCrsApp(propertyId);
+      this.logger.log(`[BDC_SYNC] ✓ G — Booking CRS installed — propertyId=${propertyId}`);
+    } catch (err) {
+      this.logger.warn(
+        `[BDC_SYNC] Booking CRS install failed (non-fatal): ${(err as Error).message}`,
+      );
+    }
+
+    // ── Step H: Persist to Firestore ─────────────────────────────────────────
+    await this.persistToFirestore(
+      propertyId,
+      tenantId,
+      channexChannelId,
+      webhookId,
+      roomTypesForFirestore,
+    );
 
     this.logger.log(
       `[BDC_SYNC] ✓ Pipeline complete — tenantId=${tenantId} succeeded=${succeeded.length} failed=${failed.length}`,
     );
 
-    return { channexChannelId, succeeded, failed };
+    return { channexChannelId, channexPropertyId: propertyId, webhookId, succeeded, failed };
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────
@@ -465,77 +466,55 @@ export class ChannexBdcSyncService {
     parentPropertyId: string,
     tenantId: string,
     channexChannelId: string,
-    succeeded: IsolatedBdcResult[],
-    parentDoc: { timezone: string; channex_group_id: string | null; currency: string },
+    webhookId: string | null,
+    roomTypes: StoredRoomType[],
   ): Promise<void> {
     const db = this.firebase.getFirestore();
     const now = new Date().toISOString();
 
-    // One properties subcollection doc per isolated property (same structure as Airbnb)
-    for (const s of succeeded) {
-      const propertyRef = db
-        .collection(COLLECTION)
-        .doc(tenantId)
-        .collection('properties')
-        .doc(s.channexPropertyId);
+    // roomTypes[] already built with correct ota_rate_id and occupancy in syncBdc()
 
-      const roomType: StoredRoomType = {
-        room_type_id: s.roomTypeId,
-        title: s.channexRoomTitle,
-        count_of_rooms: 1,
-        default_occupancy: 2,
-        occ_adults: 2,
-        occ_children: 0,
-        occ_infants: 0,
-        source: 'booking',
-        ota_room_id: s.otaRoomId,
-        rate_plans: s.ratePlanIds.map((id) => ({
-          rate_plan_id: id,
-          title: s.channexRoomTitle,
-          currency: parentDoc.currency,
-          rate: 0,
-          occupancy: 2,
-          is_primary: true,
-          ota_rate_id: s.otaRoomId,
-        } as StoredRatePlan)),
-      };
+    // Merge new BDC room types into base property doc (preserves manual rooms)
+    const propertyRef = db
+      .collection(COLLECTION)
+      .doc(tenantId)
+      .collection('properties')
+      .doc(parentPropertyId);
 
-      await this.firebase.set(propertyRef, {
-        channex_property_id: s.channexPropertyId,
-        tenant_id: tenantId,
-        channex_group_id: parentDoc.channex_group_id,
+    const existingSnap = await propertyRef.get();
+    const existing = existingSnap.exists
+      ? ((existingSnap.data()?.room_types as StoredRoomType[] | undefined) ?? [])
+      : [];
+
+    // Replace all 'booking' source rooms with the new set (idempotent re-sync)
+    const merged = mergeRoomTypes(existing, roomTypes, 'booking');
+
+    await this.firebase.set(
+      propertyRef,
+      {
         channex_channel_id: channexChannelId,
-        channex_webhook_id: s.webhookId ?? null,
+        channex_webhook_id: webhookId,
         connection_status: ChannexConnectionStatus.Active,
-        title: s.channexPropertyTitle,
-        currency: parentDoc.currency,
-        timezone: parentDoc.timezone,
-        property_type: 'apartment',
         connected_channels: ['booking'],
-        room_types: [roomType],
-        booking_room_id: s.otaRoomId,
-        integrationDocId: tenantId,
-        created_at: now,
+        room_types: merged,
+        last_bdc_sync_timestamp: now,
         updated_at: now,
-      });
+      },
+      { merge: true },
+    );
 
-      this.logger.log(
-        `[BDC_SYNC] ✓ Property doc written — channexPropertyId=${s.channexPropertyId} title="${s.channexPropertyTitle}"`,
-      );
-    }
+    this.logger.log(
+      `[BDC_SYNC] ✓ Base property doc updated — propertyId=${parentPropertyId} rooms=${roomTypes.length}`,
+    );
 
-    // Update root integration doc with sync metadata (parent property doc is NOT touched)
+    // Update root integration doc with sync metadata
     const rootRef = db.collection(COLLECTION).doc(tenantId);
     await this.firebase.update(rootRef, {
       last_bdc_sync_timestamp: now,
       bdc_channel_id: channexChannelId,
-      bdc_webhook_id: succeeded[0]?.webhookId ?? null,
+      bdc_webhook_id: webhookId,
       updated_at: now,
     });
-
-    this.logger.log(
-      `[BDC_SYNC] ✓ Firestore updated — tenantId=${tenantId} succeeded=${succeeded.length}`,
-    );
 
     // Register channel doc so getPropertyBookings can resolve propertyChannelCode
     try {
@@ -554,9 +533,6 @@ export class ChannexBdcSyncService {
           synced_at: now,
           updated_at: now,
         });
-      this.logger.log(
-        `[BDC_SYNC] ✓ Channel doc registered — channelId=${channexChannelId} channel_code=${ch.channel}`,
-      );
     } catch (err) {
       this.logger.warn(
         `[BDC_SYNC] WARN — Could not register channel doc (non-fatal): ${(err as Error).message}`,

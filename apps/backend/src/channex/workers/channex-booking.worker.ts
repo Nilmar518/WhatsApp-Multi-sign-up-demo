@@ -4,7 +4,7 @@ import { ChannexService } from '../channex.service';
 import { ChannexPropertyService } from '../channex-property.service';
 import { FirebaseService } from '../../firebase/firebase.service';
 import { MigoPropertyService } from '../../migo-property/migo-property.service';
-import { ChannexARIService } from '../channex-ari.service';
+import { ChannexARIService, type StoredRoomType } from '../channex-ari.service';
 import { expandDateRange } from '../utils/date-range';
 import {
   BookingRevisionTransformer,
@@ -323,8 +323,18 @@ export class ChannexBookingWorker {
     }
 
     // ── Pool availability update (MigoProperty) ──────────────────────────────
+    // Two-level migo_property_id lookup:
+    // 1. Check room-level migo_property_id (new BDC single-property model)
+    // 2. Fall back to property-level (existing Airbnb / old BDC model)
+    const roomTypes =
+      (propertyDocSnap.data()?.room_types as StoredRoomType[] | undefined) ?? [];
+    const matchingRoom = reservationDoc.room_type_id
+      ? roomTypes.find((rt) => rt.room_type_id === reservationDoc.room_type_id)
+      : undefined;
     const migoPropertyId =
-      (propertyDocSnap.data()?.migo_property_id as string | null) ?? null;
+      matchingRoom?.migo_property_id ??
+      (propertyDocSnap.data()?.migo_property_id as string | null | undefined) ??
+      null;
 
     if (migoPropertyId) {
       if (event === 'booking_new') {

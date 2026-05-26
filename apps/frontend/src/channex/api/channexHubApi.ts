@@ -538,34 +538,45 @@ export async function getBdcChannels(tenantId: string): Promise<BdcChannel[]> {
   return apiFetch(`${BASE}/properties/bdc-channels?${params}`);
 }
 
-export interface IsolatedBdcResult {
+export interface BdcRoomResult {
   otaRoomId: string;
   otaRoomTitle: string;
-  channexPropertyId: string;
+  channexRoomTitle: string;
   roomTypeId: string;
   ratePlanIds: string[];
-  webhookId: string | null;
 }
 
-export interface IsolatedBdcFailure {
+export interface BdcRoomFailure {
   otaRoomId: string;
   otaRoomTitle: string;
-  step: 'A' | 'B' | 'C' | 'D' | 'E';
+  step: 'A' | 'B';
   reason: string;
 }
 
 export interface BdcSyncResult {
   channexChannelId: string;
-  succeeded: IsolatedBdcResult[];
-  failed: IsolatedBdcFailure[];
+  channexPropertyId: string;   // base property — single for all BDC rooms
+  webhookId: string | null;
+  succeeded: BdcRoomResult[];
+  failed: BdcRoomFailure[];
 }
 
 // ─── Listing Preview (naming modal) ──────────────────────────────────────────
 
 export interface ListingPreviewRate { id: string; rateName: string; }
-export interface ListingPreviewRoom { id: string; roomName: string; rates: ListingPreviewRate[]; }
+export interface ListingPreviewRoom {
+  id: string;
+  roomName: string;
+  rates: ListingPreviewRate[];
+  migoPropertyId?: string;   // pre-populated from BDC mapping_details
+}
 export interface ListingPreviewProperty { id: string; propertyName: string; rooms: ListingPreviewRoom[]; }
-export interface SyncNameOverride { propertyName?: string; roomName?: string; rates?: Record<string, string>; }
+export interface SyncNameOverride {
+  propertyName?: string;
+  roomName?: string;
+  rates?: Record<string, string>;
+  migoPropertyId?: string;   // per room (BDC)
+}
 export type SyncNameOverrides = Record<string, SyncNameOverride>;
 
 export async function getAirbnbPreview(

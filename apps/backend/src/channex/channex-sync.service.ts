@@ -146,6 +146,7 @@ export interface ListingPreviewRoom {
   id: string;
   roomName: string;
   rates: ListingPreviewRate[];
+  migoPropertyId?: string;   // pre-populated in BDC preview for the naming modal
 }
 
 export interface ListingPreviewProperty {
@@ -159,6 +160,7 @@ export interface SyncNameOverride {
   propertyName?: string;
   roomName?: string;
   rates?: Record<string, string>;
+  migoPropertyId?: string;   // per room (BDC); ignored for Airbnb
 }
 
 export type SyncNameOverrides = Record<string, SyncNameOverride>;
