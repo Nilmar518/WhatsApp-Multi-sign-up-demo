@@ -383,6 +383,31 @@ export class ChannexService {
    * `non_acked_booking` events repeatedly until the 30-minute timeout window
    * expires, triggering infrastructure alerts.
    */
+  /**
+   * Fetches full booking details from Channex by booking UUID.
+   * GET /api/v1/bookings/:bookingId
+   *
+   * Returns the raw `data.attributes` object which includes the `rooms` array
+   * with `room_type_id` per room — the field we need to map availability.
+   */
+  async fetchBookingById(bookingId: string): Promise<Record<string, unknown> | null> {
+    this.logger.log(`[CHANNEX] Fetching booking — bookingId=${bookingId}`);
+    try {
+      const response = await this.defLogger.request<{ data: { attributes: Record<string, unknown> } }>({
+        method: 'GET',
+        url: `${this.baseUrl}/bookings/${bookingId}`,
+        headers: this.buildAuthHeaders(),
+      });
+      this.logger.log(`[CHANNEX] ✓ Booking fetched — bookingId=${bookingId}`);
+      return response?.data?.attributes ?? null;
+    } catch (err) {
+      this.logger.error(
+        `[CHANNEX] Failed to fetch bookingId=${bookingId}: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
   async acknowledgeBookingRevision(revisionId: string): Promise<void> {
     this.logger.log(
       `[CHANNEX] Acknowledging booking revision — revisionId=${revisionId}`,

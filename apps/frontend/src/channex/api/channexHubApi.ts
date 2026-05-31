@@ -457,6 +457,16 @@ export async function checkConnectionHealth(
 
 // ─── Messaging ───────────────────────────────────────────────────────────────
 
+export async function syncBookingFromChannex(
+  propertyId: string,
+  channexBookingId: string,
+): Promise<{ booking: Record<string, unknown> | null }> {
+  return apiFetch(
+    `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings/${encodeURIComponent(channexBookingId)}/sync`,
+    { method: 'POST' },
+  );
+}
+
 export async function replyToThread(
   propertyId: string,
   threadId: string,

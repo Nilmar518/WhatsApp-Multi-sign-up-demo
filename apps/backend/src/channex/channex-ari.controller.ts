@@ -28,6 +28,7 @@ import {
   AriFullSyncDto,
 } from './dto/ari-batch.dto';
 import { CreateManualBookingDto } from './dto/create-manual-booking.dto';
+import { ChannexService } from './channex.service';
 import type {
   ChannexRoomTypeResponse,
   ChannexRatePlanResponse,
@@ -60,6 +61,7 @@ export class ChannexARIController {
     private readonly ariService: ChannexARIService,
     private readonly snapshotService: ChannexARISnapshotService,
     private readonly syncService: ChannexSyncService,
+    private readonly channexService: ChannexService,
   ) {}
 
   /**
@@ -448,5 +450,25 @@ export class ChannexARIController {
       `[CTRL] PATCH /bookings/manual/${pmsBookingId}/cancel — propertyId=${propertyId} tenantId=${tenantId}`,
     );
     return this.ariService.cancelManualBooking(propertyId, pmsBookingId, tenantId);
+  }
+
+  /**
+   * POST /channex/properties/:propertyId/bookings/:channexBookingId/sync
+   *
+   * Fetches full booking details from Channex and returns the raw payload for
+   * inspection. Used to diagnose room_type_id mapping and to enrich existing
+   * reservations that arrived before the rooms fetch was implemented.
+   */
+  @Post('bookings/:channexBookingId/sync')
+  @HttpCode(HttpStatus.OK)
+  async syncBookingFromChannex(
+    @Param('propertyId') _propertyId: string,
+    @Param('channexBookingId') channexBookingId: string,
+  ): Promise<{ booking: Record<string, unknown> | null }> {
+    this.logger.log(
+      `[CTRL] POST /bookings/${channexBookingId}/sync`,
+    );
+    const booking = await this.channexService.fetchBookingById(channexBookingId);
+    return { booking };
   }
 }

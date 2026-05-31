@@ -305,6 +305,37 @@ export class ChannexBookingWorker {
         `status=${reservationDoc.booking_status} tenantId=${tenantId}`,
     );
 
+    // ── Fetch full booking details from Channex API ───────────────────────────
+    // The webhook payload only contains a summary (no rooms[] array).
+    // We need rooms[].room_type_id to map availability correctly.
+    if (event === 'booking_new' || event === 'booking_modification') {
+      this.channex.fetchBookingById(bookingId).then((fullBooking) => {
+        if (!fullBooking) {
+          this.logger.warn(
+            `[BOOKING-WORKER] fetchBookingById returned null — bookingId=${bookingId}`,
+          );
+          return;
+        }
+        const rooms = Array.isArray(fullBooking.rooms)
+          ? (fullBooking.rooms as Array<Record<string, unknown>>)
+          : [];
+        this.logger.log(
+          `[BOOKING-WORKER] Full booking fetched — bookingId=${bookingId} ` +
+            `rooms_count=${rooms.length} ` +
+            `rooms=${JSON.stringify(rooms.map((r) => ({ room_type_id: r.room_type_id, rate_plan_id: r.rate_plan_id, amount: r.amount })))}`,
+        );
+        this.logger.log(
+          `[BOOKING-WORKER] Full booking payload — bookingId=${bookingId} ` +
+            `arrival_hour=${fullBooking.arrival_hour ?? 'null'} ` +
+            `customer_name=${(fullBooking.customer as Record<string, unknown> | null)?.name ?? 'null'}`,
+        );
+      }).catch((err: unknown) => {
+        this.logger.error(
+          `[BOOKING-WORKER] fetchBookingById failed — bookingId=${bookingId}: ${(err as Error).message}`,
+        );
+      });
+    }
+
     // ── Cross-channel ARI fan-out ─────────────────────────────────────────────
     if (
       (event === 'booking_new' ||

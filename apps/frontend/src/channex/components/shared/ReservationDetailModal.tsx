@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { Reservation } from '../../api/channexHubApi';
+import { syncBookingFromChannex } from '../../api/channexHubApi';
 import NoShowConfirmModal from './NoShowConfirmModal';
 import { useLanguage } from '../../../context/LanguageContext';
 import DocumentsSection from '../../../documents/DocumentsSection';
@@ -86,6 +87,26 @@ export default function ReservationDetailModal({
 }: ReservationDetailModalProps) {
   const { t } = useLanguage();
   const [showNoShowConfirm, setShowNoShowConfirm] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ ok: boolean; rooms?: number } | null>(null);
+
+  const handleSync = useCallback(async () => {
+    if (!r?.channex_booking_id || !r?.channex_property_id) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const result = await syncBookingFromChannex(r.channex_property_id, r.channex_booking_id);
+      const rooms = Array.isArray(result.booking?.rooms) ? (result.booking!.rooms as unknown[]).length : 0;
+      console.log('[BOOKING-SYNC] Full Channex payload:', JSON.stringify(result.booking, null, 2));
+      console.log('[BOOKING-SYNC] Rooms array:', result.booking?.rooms);
+      setSyncResult({ ok: true, rooms });
+    } catch (err) {
+      console.error('[BOOKING-SYNC] Error:', err);
+      setSyncResult({ ok: false });
+    } finally {
+      setSyncing(false);
+    }
+  }, [r]);
   useEffect(() => {
     if (!r) return;
     function onKey(e: KeyboardEvent) {
@@ -244,6 +265,27 @@ export default function ReservationDetailModal({
               />
             )}
           </div>
+
+          {/* Sync from Channex */}
+          {r.channex_booking_id && (
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                disabled={syncing}
+                onClick={() => void handleSync()}
+                className="rounded-lg border border-edge bg-surface px-3 py-1.5 text-xs font-medium text-content-2 hover:border-brand-light hover:text-brand transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {syncing ? 'Syncing...' : '↻ Sync desde Channex'}
+              </button>
+              {syncResult && (
+                <span className={`text-xs ${syncResult.ok ? 'text-ok-text' : 'text-danger-text'}`}>
+                  {syncResult.ok
+                    ? `✓ ${syncResult.rooms} habitación(es) — ver consola`
+                    : '✗ Error al sincronizar'}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Notes */}
           {r.notes && (
