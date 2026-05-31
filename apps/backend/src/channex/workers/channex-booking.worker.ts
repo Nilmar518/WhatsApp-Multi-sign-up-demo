@@ -165,6 +165,20 @@ export class ChannexBookingWorker {
       return { firestoreDocId, discarded: true };
     }
 
+    const dataSource = payload.payload ? 'payload.payload' : payload.booking ? 'payload.booking' : 'root';
+    const rawRooms = Array.isArray(data.rooms) ? (data.rooms as Array<Record<string, unknown>>) : null;
+    this.logger.log(
+      `[BOOKING-WORKER] Booking data resolved — ` +
+        `source=${dataSource} ` +
+        `booking_id=${(data as Record<string, unknown>).booking_id ?? 'null'} ` +
+        `ota_name=${(data as Record<string, unknown>).ota_name ?? 'null'} ` +
+        `has_rooms=${rawRooms !== null} ` +
+        `rooms_count=${rawRooms?.length ?? 0} ` +
+        `lead_room_type_id=${rawRooms?.[0]?.room_type_id ?? 'null'} ` +
+        `arrival_date=${(data as Record<string, unknown>).arrival_date ?? 'null'} ` +
+        `departure_date=${(data as Record<string, unknown>).departure_date ?? 'null'}`,
+    );
+
     // Resolve definitive revisionId — Channex delivers it as booking_revision_id
     // inside the nested booking data object when revision_id is absent at root.
     if (!revisionId) {

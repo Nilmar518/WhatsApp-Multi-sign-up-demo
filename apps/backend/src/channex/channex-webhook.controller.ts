@@ -56,6 +56,9 @@ export class ChannexWebhookController {
     this.logger.log(
       `[WEBHOOK] Received — event=${event} propertyId=${propertyId} revisionId=${revisionId}`,
     );
+    this.logger.log(
+      `[WEBHOOK] Full payload — ${JSON.stringify(body)}`,
+    );
 
     if (!ACTIONABLE_EVENTS.has(event)) {
       this.logger.warn(
