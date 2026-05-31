@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { Timestamp } from 'firebase/firestore';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../../../firebase/firebase';
 import { useThreadMessages } from '../../hooks/useChannexMessages';
 import { replyToThread, getBookingById } from '../../api/channexHubApi';
 import type { Reservation } from '../../api/channexHubApi';
@@ -70,14 +71,42 @@ function ConversationPane({ tenantId, thread, onBack }: ConversationPaneProps) {
     setSending(true);
     setSendError(null);
     try {
-      await replyToThread(thread.propertyId, thread.id, text);
+      const { channexMessageId } = await replyToThread(thread.propertyId, thread.id, text);
       setReply('');
+
+      // Optimistic write: save the message to Firestore immediately so it
+      // appears in the panel without waiting for Channex's echo webhook.
+      // Uses channexMessageId as doc ID — the worker echo overwrites the same
+      // document when it arrives, so there are no duplicates.
+      if (channexMessageId) {
+        const now = Timestamp.now();
+        await setDoc(
+          doc(
+            db,
+            'channex_integrations', tenantId,
+            'properties', thread.propertyId,
+            'threads', thread.id,
+            'messages', channexMessageId,
+          ),
+          {
+            propertyId: thread.propertyId,
+            threadId: thread.id,
+            bookingId: thread.bookingId,
+            guestName: null,
+            text,
+            sender: 'host',
+            messageId: channexMessageId,
+            createdAt: now,
+            updatedAt: now,
+          },
+        );
+      }
     } catch (err) {
       setSendError(err instanceof Error ? err.message : t('channex.messages.err.send'));
     } finally {
       setSending(false);
     }
-  }, [reply, thread.propertyId, thread.id]);
+  }, [reply, thread, tenantId, t]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
