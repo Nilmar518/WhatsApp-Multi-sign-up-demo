@@ -6,6 +6,7 @@ import { FirebaseService } from '../../firebase/firebase.service';
 import { MigoPropertyService } from '../../migo-property/migo-property.service';
 import { ChannexARIService, type StoredRoomType } from '../channex-ari.service';
 import { expandDateRange } from '../utils/date-range';
+import type { AvailabilityEntryDto } from '../channex.types';
 import {
   BookingRevisionTransformer,
   type FirestoreReservationDoc,
@@ -305,33 +306,190 @@ export class ChannexBookingWorker {
         `status=${reservationDoc.booking_status} tenantId=${tenantId}`,
     );
 
-    // ── Fetch full booking details from Channex API ───────────────────────────
-    // The webhook payload only contains a summary (no rooms[] array).
-    // We need rooms[].room_type_id to map availability correctly.
+    // ── Fetch full booking details from Channex API (fire-and-forget) ───────────
+    // Webhook payloads only contain a summary. The full GET returns rooms[],
+    // customer contact, arrival_hour, and Genius status — all persisted via merge.
     if (event === 'booking_new' || event === 'booking_modification') {
-      this.channex.fetchBookingById(bookingId).then((fullBooking) => {
+      this.channex.fetchBookingById(bookingId).then(async (fullBooking) => {
         if (!fullBooking) {
-          this.logger.warn(
-            `[BOOKING-WORKER] fetchBookingById returned null — bookingId=${bookingId}`,
-          );
+          this.logger.warn(`[BOOKING-WORKER] fetchBookingById returned null — bookingId=${bookingId}`);
           return;
         }
+
+        const customer = typeof fullBooking.customer === 'object' && fullBooking.customer !== null
+          ? (fullBooking.customer as Record<string, unknown>)
+          : null;
+        const meta = typeof fullBooking.meta === 'object' && fullBooking.meta !== null
+          ? (fullBooking.meta as Record<string, unknown>)
+          : null;
         const rooms = Array.isArray(fullBooking.rooms)
           ? (fullBooking.rooms as Array<Record<string, unknown>>)
           : [];
+
         this.logger.log(
           `[BOOKING-WORKER] Full booking fetched — bookingId=${bookingId} ` +
-            `rooms_count=${rooms.length} ` +
+            `rooms_count=${rooms.length} arrival_hour=${fullBooking.arrival_hour ?? 'null'} ` +
+            `is_genius=${(meta as Record<string, unknown> | null)?.is_genius ?? false} ` +
+            `phone=${customer?.phone ?? 'null'} email=${customer?.mail ?? 'null'} ` +
             `rooms=${JSON.stringify(rooms.map((r) => ({ room_type_id: r.room_type_id, rate_plan_id: r.rate_plan_id, amount: r.amount })))}`,
         );
-        this.logger.log(
-          `[BOOKING-WORKER] Full booking payload — bookingId=${bookingId} ` +
-            `arrival_hour=${fullBooking.arrival_hour ?? 'null'} ` +
-            `customer_name=${(fullBooking.customer as Record<string, unknown> | null)?.name ?? 'null'}`,
-        );
+
+        // Build enrichment patch — merge into existing Firestore doc
+        const enrichment: Record<string, unknown> = {
+          updated_at: new Date().toISOString(),
+        };
+
+        if (typeof customer?.phone === 'string' && customer.phone) enrichment.customer_phone = customer.phone;
+        if (typeof customer?.mail === 'string' && customer.mail) enrichment.customer_email = customer.mail;
+        if (typeof customer?.country === 'string' && customer.country) enrichment.customer_country = customer.country;
+        if (typeof fullBooking.arrival_hour === 'string') enrichment.arrival_hour = fullBooking.arrival_hour;
+        if (typeof (meta as Record<string, unknown> | null)?.is_genius === 'boolean') {
+          enrichment.is_genius = (meta as Record<string, unknown>).is_genius;
+        }
+
+        if (rooms.length > 0) {
+          enrichment.rooms_detail = rooms.map((r) => {
+            const rm = typeof r.meta === 'object' && r.meta !== null ? (r.meta as Record<string, unknown>) : null;
+            return {
+              room_type_id: typeof r.room_type_id === 'string' ? r.room_type_id : null,
+              rate_plan_id: typeof r.rate_plan_id === 'string' ? r.rate_plan_id : null,
+              amount: r.amount ?? null,
+              guests: Array.isArray(r.guests) ? r.guests : [],
+              room_type_code: typeof rm?.room_type_code === 'string' ? rm.room_type_code : null,
+              booking_com_room_index: typeof rm?.booking_com_room_index === 'number' ? rm.booking_com_room_index : null,
+              meal_plan: typeof rm?.meal_plan === 'string' ? rm.meal_plan : null,
+              smoking_preferences: typeof rm?.smoking_preferences === 'string' ? rm.smoking_preferences : null,
+            };
+          });
+
+          // Backfill room_type_id on the reservation if the webhook summary had null
+          if (!reservationDoc.room_type_id && rooms[0]?.room_type_id) {
+            enrichment.room_type_id = rooms[0].room_type_id;
+          }
+        }
+
+        const snap = await bookingsRef.where('channex_booking_id', '==', bookingId).limit(1).get();
+        if (!snap.empty) {
+          await this.firebase.set(snap.docs[0].ref, enrichment, { merge: true });
+          this.logger.log(
+            `[BOOKING-WORKER] ✓ Reservation enriched — bookingId=${bookingId} ` +
+              `rooms=${rooms.length} phone=${enrichment.customer_phone ?? '-'} ` +
+              `room_type_id=${enrichment.room_type_id ?? 'unchanged'}`,
+          );
+        }
+
+        // ── ARI batch push — single Channex call for all affected room types ──────
+        // Recalculates availability per room_type per night from Firestore bookings,
+        // then pushes ONE batch to Channex covering all room types in this booking.
+        const enrichedNights = reservationDoc.check_in && reservationDoc.check_out
+          ? expandDateRange(reservationDoc.check_in, reservationDoc.check_out)
+          : [];
+
+        const affectedRoomTypeIds = [
+          ...new Set(
+            rooms
+              .map((r) => (typeof r.room_type_id === 'string' ? r.room_type_id : null))
+              .filter((id): id is string => id !== null),
+          ),
+        ];
+
+        if (affectedRoomTypeIds.length > 0 && enrichedNights.length > 0) {
+          // Fetch all active bookings for this property to compute real availability
+          const allActiveSnap = await bookingsRef
+            .where('propertyId', '==', propertyId)
+            .get();
+
+          const activeBookings = allActiveSnap.docs
+            .map((d) => d.data() as {
+              booking_status: string;
+              check_in: string;
+              check_out: string;
+              room_type_id: string | null;
+              count_of_rooms?: number;
+            })
+            .filter((b) => b.booking_status !== 'cancelled');
+
+          const availabilityUpdates: AvailabilityEntryDto[] = [];
+
+          for (const rtId of affectedRoomTypeIds) {
+            const storedRt = roomTypes.find((rt) => rt.room_type_id === rtId);
+            const capacity = storedRt?.count_of_rooms ?? 1;
+
+            for (const night of enrichedNights) {
+              const taken = activeBookings
+                .filter((b) => b.room_type_id === rtId && b.check_in <= night && b.check_out > night)
+                .reduce((sum, b) => sum + (b.count_of_rooms ?? 1), 0);
+
+              availabilityUpdates.push({
+                property_id: propertyId,
+                room_type_id: rtId,
+                date_from: night,
+                date_to: night,
+                availability: Math.max(0, capacity - taken),
+              });
+            }
+
+            // MigoProperty decrement per room booked (one call per room of this type)
+            if (event === 'booking_new') {
+              const matchingRt = storedRt;
+              const enrichedMigoId: string | null =
+                matchingRt?.migo_property_id ??
+                (propertyDocSnap.data()?.migo_property_id as string | null | undefined) ??
+                null;
+              const roomsOfThisType = rooms.filter((r) => r.room_type_id === rtId).length;
+
+              this.logger.log(
+                `[BOOKING-WORKER] MigoProperty decrement — room_type_id=${rtId} ` +
+                  `capacity=${capacity} migo_id=${enrichedMigoId ?? 'null'} rooms_booked=${roomsOfThisType}`,
+              );
+
+              if (enrichedMigoId) {
+                for (let i = 0; i < roomsOfThisType; i++) {
+                  this.migoPropertyService.decrementAvailability(enrichedMigoId).catch((err: unknown) =>
+                    this.logger.error(
+                      `[BOOKING-WORKER] decrementAvailability failed — ` +
+                        `room_type_id=${rtId} migo_id=${enrichedMigoId}: ${(err as Error).message}`,
+                    ),
+                  );
+                }
+              }
+            }
+          }
+
+          this.logger.log(
+            `[BOOKING-WORKER] Pushing ARI batch — ` +
+              `${affectedRoomTypeIds.length} room type(s) × ${enrichedNights.length} night(s) = ${availabilityUpdates.length} entries`,
+          );
+
+          this.ariService.pushAvailability(availabilityUpdates)
+            .then((taskId) => {
+              this.logger.log(
+                `[BOOKING-WORKER] ✓ ARI batch pushed — taskId=${taskId} ` +
+                  `room_types=[${affectedRoomTypeIds.join(',')}]`,
+              );
+            })
+            .catch((err: unknown) => {
+              this.logger.error(
+                `[BOOKING-WORKER] pushAvailability batch failed — ` +
+                  `room_types=[${affectedRoomTypeIds.join(',')}]: ${(err as Error).message}`,
+              );
+            });
+
+          // Cross-channel ARI sync (other connected properties via MigoProperty)
+          for (const rtId of affectedRoomTypeIds) {
+            this.ariService
+              .syncAriForAffectedNights(firestoreDocId, propertyId, rtId, enrichedNights)
+              .catch((err: unknown) =>
+                this.logger.error(
+                  `[BOOKING-WORKER] syncAriForAffectedNights failed — ` +
+                    `room_type_id=${rtId}: ${(err as Error).message}`,
+                ),
+              );
+          }
+        }
       }).catch((err: unknown) => {
         this.logger.error(
-          `[BOOKING-WORKER] fetchBookingById failed — bookingId=${bookingId}: ${(err as Error).message}`,
+          `[BOOKING-WORKER] fetchBookingById enrichment failed — bookingId=${bookingId}: ${(err as Error).message}`,
         );
       });
     }

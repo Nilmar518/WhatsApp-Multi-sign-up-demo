@@ -184,6 +184,7 @@ export default function ReservationDetailModal({
           <SectionTitle>{t('channex.reservDetail.stay')}</SectionTitle>
           <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-1">
             <InfoRow label={t('channex.reservDetail.checkin')} value={r.check_in || '—'} />
+            {r.arrival_hour && <InfoRow label="Hora llegada" value={r.arrival_hour} />}
             <InfoRow label={t('channex.reservDetail.checkout')} value={r.check_out || '—'} />
             {nightCount !== null && (
               <InfoRow label={t('channex.reservDetail.duration')} value={t(nightCount === 1 ? 'channex.reservDetail.night.one' : 'channex.reservDetail.night.many', { n: nightCount })} />
@@ -193,6 +194,52 @@ export default function ReservationDetailModal({
             )}
             {r.meal_plan && <InfoRow label={t('channex.reservDetail.mealPlan')} value={r.meal_plan} />}
           </div>
+
+          {/* Rooms */}
+          {r.rooms_detail && r.rooms_detail.length > 0 && (
+            <>
+              <SectionTitle>Habitaciones ({r.rooms_detail.length})</SectionTitle>
+              <div className="space-y-2">
+                {r.rooms_detail.map((room, i) => (
+                  <div key={i} className="rounded-xl border border-edge bg-surface-subtle px-4 py-2">
+                    <div className="flex items-center justify-between gap-2 py-1">
+                      <span className="text-xs text-content-3 shrink-0">Habitación {i + 1}</span>
+                      <span className="text-sm font-medium text-content">
+                        {room.room_type_code ? `#${room.room_type_code}` : '—'}
+                        {room.booking_com_room_index != null ? ` (${room.booking_com_room_index})` : ''}
+                      </span>
+                    </div>
+                    {room.amount != null && (
+                      <div className="flex items-center justify-between gap-2 py-1 border-t border-edge">
+                        <span className="text-xs text-content-3 shrink-0">Precio</span>
+                        <span className="text-sm text-content">{room.amount} {r.currency}</span>
+                      </div>
+                    )}
+                    {room.guests && room.guests.length > 0 && (
+                      <div className="flex items-center justify-between gap-2 py-1 border-t border-edge">
+                        <span className="text-xs text-content-3 shrink-0">Huésped</span>
+                        <span className="text-sm text-content">
+                          {room.guests.map(g => [g.name, g.surname].filter(Boolean).join(' ')).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {room.meal_plan && (
+                      <div className="flex items-start gap-2 py-1 border-t border-edge">
+                        <span className="text-xs text-content-3 shrink-0 pt-0.5">Plan comidas</span>
+                        <span className="text-xs text-content-2 text-right">{room.meal_plan}</span>
+                      </div>
+                    )}
+                    {room.smoking_preferences && (
+                      <div className="flex items-center justify-between gap-2 py-1 border-t border-edge">
+                        <span className="text-xs text-content-3 shrink-0">Fumador</span>
+                        <span className="text-xs text-content-2">{room.smoking_preferences}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Financial */}
           <SectionTitle>{t('channex.reservDetail.financial')}</SectionTitle>
@@ -213,31 +260,32 @@ export default function ReservationDetailModal({
           </div>
 
           {/* Guest / Contact */}
-          <SectionTitle>{t('channex.reservDetail.guestSection')}</SectionTitle>
+          <SectionTitle>
+            {t('channex.reservDetail.guestSection')}
+            {r.is_genius && (
+              <span className="ml-2 inline-flex items-center rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand">
+                ★ Genius
+              </span>
+            )}
+          </SectionTitle>
           <div className="rounded-xl border border-edge bg-surface-subtle px-4 py-1">
             <InfoRow label={t('channex.reservDetail.name')} value={guestName} />
-            {r.customer_email && (
-              <InfoRow
-                label={t('channex.reservDetail.email')}
-                value={
-                  <a
-                    href={`mailto:${r.customer_email}`}
-                    className="text-brand hover:underline"
-                  >
-                    {r.customer_email}
-                  </a>
-                }
-              />
-            )}
             {r.customer_phone && (
               <InfoRow
                 label={t('channex.reservDetail.phone')}
                 value={
-                  <a
-                    href={`tel:${r.customer_phone}`}
-                    className="text-brand hover:underline"
-                  >
+                  <a href={`tel:${r.customer_phone}`} className="text-brand hover:underline">
                     {r.customer_phone}
+                  </a>
+                }
+              />
+            )}
+            {r.customer_email && (
+              <InfoRow
+                label={t('channex.reservDetail.email')}
+                value={
+                  <a href={`mailto:${r.customer_email}`} className="text-brand hover:underline">
+                    {r.customer_email}
                   </a>
                 }
               />

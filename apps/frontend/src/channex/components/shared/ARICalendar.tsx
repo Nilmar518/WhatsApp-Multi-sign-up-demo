@@ -129,6 +129,9 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
+  // Expanded room in the day popup
+  const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
+
   // All bookings for the property (unfiltered by month — month filtering is a memo below)
   const [allBookings, setAllBookings] = useState<Array<{
     pms_booking_id?: string;
@@ -137,6 +140,13 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
     check_out: string;
     channel: string;
     booking_status: string;
+    room_type_id?: string | null;
+    rooms_detail?: Array<{ room_type_id: string | null; amount?: string | number | null }> | null;
+    guest_first_name?: string | null;
+    guest_last_name?: string | null;
+    customer_name?: string | null;
+    reservation_id?: string | null;
+    count_of_rooms?: number | null;
   }>>([]);
 
   // Stable derived values — declared before useEffects so effects can safely reference them
@@ -217,6 +227,13 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
             check_out: string;
             channel: string;
             booking_status: string;
+            room_type_id?: string | null;
+            rooms_detail?: Array<{ room_type_id: string | null; amount?: string | number | null }> | null;
+            guest_first_name?: string | null;
+            guest_last_name?: string | null;
+            customer_name?: string | null;
+            reservation_id?: string | null;
+            count_of_rooms?: number | null;
           })
           .filter(b => b.booking_status !== 'cancelled'),
       );
@@ -299,6 +316,7 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
         setSelectionStart(ds);
         setSelectionEnd(null);
         setPopupDate(ds);
+        setExpandedRoomId(null);
         setSaveError(null);
         setLastTaskIds([]);
         if (batchQueue.length === 0) setShowPanel(false);
@@ -568,52 +586,109 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
               </p>
             ) : (
               <div className="space-y-2">
-                {cards.map(({ rt, availability, plans }) => (
-                  <div key={rt.room_type_id} className="rounded-lg border border-edge bg-surface-subtle p-2.5">
-                    {/* Room type header */}
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-xs font-semibold text-content">{rt.title}</p>
-                      {availability !== null && (
-                        <span className={`text-xs font-bold ${availability === 0 ? 'text-caution-text' : 'text-ok-text'}`}>
-                          {availability} u
-                        </span>
-                      )}
-                    </div>
+                {cards.map(({ rt, availability, plans }) => {
+                  const isExpanded = expandedRoomId === rt.room_type_id;
 
-                    {/* Rate plans */}
-                    {plans.map(({ rp, snap }) => (
-                      <div key={rp.rate_plan_id} className="flex items-center justify-between py-0.5 text-xs border-t border-edge mt-1 pt-1">
-                        <span className="text-content-2 truncate max-w-[40%]">{rp.title}</span>
-                        <div className="flex items-center gap-1 flex-wrap justify-end">
-                          {snap ? (
-                            <>
-                              {snap.rate && (
-                                <span className="font-semibold text-content">{currency} {snap.rate}</span>
+                  // Bookings for this room type on popupDate
+                  const roomBookings = allBookings.filter((b) => {
+                    if (b.check_in > popupDate || b.check_out <= popupDate) return false;
+                    if (b.room_type_id === rt.room_type_id) return true;
+                    return b.rooms_detail?.some((r) => r.room_type_id === rt.room_type_id) ?? false;
+                  });
+
+                  return (
+                    <div key={rt.room_type_id} className="rounded-lg border border-edge bg-surface-subtle overflow-hidden">
+                      {/* Room type header — clickable */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRoomId(isExpanded ? null : rt.room_type_id)}
+                        className="w-full flex items-center justify-between px-2.5 pt-2.5 pb-2 hover:bg-surface-raised transition-colors"
+                      >
+                        <p className="text-xs font-semibold text-content">{rt.title}</p>
+                        <div className="flex items-center gap-2">
+                          {availability !== null && (
+                            <span className={`text-xs font-bold ${availability === 0 ? 'text-caution-text' : 'text-ok-text'}`}>
+                              {availability} u
+                            </span>
+                          )}
+                          {roomBookings.length > 0 && (
+                            <span className="rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">
+                              {roomBookings.length} res.
+                            </span>
+                          )}
+                          <span className="text-[10px] text-content-3">{isExpanded ? '▲' : '▼'}</span>
+                        </div>
+                      </button>
+
+                      {/* Rate plans */}
+                      <div className="px-2.5 pb-2.5">
+                        {plans.map(({ rp, snap }) => (
+                          <div key={rp.rate_plan_id} className="flex items-center justify-between py-0.5 text-xs border-t border-edge mt-1 pt-1">
+                            <span className="text-content-2 truncate max-w-[40%]">{rp.title}</span>
+                            <div className="flex items-center gap-1 flex-wrap justify-end">
+                              {snap ? (
+                                <>
+                                  {snap.rate && <span className="font-semibold text-content">{currency} {snap.rate}</span>}
+                                  {snap.minStayArrival != null && <span className="text-content-3">{snap.minStayArrival}n+</span>}
+                                  {snap.maxStay != null && <span className="text-content-3">max {snap.maxStay}n</span>}
+                                  {snap.stopSell && <span className="rounded bg-danger-bg px-1 py-0.5 text-[10px] font-bold text-danger-text">SS</span>}
+                                  {snap.closedToArrival && <span className="rounded bg-caution-bg px-1 py-0.5 text-[10px] font-bold text-caution-text">CTA</span>}
+                                  {snap.closedToDeparture && <span className="rounded bg-caution-bg px-1 py-0.5 text-[10px] font-bold text-caution-text">CTD</span>}
+                                </>
+                              ) : (
+                                <span className="text-content-3 italic text-[10px]">{t('channex.ari.noDataCell')}</span>
                               )}
-                              {snap.minStayArrival != null && (
-                                <span className="text-content-3">{snap.minStayArrival}n+</span>
-                              )}
-                              {snap.maxStay != null && (
-                                <span className="text-content-3">max {snap.maxStay}n</span>
-                              )}
-                              {snap.stopSell && (
-                                <span className="rounded bg-danger-bg px-1 py-0.5 text-[10px] font-bold text-danger-text">SS</span>
-                              )}
-                              {snap.closedToArrival && (
-                                <span className="rounded bg-caution-bg px-1 py-0.5 text-[10px] font-bold text-caution-text">CTA</span>
-                              )}
-                              {snap.closedToDeparture && (
-                                <span className="rounded bg-caution-bg px-1 py-0.5 text-[10px] font-bold text-caution-text">CTD</span>
-                              )}
-                            </>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Bookings list — expanded */}
+                      {isExpanded && (
+                        <div className="border-t border-edge px-2.5 py-2 bg-surface space-y-1.5">
+                          {roomBookings.length === 0 ? (
+                            <p className="text-[11px] text-content-3 italic">Sin reservas para esta fecha</p>
                           ) : (
-                            <span className="text-content-3 italic text-[10px]">{t('channex.ari.noDataCell')}</span>
+                            roomBookings.map((b, i) => {
+                              const guestName =
+                                [b.guest_first_name, b.guest_last_name].filter(Boolean).join(' ') ||
+                                b.customer_name ||
+                                '—';
+                              const channelLabel =
+                                b.channel === 'booking_com' ? 'BDC' :
+                                b.channel === 'airbnb' ? 'ABB' :
+                                b.channel === 'walkin' ? 'Walk-in' :
+                                b.channel === 'maintenance' ? 'Mant.' :
+                                b.channel === 'owner_stay' ? 'Owner' :
+                                b.channel;
+                              const channelColor =
+                                b.channel === 'booking_com' ? 'text-notice-text' :
+                                b.channel === 'airbnb' ? 'text-danger-text' :
+                                'text-content-2';
+                              return (
+                                <div key={b.pms_booking_id ?? b.channex_booking_id ?? i} className="rounded-lg border border-edge bg-surface-subtle px-2 py-1.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-medium text-content truncate">{guestName}</span>
+                                    <span className={`shrink-0 text-[10px] font-bold ${channelColor}`}>{channelLabel}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-[10px] text-content-3">{b.check_in} → {b.check_out}</span>
+                                    {(b.count_of_rooms ?? 1) > 1 && (
+                                      <span className="text-[10px] text-content-3">× {b.count_of_rooms}</span>
+                                    )}
+                                  </div>
+                                  {b.reservation_id && (
+                                    <span className="text-[10px] text-content-3 font-mono">{b.reservation_id}</span>
+                                  )}
+                                </div>
+                              );
+                            })
                           )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
             <p className="mt-2 text-xs text-content-3">

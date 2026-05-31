@@ -88,6 +88,20 @@ export interface FirestoreReservationDoc {
   // Sync fields (Phase 2 flat bookings structure)
   ari_synced?: boolean;             // true if availability was pushed to Channex successfully (manual bookings only)
   ari_task_id?: string | null;      // Channex task ID from the availability push (manual bookings only)
+
+  // Enriched from GET /api/v1/bookings/:id (full booking fetch after webhook)
+  arrival_hour?: string | null;     // check-in hour requested by guest (e.g. "14:00")
+  is_genius?: boolean | null;       // Booking.com Genius loyalty member
+  rooms_detail?: Array<{           // full per-room breakdown from Channex
+    room_type_id: string | null;
+    rate_plan_id: string | null;
+    amount: string | number | null;
+    guests: Array<{ name: string; surname: string | null }>;
+    room_type_code?: string | null;   // BDC room ID (from meta.room_type_code)
+    booking_com_room_index?: number | null;
+    meal_plan?: string | null;
+    smoking_preferences?: string | null;
+  }>;
 }
 
 // ─── OTA name → channel key ───────────────────────────────────────────────────

@@ -293,6 +293,19 @@ export interface Reservation {
   updated_at: string;
   count_of_nights?: number | null;
   customer_name?: string | null;
+  // Enriched from full Channex booking fetch
+  arrival_hour?: string | null;
+  is_genius?: boolean | null;
+  rooms_detail?: Array<{
+    room_type_id: string | null;
+    rate_plan_id: string | null;
+    amount: string | number | null;
+    guests: Array<{ name: string; surname: string | null }>;
+    room_type_code?: string | null;
+    booking_com_room_index?: number | null;
+    meal_plan?: string | null;
+    smoking_preferences?: string | null;
+  }> | null;
 }
 
 export interface PropertyBookingsResponse {
