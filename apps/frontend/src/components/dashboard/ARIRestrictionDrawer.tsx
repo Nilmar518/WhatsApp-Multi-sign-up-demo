@@ -35,6 +35,7 @@ interface ARIRestrictionDrawerProps {
   dateFrom: string;
   dateTo: string;
   initialPropertyId: string | null;
+  initialRoomTypeId?: string;
   properties: ChannexProperty[];
 }
 
@@ -45,6 +46,7 @@ export default function ARIRestrictionDrawer({
   dateFrom,
   dateTo,
   initialPropertyId,
+  initialRoomTypeId,
   properties,
 }: ARIRestrictionDrawerProps) {
   const [drawerPropertyId, setDrawerPropertyId] = useState(initialPropertyId ?? '');
@@ -132,15 +134,16 @@ export default function ARIRestrictionDrawer({
       .then((data) => {
         const safe = Array.isArray(data) ? data : [];
         setRoomTypes(safe);
-        const first = safe.find((rt) => rt.rate_plans.length > 0);
-        if (first) {
-          setSelectedRoomTypeId(first.room_type_id);
-          setSelectedRatePlanId(first.rate_plans[0].rate_plan_id);
+        const targetId = initialRoomTypeId ?? safe.find((rt) => rt.rate_plans.length > 0)?.room_type_id;
+        const targetRoom = safe.find((rt) => rt.room_type_id === targetId);
+        if (targetRoom) {
+          setSelectedRoomTypeId(targetRoom.room_type_id);
+          setSelectedRatePlanId(targetRoom.rate_plans[0]?.rate_plan_id ?? '');
         }
       })
       .catch(() => {})
       .finally(() => setLoadingRooms(false));
-  }, [drawerPropertyId]);
+  }, [drawerPropertyId, initialRoomTypeId]);
 
   const ratePlansForRoom = useMemo(
     () => roomTypes.find((rt) => rt.room_type_id === selectedRoomTypeId)?.rate_plans ?? [],
@@ -362,7 +365,8 @@ export default function ARIRestrictionDrawer({
             <select
               value={drawerPropertyId}
               onChange={(e) => setDrawerPropertyId(e.target.value)}
-              className="w-full rounded-lg border border-edge bg-surface px-3 py-2 text-[13px] text-content focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50"
+              disabled={!!initialPropertyId}
+              className="w-full rounded-lg border border-edge bg-surface px-3 py-2 text-[13px] text-content focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 disabled:opacity-50"
             >
               <option value="">Seleccioná una propiedad</option>
               {properties.map((p) => (
@@ -380,7 +384,7 @@ export default function ARIRestrictionDrawer({
             </label>
             <select
               value={selectedRoomTypeId}
-              disabled={!drawerPropertyId || loadingRooms}
+              disabled={!drawerPropertyId || loadingRooms || !!initialRoomTypeId}
               onChange={(e) => {
                 setSelectedRoomTypeId(e.target.value);
                 const room = roomTypes.find((rt) => rt.room_type_id === e.target.value);

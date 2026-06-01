@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { Hotel } from 'lucide-react';
 import { db } from '../../firebase/firebase';
-import type { Reservation, ARIMonthSnapshot } from '../../channex/api/channexHubApi';
+import type { Reservation, ARIMonthSnapshot, StoredRoomType } from '../../channex/api/channexHubApi';
+import { listRoomTypes } from '../../channex/api/channexHubApi';
 import { useChannexProperties } from '../../channex/hooks/useChannexProperties';
 import { useAllPropertyThreads } from '../../channex/hooks/useChannexThreads';
 import DashboardCalendar from './DashboardCalendar';
@@ -10,6 +11,7 @@ import ReservationCard from './ReservationCard';
 import NoConversationModal from './NoConversationModal';
 import ReservationDetailModal from '../../channex/components/shared/ReservationDetailModal';
 import ARIRestrictionDrawer from './ARIRestrictionDrawer';
+import RoomCalendarSection from './RoomCalendarSection';
 
 interface NewDashboardViewProps {
   businessId: string;
@@ -37,6 +39,16 @@ function mapFirestoreBooking(docId: string, data: Record<string, unknown>): Rese
   };
 }
 
+function computeSSdates(snapshot: ARIMonthSnapshot, ratePlanIds: Set<string>): Set<string> {
+  const ss = new Set<string>();
+  for (const [date, day] of Object.entries(snapshot)) {
+    for (const [rpId, rp] of Object.entries(day.ratePlans ?? {})) {
+      if ((ratePlanIds.size === 0 || ratePlanIds.has(rpId)) && rp.stopSell) ss.add(date);
+    }
+  }
+  return ss;
+}
+
 export default function NewDashboardView({ businessId }: NewDashboardViewProps) {
   const [selectedDate, setSelectedDate] = useState<string>(isoToday);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
@@ -50,7 +62,8 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [stopSellDates, setStopSellDates] = useState<Set<string>>(new Set());
+  const [roomTypes, setRoomTypes] = useState<StoredRoomType[]>([]);
+  const [ariSnapshot, setAriSnapshot] = useState<ARIMonthSnapshot>({});
 
   const { properties } = useChannexProperties(businessId);
 
@@ -74,20 +87,19 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
   }, [businessId]);
 
   useEffect(() => {
-    if (!selectedPropertyId || !businessId) {
-      setStopSellDates(new Set());
-      return;
-    }
-    const ref = doc(db, 'channex_integrations', businessId, 'properties', selectedPropertyId, 'ari_snapshots', calendarMonthKey);
-    const unsub = onSnapshot(ref, (snap) => {
-      if (!snap.exists()) { setStopSellDates(new Set()); return; }
-      const data = snap.data() as ARIMonthSnapshot;
-      const ss = new Set<string>();
-      for (const [date, day] of Object.entries(data)) {
-        if (Object.values(day.ratePlans ?? {}).some((rp) => rp.stopSell)) ss.add(date);
-      }
-      setStopSellDates(ss);
-    }, () => setStopSellDates(new Set()));
+    if (!selectedPropertyId) { setRoomTypes([]); return; }
+    listRoomTypes(selectedPropertyId)
+      .then(data => setRoomTypes(Array.isArray(data) ? data : []))
+      .catch(() => setRoomTypes([]));
+  }, [selectedPropertyId]);
+
+  useEffect(() => {
+    if (!selectedPropertyId || !businessId) { setAriSnapshot({}); return; }
+    const ref = doc(db, 'channex_integrations', businessId, 'properties',
+      selectedPropertyId, 'ari_snapshots', calendarMonthKey);
+    const unsub = onSnapshot(ref, snap => {
+      setAriSnapshot(snap.exists() ? (snap.data() as ARIMonthSnapshot) : {});
+    }, () => setAriSnapshot({}));
     return () => unsub();
   }, [selectedPropertyId, businessId, calendarMonthKey]);
 
@@ -99,9 +111,33 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
     [allBookings, selectedPropertyId],
   );
 
+  const showPerRoom = !!selectedPropertyId && roomTypes.length > 1;
+
+  const mainCalendarBookings = useMemo(() =>
+    showPerRoom && roomTypes[0]
+      ? filteredBookings.filter(b => b.room_type_id === roomTypes[0].room_type_id)
+      : filteredBookings,
+    [filteredBookings, showPerRoom, roomTypes]);
+
+  const allSSdates = useMemo(() => computeSSdates(ariSnapshot, new Set()), [ariSnapshot]);
+
+  const room1SSdates = useMemo(() => {
+    if (!showPerRoom || !roomTypes[0]) return allSSdates;
+    const ids = new Set(roomTypes[0].rate_plans.map(rp => rp.rate_plan_id));
+    return computeSSdates(ariSnapshot, ids);
+  }, [ariSnapshot, roomTypes, showPerRoom, allSSdates]);
+
+  const mainSSdates = showPerRoom ? room1SSdates : allSSdates;
+
+  const unmappedBookings = useMemo(() => {
+    if (!showPerRoom) return [];
+    const known = new Set(roomTypes.map(rt => rt.room_type_id));
+    return filteredBookings.filter(b => !b.room_type_id || !known.has(b.room_type_id));
+  }, [filteredBookings, roomTypes, showPerRoom]);
+
   const selectedDateBookings = useMemo(
-    () => filteredBookings.filter((r) => r.check_in <= selectedDate && r.check_out >= selectedDate),
-    [filteredBookings, selectedDate],
+    () => mainCalendarBookings.filter((r) => r.check_in <= selectedDate && r.check_out >= selectedDate),
+    [mainCalendarBookings, selectedDate],
   );
 
   const sortedBookings = useMemo(
@@ -142,14 +178,24 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
 
   return (
     <div className="flex flex-col gap-4 p-4 pb-6 max-w-4xl mx-auto w-full">
+      {showPerRoom && roomTypes[0] && (
+        <div className="flex items-center gap-3 px-1">
+          <span className="h-px flex-1 bg-edge" />
+          <span className="text-[11px] font-bold uppercase tracking-widest text-content-3">
+            {roomTypes[0].title}
+          </span>
+          <span className="h-px flex-1 bg-edge" />
+        </div>
+      )}
+
       <DashboardCalendar
-        bookings={filteredBookings}
+        bookings={mainCalendarBookings}
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
         mode={calendarMode}
         onModeChange={handleModeChange}
         onRangeComplete={handleRangeComplete}
-        stopSellDates={stopSellDates}
+        stopSellDates={mainSSdates}
         onViewMonthChange={handleViewMonthChange}
       />
 
@@ -213,6 +259,65 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
         )}
       </div>
 
+      {/* Per-room calendars (2, 3, ..., N) */}
+      {showPerRoom && roomTypes.slice(1).map(rt => (
+        <RoomCalendarSection
+          key={rt.room_type_id}
+          roomType={rt}
+          bookings={filteredBookings.filter(b => b.room_type_id === rt.room_type_id)}
+          tenantId={businessId}
+          propertyId={selectedPropertyId}
+          propertyTitle={properties.find(p => p.channex_property_id === selectedPropertyId)?.title ?? ''}
+          properties={properties}
+          threads={threads}
+          onViewDetail={setDetailReservation}
+          onNoThread={setNoConvReservation}
+        />
+      ))}
+
+      {/* Bookings without a mapped room */}
+      {showPerRoom && unmappedBookings.length > 0 && (() => {
+        const propTitle = properties.find(p => p.channex_property_id === selectedPropertyId)?.title ?? '';
+        const unmappedForDate = unmappedBookings.filter(
+          r => r.check_in <= selectedDate && r.check_out >= selectedDate
+        );
+        return (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-3 px-1">
+                <span className="h-px flex-1 bg-caution/40" />
+                <span className="text-[11px] font-bold uppercase tracking-widest text-caution-text">
+                  Sin habitacion mapeada
+                </span>
+                <span className="h-px flex-1 bg-caution/40" />
+              </div>
+              <p className="text-center text-[11px] text-content-3 px-2">
+                Reservas sin habitacion especifica para <strong>{propTitle}</strong>.
+                Por favor revisa cada reserva para asignar la habitacion correspondiente.
+              </p>
+            </div>
+            {unmappedForDate.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {unmappedForDate.map(r => (
+                  <ReservationCard
+                    key={r.id ?? r.channex_booking_id ?? r.reservation_id}
+                    reservation={r}
+                    selectedDate={selectedDate}
+                    threads={threads}
+                    onViewDetail={setDetailReservation}
+                    onNoThread={setNoConvReservation}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-[11px] text-content-3 py-4">
+                Sin reservas sin mapear para este dia
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       {detailReservation && (
         <ReservationDetailModal
           reservation={detailReservation}
@@ -243,6 +348,7 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
           dateFrom={restrictionRange.from}
           dateTo={restrictionRange.to}
           initialPropertyId={selectedPropertyId || null}
+          initialRoomTypeId={showPerRoom ? roomTypes[0]?.room_type_id : undefined}
           properties={properties}
         />
       )}
