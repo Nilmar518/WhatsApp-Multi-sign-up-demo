@@ -91,37 +91,39 @@ export default function ReservationDetailModal({
   const [syncResult, setSyncResult] = useState<{ ok: boolean; rooms?: number } | null>(null);
   const [localReservation, setLocalReservation] = useState<Reservation | null>(null);
 
-  // Use localReservation (post-sync) if available, else fall back to the prop
-  const r = localReservation ?? reservation;
-
+  // handleSync uses localReservation/reservation directly — not r — so it can
+  // live before the early-return guard without causing TypeScript narrowing issues.
   const handleSync = useCallback(async () => {
-    if (!r?.channex_booking_id || !r?.channex_property_id) return;
+    const current = localReservation ?? reservation;
+    if (!current?.channex_booking_id || !current?.channex_property_id) return;
     setSyncing(true);
     setSyncResult(null);
     try {
-      await syncBookingFromChannex(r.channex_property_id, r.channex_booking_id, tenantId);
-      // Re-fetch the reservation from Firestore to show updated fields in the modal
-      const refreshed = await getBookingById(r.channex_property_id, r.channex_booking_id, tenantId);
+      await syncBookingFromChannex(current.channex_property_id, current.channex_booking_id, tenantId);
+      const refreshed = await getBookingById(current.channex_property_id, current.channex_booking_id, tenantId);
       setLocalReservation(refreshed.reservation);
-      const rooms = refreshed.reservation.rooms_detail?.length ?? 0;
-      setSyncResult({ ok: true, rooms });
+      setSyncResult({ ok: true, rooms: refreshed.reservation.rooms_detail?.length ?? 0 });
     } catch (err) {
       console.error('[BOOKING-SYNC] Error:', err);
       setSyncResult({ ok: false });
     } finally {
       setSyncing(false);
     }
-  }, [r, tenantId]);
+  }, [localReservation, reservation, tenantId]);
+
   useEffect(() => {
-    if (!r) return;
+    if (!reservation) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && !showNoShowConfirm) onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [r, onClose, showNoShowConfirm]);
+  }, [reservation, onClose, showNoShowConfirm]);
 
-  if (!reservation) return null; // visibility controlled by parent prop, not localReservation
+  // Visibility is controlled by the parent prop.
+  // r is declared AFTER the guard so TypeScript can narrow it to Reservation.
+  if (!reservation) return null;
+  const r: Reservation = localReservation ?? reservation;
 
   const guestName =
     [r.guest_first_name, r.guest_last_name].filter(Boolean).join(' ') ||
