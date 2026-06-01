@@ -38,7 +38,7 @@ function isoDate(year: number, month: number, day: number): string {
 function getDotsForDay(dateStr: string, bookings: Reservation[]): DotType[] {
   const types = new Set<DotType>();
   for (const b of bookings) {
-    if (b.booking_status === 'cancelled' && dateStr >= b.check_in && dateStr <= b.check_out) {
+    if (b.booking_status === 'booking_cancellation' && dateStr >= b.check_in && dateStr <= b.check_out) {
       types.add('cancelled');
     } else if (b.check_in === dateStr) {
       types.add('checkin');

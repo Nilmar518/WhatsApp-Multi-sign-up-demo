@@ -21,7 +21,7 @@ const STATUS_CONFIG: Record<CardStatus, { label: string; dot: string; badge: str
 };
 
 function getCardStatus(reservation: Reservation, selectedDate: string): CardStatus {
-  if (reservation.booking_status === 'cancelled') return 'cancelled';
+  if (reservation.booking_status === 'booking_cancellation') return 'cancelled';
   if (reservation.check_in === selectedDate) return 'checkin';
   if (reservation.check_out === selectedDate) return 'checkout';
   return 'inprogress';

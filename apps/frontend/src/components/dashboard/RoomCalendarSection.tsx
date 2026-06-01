@@ -7,7 +7,7 @@ import type { ChannexThread } from '../../channex/hooks/useChannexThreads';
 import DashboardCalendar from './DashboardCalendar';
 import ReservationCard from './ReservationCard';
 import ARIRestrictionDrawer from './ARIRestrictionDrawer';
-import { Hotel } from 'lucide-react';
+import { ChevronDown, Hotel } from 'lucide-react';
 
 type CardStatus = 'checkin' | 'inprogress' | 'checkout' | 'cancelled';
 const STATUS_ORDER: Record<CardStatus, number> = { checkin: 0, inprogress: 1, checkout: 2, cancelled: 3 };
@@ -17,7 +17,7 @@ function isoToday(): string {
 }
 
 function getCardStatus(r: Reservation, date: string): CardStatus {
-  if (r.booking_status === 'cancelled') return 'cancelled';
+  if (r.booking_status === 'booking_cancellation') return 'cancelled';
   if (r.check_in === date) return 'checkin';
   if (r.check_out === date) return 'checkout';
   return 'inprogress';
@@ -48,6 +48,7 @@ export default function RoomCalendarSection({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [snapshot, setSnapshot] = useState<ARIMonthSnapshot>({});
+  const [bookingsOpen, setBookingsOpen] = useState(true);
 
   // Firestore subscription to ARI snapshot
   useEffect(() => {
@@ -127,35 +128,49 @@ export default function RoomCalendarSection({
 
       {/* Reservation cards */}
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setBookingsOpen((o) => !o)}
+          className="flex items-center justify-between w-full text-left"
+        >
           <h3 className="text-[13px] font-bold text-content capitalize">{selectedDateLabel}</h3>
-          {sortedBookings.length > 0 && (
-            <span className="text-[11px] text-content-3 font-medium">
-              {sortedBookings.length} {sortedBookings.length === 1 ? 'reserva' : 'reservas'}
-            </span>
-          )}
-        </div>
+          <div className="flex items-center gap-2">
+            {sortedBookings.length > 0 && (
+              <span className="text-[11px] text-content-3 font-medium">
+                {sortedBookings.length} {sortedBookings.length === 1 ? 'reserva' : 'reservas'}
+              </span>
+            )}
+            <ChevronDown
+              size={14}
+              className={`text-content-3 transition-transform duration-200 ${bookingsOpen ? '' : '-rotate-90'}`}
+            />
+          </div>
+        </button>
 
-        {sortedBookings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-10 h-10 rounded-xl bg-surface-subtle flex items-center justify-center mb-2">
-              <Hotel size={16} className="text-content-3" />
-            </div>
-            <p className="text-[12px] font-semibold text-content-2">Sin reservas este día</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {sortedBookings.map(r => (
-              <ReservationCard
-                key={r.id ?? r.channex_booking_id ?? r.reservation_id}
-                reservation={r}
-                selectedDate={selectedDate}
-                threads={threads}
-                onViewDetail={onViewDetail}
-                onNoThread={onNoThread}
-              />
-            ))}
-          </div>
+        {bookingsOpen && (
+          <>
+            {sortedBookings.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="w-10 h-10 rounded-xl bg-surface-subtle flex items-center justify-center mb-2">
+                  <Hotel size={16} className="text-content-3" />
+                </div>
+                <p className="text-[12px] font-semibold text-content-2">Sin reservas este día</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {sortedBookings.map(r => (
+                  <ReservationCard
+                    key={r.id ?? r.channex_booking_id ?? r.reservation_id}
+                    reservation={r}
+                    selectedDate={selectedDate}
+                    threads={threads}
+                    onViewDetail={onViewDetail}
+                    onNoThread={onNoThread}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

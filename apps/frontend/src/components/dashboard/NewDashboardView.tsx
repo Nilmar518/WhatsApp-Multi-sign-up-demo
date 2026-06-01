@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
-import { Hotel } from 'lucide-react';
+import { ChevronDown, Hotel } from 'lucide-react';
 import { db } from '../../firebase/firebase';
 import type { Reservation, ARIMonthSnapshot, StoredRoomType } from '../../channex/api/channexHubApi';
 import { listRoomTypes } from '../../channex/api/channexHubApi';
@@ -25,7 +25,7 @@ function isoToday(): string {
 }
 
 function getCardStatus(reservation: Reservation, selectedDate: string): CardStatus {
-  if (reservation.booking_status === 'cancelled') return 'cancelled';
+  if (reservation.booking_status === 'booking_cancellation') return 'cancelled';
   if (reservation.check_in === selectedDate) return 'checkin';
   if (reservation.check_out === selectedDate) return 'checkout';
   return 'inprogress';
@@ -64,6 +64,9 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
   });
   const [roomTypes, setRoomTypes] = useState<StoredRoomType[]>([]);
   const [ariSnapshot, setAriSnapshot] = useState<ARIMonthSnapshot>({});
+  const [loadingProperty, setLoadingProperty] = useState(false);
+  const [bookingsOpen, setBookingsOpen] = useState(true);
+  const [propertyAccordions, setPropertyAccordions] = useState<Record<string, boolean>>({});
 
   const { properties } = useChannexProperties(businessId);
 
@@ -88,9 +91,11 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
 
   useEffect(() => {
     if (!selectedPropertyId) { setRoomTypes([]); return; }
+    setLoadingProperty(true);
     listRoomTypes(selectedPropertyId)
       .then(data => setRoomTypes(Array.isArray(data) ? data : []))
-      .catch(() => setRoomTypes([]));
+      .catch(() => setRoomTypes([]))
+      .finally(() => setLoadingProperty(false));
   }, [selectedPropertyId]);
 
   useEffect(() => {
@@ -159,6 +164,26 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
     });
   }, [selectedDate]);
 
+  const propertySections = useMemo(() => {
+    if (selectedPropertyId) return [];
+    return properties
+      .map(prop => {
+        const forDate = allBookings.filter(
+          b =>
+            b.channex_property_id === prop.channex_property_id &&
+            b.check_in <= selectedDate &&
+            b.check_out >= selectedDate,
+        );
+        const sorted = [...forDate].sort(
+          (a, b) =>
+            STATUS_ORDER[getCardStatus(a, selectedDate)] -
+            STATUS_ORDER[getCardStatus(b, selectedDate)],
+        );
+        return { property: prop, bookings: sorted };
+      })
+      .filter(s => s.bookings.length > 0);
+  }, [selectedPropertyId, properties, allBookings, selectedDate]);
+
   function handleRangeComplete(from: string, to: string) {
     setRestrictionRange({ from, to });
     setShowARIDrawer(true);
@@ -225,39 +250,111 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[13px] font-bold text-content capitalize">{selectedDateLabel}</h3>
-          {sortedBookings.length > 0 && (
-            <span className="text-[11px] text-content-3 font-medium">
-              {sortedBookings.length} {sortedBookings.length === 1 ? 'reserva' : 'reservas'}
-            </span>
+      {selectedPropertyId ? (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setBookingsOpen((o) => !o)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <h3 className="text-[13px] font-bold text-content capitalize">{selectedDateLabel}</h3>
+            <div className="flex items-center gap-2">
+              {sortedBookings.length > 0 && (
+                <span className="text-[11px] text-content-3 font-medium">
+                  {sortedBookings.length} {sortedBookings.length === 1 ? 'reserva' : 'reservas'}
+                </span>
+              )}
+              <ChevronDown
+                size={14}
+                className={`text-content-3 transition-transform duration-200 ${bookingsOpen ? '' : '-rotate-90'}`}
+              />
+            </div>
+          </button>
+
+          {bookingsOpen && (
+            <>
+              {sortedBookings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-surface-subtle flex items-center justify-center mb-3">
+                    <Hotel size={20} className="text-content-3" />
+                  </div>
+                  <p className="text-[13px] font-semibold text-content-2">Sin reservas este día</p>
+                  <p className="text-[12px] text-content-3 mt-1">Selecciona otra fecha en el calendario</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {sortedBookings.map((r) => (
+                    <ReservationCard
+                      key={r.id ?? r.channex_booking_id ?? r.reservation_id}
+                      reservation={r}
+                      selectedDate={selectedDate}
+                      threads={threads}
+                      onViewDetail={setDetailReservation}
+                      onNoThread={setNoConvReservation}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
-
-        {sortedBookings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="w-12 h-12 rounded-xl bg-surface-subtle flex items-center justify-center mb-3">
-              <Hotel size={20} className="text-content-3" />
+      ) : (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[13px] font-bold text-content capitalize">{selectedDateLabel}</h3>
+          {propertySections.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="w-12 h-12 rounded-xl bg-surface-subtle flex items-center justify-center mb-3">
+                <Hotel size={20} className="text-content-3" />
+              </div>
+              <p className="text-[13px] font-semibold text-content-2">Sin reservas este día</p>
+              <p className="text-[12px] text-content-3 mt-1">Selecciona otra fecha en el calendario</p>
             </div>
-            <p className="text-[13px] font-semibold text-content-2">Sin reservas este día</p>
-            <p className="text-[12px] text-content-3 mt-1">Selecciona otra fecha en el calendario</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {sortedBookings.map((r) => (
-              <ReservationCard
-                key={r.id ?? r.channex_booking_id ?? r.reservation_id}
-                reservation={r}
-                selectedDate={selectedDate}
-                threads={threads}
-                onViewDetail={setDetailReservation}
-                onNoThread={setNoConvReservation}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {propertySections.map(({ property, bookings }) => {
+                const pid = property.channex_property_id;
+                const open = propertyAccordions[pid] !== false;
+                return (
+                  <div key={pid} className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPropertyAccordions(prev => ({ ...prev, [pid]: !open }))}
+                      className="flex items-center gap-2 w-full"
+                    >
+                      <span className="h-px flex-1 bg-edge" />
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-content-3 shrink-0">
+                        {property.title}
+                      </span>
+                      <span className="text-[11px] text-content-3 font-medium shrink-0">
+                        · {bookings.length} {bookings.length === 1 ? 'reserva' : 'reservas'}
+                      </span>
+                      <ChevronDown
+                        size={12}
+                        className={`text-content-3 transition-transform duration-200 shrink-0 ${open ? '' : '-rotate-90'}`}
+                      />
+                      <span className="h-px flex-1 bg-edge" />
+                    </button>
+                    {open && (
+                      <div className="flex flex-col gap-3">
+                        {bookings.map(r => (
+                          <ReservationCard
+                            key={r.id ?? r.channex_booking_id ?? r.reservation_id}
+                            reservation={r}
+                            selectedDate={selectedDate}
+                            threads={threads}
+                            onViewDetail={setDetailReservation}
+                            onNoThread={setNoConvReservation}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Per-room calendars (2, 3, ..., N) */}
       {showPerRoom && roomTypes.slice(1).map(rt => (
@@ -317,6 +414,15 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
           </div>
         );
       })()}
+
+      {loadingProperty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/20">
+          <div className="flex flex-col items-center gap-3 bg-surface-raised border border-edge rounded-2xl px-6 py-5 shadow-lg">
+            <div className="w-7 h-7 rounded-full border-2 border-brand/30 border-t-brand animate-spin" />
+            <p className="text-[12px] font-semibold text-content-2">Cargando propiedad...</p>
+          </div>
+        </div>
+      )}
 
       {detailReservation && (
         <ReservationDetailModal
