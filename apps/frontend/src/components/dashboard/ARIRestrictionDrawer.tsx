@@ -78,9 +78,14 @@ export default function ARIRestrictionDrawer({
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!open) return;
+    setDragOffset(0);
     const id = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, [open]);
+
+  useEffect(() => {
     return () => {
-      cancelAnimationFrame(id);
       if (closeTimer.current) clearTimeout(closeTimer.current);
     };
   }, []);
@@ -153,6 +158,15 @@ export default function ARIRestrictionDrawer({
   const allRatePlans = useMemo(
     () => roomTypes.flatMap((rt) => rt.rate_plans),
     [roomTypes],
+  );
+
+  const prefilledPropertyTitle = useMemo(
+    () => initialPropertyId ? properties.find(p => p.channex_property_id === initialPropertyId)?.title ?? null : null,
+    [initialPropertyId, properties],
+  );
+  const prefilledRoomTitle = useMemo(
+    () => initialRoomTypeId ? roomTypes.find(rt => rt.room_type_id === initialRoomTypeId)?.title ?? null : null,
+    [initialRoomTypeId, roomTypes],
   );
 
   const dateMonthKey = dateFrom.slice(0, 7);
@@ -357,6 +371,21 @@ export default function ARIRestrictionDrawer({
             </div>
           )}
 
+          {/* Pre-filled banner */}
+          {(initialPropertyId || initialRoomTypeId) && (
+            <div className="flex items-start gap-2 rounded-lg bg-brand/10 px-3 py-2.5">
+              <Calendar size={12} className="mt-0.5 shrink-0 text-brand" />
+              <div>
+                <p className="text-[11px] font-semibold text-brand">Seleccionado desde el calendario</p>
+                {(prefilledPropertyTitle || prefilledRoomTitle) && (
+                  <p className="mt-0.5 text-[11px] text-brand/80">
+                    {[prefilledPropertyTitle, prefilledRoomTitle].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Property selector */}
           <div>
             <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-content-2">
@@ -365,7 +394,6 @@ export default function ARIRestrictionDrawer({
             <select
               value={drawerPropertyId}
               onChange={(e) => setDrawerPropertyId(e.target.value)}
-              disabled={!!initialPropertyId}
               className="w-full rounded-lg border border-edge bg-surface px-3 py-2 text-[13px] text-content focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 disabled:opacity-50"
             >
               <option value="">Seleccioná una propiedad</option>
@@ -384,7 +412,7 @@ export default function ARIRestrictionDrawer({
             </label>
             <select
               value={selectedRoomTypeId}
-              disabled={!drawerPropertyId || loadingRooms || !!initialRoomTypeId}
+              disabled={!drawerPropertyId || loadingRooms}
               onChange={(e) => {
                 setSelectedRoomTypeId(e.target.value);
                 const room = roomTypes.find((rt) => rt.room_type_id === e.target.value);

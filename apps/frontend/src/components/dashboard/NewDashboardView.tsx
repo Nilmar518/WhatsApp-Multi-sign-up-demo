@@ -56,8 +56,10 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
   const [detailReservation, setDetailReservation] = useState<Reservation | null>(null);
   const [noConvReservation, setNoConvReservation] = useState<Reservation | null>(null);
   const [calendarMode, setCalendarMode] = useState<'view' | 'edit'>('view');
-  const [restrictionRange, setRestrictionRange] = useState<{ from: string; to: string } | null>(null);
-  const [showARIDrawer, setShowARIDrawer] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerDateFrom, setDrawerDateFrom] = useState('');
+  const [drawerDateTo, setDrawerDateTo] = useState('');
+  const [drawerRoomTypeId, setDrawerRoomTypeId] = useState<string | undefined>(undefined);
   const [calendarMonthKey, setCalendarMonthKey] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -184,17 +186,20 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
       .filter(s => s.bookings.length > 0);
   }, [selectedPropertyId, properties, allBookings, selectedDate]);
 
+  function handleOpenRestrictions(from: string, to: string, roomTypeId?: string) {
+    setDrawerDateFrom(from);
+    setDrawerDateTo(to);
+    setDrawerRoomTypeId(roomTypeId);
+    setDrawerOpen(true);
+  }
+
   function handleRangeComplete(from: string, to: string) {
-    setRestrictionRange({ from, to });
-    setShowARIDrawer(true);
+    handleOpenRestrictions(from, to, showPerRoom ? roomTypes[0]?.room_type_id : undefined);
   }
 
   function handleModeChange(mode: 'view' | 'edit') {
     setCalendarMode(mode);
-    if (mode === 'view') {
-      setShowARIDrawer(false);
-      setRestrictionRange(null);
-    }
+    if (mode === 'view') setDrawerOpen(false);
   }
 
   function handleViewMonthChange(monthKey: string) {
@@ -365,10 +370,11 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
           tenantId={businessId}
           propertyId={selectedPropertyId}
           propertyTitle={properties.find(p => p.channex_property_id === selectedPropertyId)?.title ?? ''}
-          properties={properties}
           threads={threads}
           onViewDetail={setDetailReservation}
           onNoThread={setNoConvReservation}
+          onOpenRestrictions={(from, to) => handleOpenRestrictions(from, to, rt.room_type_id)}
+          onCloseRestrictions={() => setDrawerOpen(false)}
         />
       ))}
 
@@ -446,15 +452,15 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
         />
       )}
 
-      {showARIDrawer && restrictionRange && (
+      {drawerDateFrom && (
         <ARIRestrictionDrawer
-          open={showARIDrawer}
-          onClose={() => setShowARIDrawer(false)}
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
           tenantId={businessId}
-          dateFrom={restrictionRange.from}
-          dateTo={restrictionRange.to}
+          dateFrom={drawerDateFrom}
+          dateTo={drawerDateTo}
           initialPropertyId={selectedPropertyId || null}
-          initialRoomTypeId={showPerRoom ? roomTypes[0]?.room_type_id : undefined}
+          initialRoomTypeId={drawerRoomTypeId}
           properties={properties}
         />
       )}

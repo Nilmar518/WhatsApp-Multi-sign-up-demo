@@ -2,11 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/firebase';
 import type { Reservation, ARIMonthSnapshot, StoredRoomType } from '../../channex/api/channexHubApi';
-import type { ChannexProperty } from '../../channex/hooks/useChannexProperties';
 import type { ChannexThread } from '../../channex/hooks/useChannexThreads';
 import DashboardCalendar from './DashboardCalendar';
 import ReservationCard from './ReservationCard';
-import ARIRestrictionDrawer from './ARIRestrictionDrawer';
 import { ChevronDown, Hotel } from 'lucide-react';
 
 type CardStatus = 'checkin' | 'inprogress' | 'checkout' | 'cancelled';
@@ -29,20 +27,20 @@ interface RoomCalendarSectionProps {
   tenantId: string;
   propertyId: string;
   propertyTitle: string;
-  properties: ChannexProperty[];
   threads: ChannexThread[];
   onViewDetail: (r: Reservation) => void;
   onNoThread: (r: Reservation) => void;
+  onOpenRestrictions: (from: string, to: string) => void;
+  onCloseRestrictions: () => void;
 }
 
 export default function RoomCalendarSection({
   roomType, bookings, tenantId, propertyId,
-  properties, threads, onViewDetail, onNoThread,
+  threads, onViewDetail, onNoThread,
+  onOpenRestrictions, onCloseRestrictions,
 }: RoomCalendarSectionProps) {
   const [selectedDate, setSelectedDate] = useState<string>(isoToday);
   const [calendarMode, setCalendarMode] = useState<'view' | 'edit'>('view');
-  const [restrictionRange, setRestrictionRange] = useState<{ from: string; to: string } | null>(null);
-  const [showARIDrawer, setShowARIDrawer] = useState(false);
   const [monthKey, setMonthKey] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -91,12 +89,11 @@ export default function RoomCalendarSection({
 
   function handleModeChange(mode: 'view' | 'edit') {
     setCalendarMode(mode);
-    if (mode === 'view') { setShowARIDrawer(false); setRestrictionRange(null); }
+    if (mode === 'view') onCloseRestrictions();
   }
 
   function handleRangeComplete(from: string, to: string) {
-    setRestrictionRange({ from, to });
-    setShowARIDrawer(true);
+    onOpenRestrictions(from, to);
   }
 
   function handleViewMonthChange(key: string) {
@@ -174,19 +171,6 @@ export default function RoomCalendarSection({
         )}
       </div>
 
-      {/* ARI Restriction Drawer for this room */}
-      {showARIDrawer && restrictionRange && (
-        <ARIRestrictionDrawer
-          open={showARIDrawer}
-          onClose={() => setShowARIDrawer(false)}
-          tenantId={tenantId}
-          dateFrom={restrictionRange.from}
-          dateTo={restrictionRange.to}
-          initialPropertyId={propertyId}
-          initialRoomTypeId={roomType.room_type_id}
-          properties={properties}
-        />
-      )}
     </div>
   );
 }
