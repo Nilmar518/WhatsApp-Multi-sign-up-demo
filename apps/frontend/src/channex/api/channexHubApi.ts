@@ -298,6 +298,7 @@ export interface Reservation {
   is_genius?: boolean | null;
   rooms_detail?: Array<{
     room_type_id: string | null;
+    room_title?: string | null;
     rate_plan_id: string | null;
     amount: string | number | null;
     guests: Array<{ name: string; surname: string | null }>;

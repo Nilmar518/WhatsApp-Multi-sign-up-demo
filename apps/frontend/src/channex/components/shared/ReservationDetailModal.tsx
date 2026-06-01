@@ -121,7 +121,7 @@ export default function ReservationDetailModal({
     return () => document.removeEventListener('keydown', onKey);
   }, [r, onClose, showNoShowConfirm]);
 
-  if (!r) return null; // r = localReservation ?? reservation (resolved above)
+  if (!reservation) return null; // visibility controlled by parent prop, not localReservation
 
   const guestName =
     [r.guest_first_name, r.guest_last_name].filter(Boolean).join(' ') ||
@@ -210,8 +210,7 @@ export default function ReservationDetailModal({
                     <div className="flex items-center justify-between gap-2 py-1">
                       <span className="text-xs text-content-3 shrink-0">Habitación {i + 1}</span>
                       <span className="text-sm font-medium text-content">
-                        {room.room_type_code ? `#${room.room_type_code}` : '—'}
-                        {room.booking_com_room_index != null ? ` (${room.booking_com_room_index})` : ''}
+                        {room.room_title ?? (room.room_type_code ? `#${room.room_type_code}` : '—')}
                       </span>
                     </div>
                     {room.amount != null && (

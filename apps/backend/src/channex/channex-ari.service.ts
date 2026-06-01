@@ -619,6 +619,23 @@ export class ChannexARIService {
       ? (fullBooking.rooms as Array<Record<string, unknown>>)
       : [];
 
+    // Load room type titles from Firestore for the join
+    const propertyIdFromBooking = typeof fullBooking.property_id === 'string' ? fullBooking.property_id : null;
+    const roomTypeTitleMap = new Map<string, string>();
+    if (propertyIdFromBooking) {
+      const integration = await this.propertyService.resolveIntegration(propertyIdFromBooking);
+      if (integration) {
+        const propDoc = await this.firebase.getFirestore()
+          .collection(INTEGRATIONS_COLLECTION)
+          .doc(integration.firestoreDocId)
+          .collection('properties')
+          .doc(propertyIdFromBooking)
+          .get();
+        const storedRts: StoredRoomType[] = (propDoc.data()?.room_types as StoredRoomType[]) ?? [];
+        for (const rt of storedRts) roomTypeTitleMap.set(rt.room_type_id, rt.title);
+      }
+    }
+
     const enrichment: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
     if (typeof customer?.phone === 'string' && customer.phone) enrichment.customer_phone = customer.phone;
@@ -632,8 +649,10 @@ export class ChannexARIService {
     if (rooms.length > 0) {
       enrichment.rooms_detail = rooms.map((r) => {
         const rm = typeof r.meta === 'object' && r.meta !== null ? (r.meta as Record<string, unknown>) : null;
+        const rtId = typeof r.room_type_id === 'string' ? r.room_type_id : null;
         return {
-          room_type_id: typeof r.room_type_id === 'string' ? r.room_type_id : null,
+          room_type_id: rtId,
+          room_title: rtId ? (roomTypeTitleMap.get(rtId) ?? null) : null,
           rate_plan_id: typeof r.rate_plan_id === 'string' ? r.rate_plan_id : null,
           amount: r.amount ?? null,
           guests: Array.isArray(r.guests) ? r.guests : [],

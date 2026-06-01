@@ -94,6 +94,7 @@ export interface FirestoreReservationDoc {
   is_genius?: boolean | null;       // Booking.com Genius loyalty member
   rooms_detail?: Array<{           // full per-room breakdown from Channex
     room_type_id: string | null;
+    room_title?: string | null;       // Channex room type name (joined from StoredRoomType)
     rate_plan_id: string | null;
     amount: string | number | null;
     guests: Array<{ name: string; surname: string | null }>;
