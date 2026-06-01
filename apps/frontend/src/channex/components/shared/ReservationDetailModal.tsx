@@ -111,6 +111,12 @@ export default function ReservationDetailModal({
     }
   }, [localReservation, reservation, tenantId]);
 
+  // Reset local enriched data whenever the parent opens a different reservation
+  useEffect(() => {
+    setLocalReservation(null);
+    setSyncResult(null);
+  }, [reservation?.pms_booking_id]);
+
   useEffect(() => {
     if (!reservation) return;
     function onKey(e: KeyboardEvent) {
