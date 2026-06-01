@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { Reservation } from '../../api/channexHubApi';
-import { syncBookingFromChannex } from '../../api/channexHubApi';
+import { syncBookingFromChannex, getBookingById } from '../../api/channexHubApi';
 import NoShowConfirmModal from './NoShowConfirmModal';
 import { useLanguage } from '../../../context/LanguageContext';
 import DocumentsSection from '../../../documents/DocumentsSection';
@@ -78,7 +78,7 @@ export interface ReservationDetailModalProps {
 }
 
 export default function ReservationDetailModal({
-  reservation: r,
+  reservation,
   tenantId,
   propertyTitle,
   propertyChannelCode,
@@ -89,16 +89,21 @@ export default function ReservationDetailModal({
   const [showNoShowConfirm, setShowNoShowConfirm] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ ok: boolean; rooms?: number } | null>(null);
+  const [localReservation, setLocalReservation] = useState<Reservation | null>(null);
+
+  // Use localReservation (post-sync) if available, else fall back to the prop
+  const r = localReservation ?? reservation;
 
   const handleSync = useCallback(async () => {
     if (!r?.channex_booking_id || !r?.channex_property_id) return;
     setSyncing(true);
     setSyncResult(null);
     try {
-      const result = await syncBookingFromChannex(r.channex_property_id, r.channex_booking_id);
-      const rooms = Array.isArray(result.booking?.rooms) ? (result.booking!.rooms as unknown[]).length : 0;
-      console.log('[BOOKING-SYNC] Full Channex payload:', JSON.stringify(result.booking, null, 2));
-      console.log('[BOOKING-SYNC] Rooms array:', result.booking?.rooms);
+      await syncBookingFromChannex(r.channex_property_id, r.channex_booking_id, tenantId);
+      // Re-fetch the reservation from Firestore to show updated fields in the modal
+      const refreshed = await getBookingById(r.channex_property_id, r.channex_booking_id, tenantId);
+      setLocalReservation(refreshed.reservation);
+      const rooms = refreshed.reservation.rooms_detail?.length ?? 0;
       setSyncResult({ ok: true, rooms });
     } catch (err) {
       console.error('[BOOKING-SYNC] Error:', err);
@@ -106,7 +111,7 @@ export default function ReservationDetailModal({
     } finally {
       setSyncing(false);
     }
-  }, [r]);
+  }, [r, tenantId]);
   useEffect(() => {
     if (!r) return;
     function onKey(e: KeyboardEvent) {
@@ -116,7 +121,7 @@ export default function ReservationDetailModal({
     return () => document.removeEventListener('keydown', onKey);
   }, [r, onClose, showNoShowConfirm]);
 
-  if (!r) return null;
+  if (!r) return null; // r = localReservation ?? reservation (resolved above)
 
   const guestName =
     [r.guest_first_name, r.guest_last_name].filter(Boolean).join(' ') ||
@@ -328,7 +333,7 @@ export default function ReservationDetailModal({
               {syncResult && (
                 <span className={`text-xs ${syncResult.ok ? 'text-ok-text' : 'text-danger-text'}`}>
                   {syncResult.ok
-                    ? `✓ ${syncResult.rooms} habitación(es) — ver consola`
+                    ? `✓ ${syncResult.rooms} habitación(es) actualizadas`
                     : '✗ Error al sincronizar'}
                 </span>
               )}

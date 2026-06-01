@@ -464,11 +464,15 @@ export class ChannexARIController {
   async syncBookingFromChannex(
     @Param('propertyId') _propertyId: string,
     @Param('channexBookingId') channexBookingId: string,
+    @Body('tenantId') tenantId: string,
   ): Promise<{ booking: Record<string, unknown> | null }> {
     this.logger.log(
-      `[CTRL] POST /bookings/${channexBookingId}/sync`,
+      `[CTRL] POST /bookings/${channexBookingId}/sync — tenantId=${tenantId}`,
     );
-    const booking = await this.channexService.fetchBookingById(channexBookingId);
+    if (!tenantId) {
+      throw new BadRequestException('tenantId is required');
+    }
+    const booking = await this.ariService.enrichBookingFromChannex(channexBookingId, tenantId);
     return { booking };
   }
 }

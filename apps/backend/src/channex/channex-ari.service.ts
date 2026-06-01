@@ -595,6 +595,156 @@ export class ChannexARIService {
   // ─── Reservations ─────────────────────────────────────────────────────────
 
   /**
+   * Fetches full booking details from Channex and merges enriched fields into
+   * the existing Firestore reservation doc. Used by the manual Sync button and
+   * called automatically from ChannexBookingWorker after booking_new.
+   *
+   * Fields enriched: customer_phone, customer_email, customer_country,
+   * arrival_hour, is_genius, rooms_detail, room_type_id (backfill if null).
+   */
+  async enrichBookingFromChannex(
+    channexBookingId: string,
+    tenantId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const fullBooking = await this.channex.fetchBookingById(channexBookingId);
+    if (!fullBooking) return null;
+
+    const customer = typeof fullBooking.customer === 'object' && fullBooking.customer !== null
+      ? (fullBooking.customer as Record<string, unknown>)
+      : null;
+    const meta = typeof fullBooking.meta === 'object' && fullBooking.meta !== null
+      ? (fullBooking.meta as Record<string, unknown>)
+      : null;
+    const rooms = Array.isArray(fullBooking.rooms)
+      ? (fullBooking.rooms as Array<Record<string, unknown>>)
+      : [];
+
+    const enrichment: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+    if (typeof customer?.phone === 'string' && customer.phone) enrichment.customer_phone = customer.phone;
+    if (typeof customer?.mail === 'string' && customer.mail) enrichment.customer_email = customer.mail;
+    if (typeof customer?.country === 'string' && customer.country) enrichment.customer_country = customer.country;
+    if (typeof fullBooking.arrival_hour === 'string') enrichment.arrival_hour = fullBooking.arrival_hour;
+    if (typeof (meta as Record<string, unknown> | null)?.is_genius === 'boolean') {
+      enrichment.is_genius = (meta as Record<string, unknown>).is_genius;
+    }
+
+    if (rooms.length > 0) {
+      enrichment.rooms_detail = rooms.map((r) => {
+        const rm = typeof r.meta === 'object' && r.meta !== null ? (r.meta as Record<string, unknown>) : null;
+        return {
+          room_type_id: typeof r.room_type_id === 'string' ? r.room_type_id : null,
+          rate_plan_id: typeof r.rate_plan_id === 'string' ? r.rate_plan_id : null,
+          amount: r.amount ?? null,
+          guests: Array.isArray(r.guests) ? r.guests : [],
+          room_type_code: typeof rm?.room_type_code === 'string' ? rm.room_type_code : null,
+          booking_com_room_index: typeof rm?.booking_com_room_index === 'number' ? rm.booking_com_room_index : null,
+          meal_plan: typeof rm?.meal_plan === 'string' ? rm.meal_plan : null,
+          smoking_preferences: typeof rm?.smoking_preferences === 'string' ? rm.smoking_preferences : null,
+        };
+      });
+      if (typeof rooms[0]?.room_type_id === 'string') {
+        enrichment.room_type_id = rooms[0].room_type_id;
+      }
+    }
+
+    const db = this.firebase.getFirestore();
+    const snap = await db
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(tenantId)
+      .collection('bookings')
+      .where('channex_booking_id', '==', channexBookingId)
+      .limit(1)
+      .get();
+
+    if (!snap.empty) {
+      await this.firebase.set(snap.docs[0].ref, enrichment, { merge: true });
+      this.logger.log(
+        `[ARI] ✓ Booking enriched — channexBookingId=${channexBookingId} ` +
+          `rooms=${rooms.length} phone=${enrichment.customer_phone ?? '-'}`,
+      );
+    }
+
+    // ── Update local ARI snapshot (our calendar) — does NOT push to Channex ──
+    // Recalculates availability per room type per night from Firestore bookings
+    // and writes to the ari_snapshots collection so the calendar reflects reality.
+    const bookingDoc = snap.empty ? null : (snap.docs[0].data() as { check_in?: string; check_out?: string; propertyId?: string });
+    const checkIn = bookingDoc?.check_in ?? (typeof fullBooking.arrival_date === 'string' ? fullBooking.arrival_date : null);
+    const checkOut = bookingDoc?.check_out ?? (typeof fullBooking.departure_date === 'string' ? fullBooking.departure_date : null);
+    const propertyId = bookingDoc?.propertyId ?? (typeof fullBooking.property_id === 'string' ? fullBooking.property_id : null);
+
+    const affectedRoomTypeIds = [
+      ...new Set(
+        rooms
+          .map((r) => (typeof r.room_type_id === 'string' ? r.room_type_id : null))
+          .filter((id): id is string => id !== null),
+      ),
+    ];
+
+    if (affectedRoomTypeIds.length > 0 && checkIn && checkOut && propertyId) {
+      const { expandDateRange } = await import('./utils/date-range');
+      const nights = expandDateRange(checkIn, checkOut);
+
+      if (nights.length > 0) {
+        const db2 = this.firebase.getFirestore();
+
+        const integration = await this.propertyService.resolveIntegration(propertyId);
+        if (integration) {
+          const propDoc = await db2
+            .collection(INTEGRATIONS_COLLECTION)
+            .doc(integration.firestoreDocId)
+            .collection('properties')
+            .doc(propertyId)
+            .get();
+          const roomTypes: StoredRoomType[] = (propDoc.data()?.room_types as StoredRoomType[]) ?? [];
+
+          const allActiveSnap = await db2
+            .collection(INTEGRATIONS_COLLECTION)
+            .doc(tenantId)
+            .collection('bookings')
+            .where('propertyId', '==', propertyId)
+            .get();
+
+          const activeBookings = allActiveSnap.docs
+            .map((d) => d.data() as { booking_status: string; check_in: string; check_out: string; room_type_id: string | null; count_of_rooms?: number })
+            .filter((b) => b.booking_status !== 'cancelled');
+
+          const snapshotEntries: AvailabilityEntryDto[] = [];
+          for (const rtId of affectedRoomTypeIds) {
+            const storedRt = roomTypes.find((rt) => rt.room_type_id === rtId);
+            const capacity = storedRt?.count_of_rooms ?? 1;
+            for (const night of nights) {
+              const taken = activeBookings
+                .filter((b) => b.room_type_id === rtId && b.check_in <= night && b.check_out > night)
+                .reduce((sum, b) => sum + (b.count_of_rooms ?? 1), 0);
+              snapshotEntries.push({
+                property_id: propertyId,
+                room_type_id: rtId,
+                date_from: night,
+                date_to: night,
+                availability: Math.max(0, capacity - taken),
+              });
+            }
+          }
+
+          if (snapshotEntries.length > 0) {
+            await this.snapshotService.saveFromAvailabilityEntries(
+              integration.firestoreDocId,
+              propertyId,
+              snapshotEntries,
+            );
+            this.logger.log(
+              `[ARI] ✓ Snapshot updated — ${snapshotEntries.length} entries for ${affectedRoomTypeIds.length} room type(s) (no Channex push)`,
+            );
+          }
+        }
+      }
+    }
+
+    return fullBooking;
+  }
+
+  /**
    * Returns bookings for a property plus the OTA channel code of that property.
    *
    * Channel code is resolved via:

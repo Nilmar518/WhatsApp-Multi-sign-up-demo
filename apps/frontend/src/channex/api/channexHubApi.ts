@@ -473,10 +473,11 @@ export async function checkConnectionHealth(
 export async function syncBookingFromChannex(
   propertyId: string,
   channexBookingId: string,
+  tenantId: string,
 ): Promise<{ booking: Record<string, unknown> | null }> {
   return apiFetch(
     `${BASE}/properties/${encodeURIComponent(propertyId)}/bookings/${encodeURIComponent(channexBookingId)}/sync`,
-    { method: 'POST' },
+    { method: 'POST', body: JSON.stringify({ tenantId }) },
   );
 }
 
