@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Reservation } from '../../channex/api/channexHubApi';
 
@@ -6,6 +6,11 @@ interface DashboardCalendarProps {
   bookings: Reservation[];
   selectedDate: string;
   onDateSelect: (date: string) => void;
+  mode?: 'view' | 'edit';
+  onModeChange?: (mode: 'view' | 'edit') => void;
+  onRangeComplete?: (from: string, to: string) => void;
+  stopSellDates?: Set<string>;
+  onViewMonthChange?: (monthKey: string) => void;
 }
 
 type DotType = 'checkin' | 'inprogress' | 'checkout' | 'cancelled';
@@ -50,8 +55,14 @@ export default function DashboardCalendar({
   bookings,
   selectedDate,
   onDateSelect,
+  mode = 'view',
+  onModeChange,
+  onRangeComplete,
+  stopSellDates,
+  onViewMonthChange,
 }: DashboardCalendarProps) {
   const today = new Date().toISOString().split('T')[0];
+  const [rangeStart, setRangeStart] = useState<string | null>(null);
   const [viewDate, setViewDate] = useState<Date>(() => {
     const d = new Date();
     return new Date(Date.UTC(d.getFullYear(), d.getMonth(), 1));
@@ -60,8 +71,20 @@ export default function DashboardCalendar({
   const year = viewDate.getUTCFullYear();
   const month = viewDate.getUTCMonth();
 
-  const prevMonth = () => setViewDate(new Date(Date.UTC(year, month - 1, 1)));
-  const nextMonth = () => setViewDate(new Date(Date.UTC(year, month + 1, 1)));
+  const prevMonth = () => {
+    const d = new Date(Date.UTC(year, month - 1, 1));
+    setViewDate(d); setRangeStart(null);
+    onViewMonthChange?.(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
+  };
+  const nextMonth = () => {
+    const d = new Date(Date.UTC(year, month + 1, 1));
+    setViewDate(d); setRangeStart(null);
+    onViewMonthChange?.(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
+  };
+
+  useEffect(() => {
+    if (mode === 'view') setRangeStart(null);
+  }, [mode]);
 
   const cells = useMemo<(string | null)[]>(() => {
     const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
@@ -85,7 +108,10 @@ export default function DashboardCalendar({
 
   return (
     <div className="bg-surface-raised border border-edge rounded-xl shadow-sm overflow-hidden min-h-[55vh] md:min-h-[60vh] flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-edge/60">
+      <div className={[
+        'flex items-center justify-between px-4 py-3 border-b border-edge/60',
+        mode === 'edit' ? 'bg-caution-bg/40' : '',
+      ].join(' ')}>
         <button
           type="button"
           onClick={prevMonth}
@@ -97,6 +123,23 @@ export default function DashboardCalendar({
         <h2 className="text-[15px] font-bold text-content tracking-tight">
           {MONTH_NAMES[month]} {year}
         </h2>
+        {onModeChange && (
+          <button
+            type="button"
+            onClick={() => {
+              const next = mode === 'view' ? 'edit' : 'view';
+              onModeChange(next);
+            }}
+            className={[
+              'flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors',
+              mode === 'edit'
+                ? 'bg-caution text-white'
+                : 'bg-surface-subtle text-content-2 hover:text-content hover:bg-surface-raised border border-edge',
+            ].join(' ')}
+          >
+            Restricciones
+          </button>
+        )}
         <button
           type="button"
           onClick={nextMonth}
@@ -125,25 +168,55 @@ export default function DashboardCalendar({
           const dots = dotsMap.get(cell) ?? [];
           const isToday = cell === today;
           const isSelected = cell === selectedDate;
+          const isRangeStart = mode === 'edit' && rangeStart === cell;
+          const isStopSell = stopSellDates?.has(cell) ?? false;
 
           return (
             <button
               key={cell}
               type="button"
-              onClick={() => onDateSelect(cell)}
+              onClick={() => {
+                if (mode === 'view') {
+                  onDateSelect(cell);
+                  return;
+                }
+                // modo edit — selección de rango
+                if (!rangeStart) {
+                  setRangeStart(cell);
+                  return;
+                }
+                if (cell === rangeStart) {
+                  onRangeComplete?.(cell, cell);
+                  setRangeStart(null);
+                  return;
+                }
+                if (cell >= rangeStart) {
+                  onRangeComplete?.(rangeStart, cell);
+                  setRangeStart(null);
+                } else {
+                  setRangeStart(cell);
+                }
+              }}
               className={[
                 'relative flex flex-col items-center justify-start pt-1.5 pb-1 rounded-lg',
                 'transition-colors duration-100 min-h-[44px] cursor-pointer',
-                isSelected
+                isRangeStart
+                  ? 'bg-brand/20 border border-brand text-brand'
+                  : isSelected
                   ? 'bg-brand text-white'
                   : isToday
                   ? 'bg-brand/10 text-brand border border-brand'
+                  : isStopSell
+                  ? 'bg-danger-bg/60 hover:bg-danger-bg/80 text-content'
                   : 'hover:bg-surface-subtle text-content',
               ].join(' ')}
             >
               <span className={`text-[13px] font-semibold leading-none ${isSelected ? 'text-white' : ''}`}>
                 {parseInt(cell.split('-')[2], 10)}
               </span>
+              {isStopSell && !isSelected && (
+                <span className="text-[8px] font-bold leading-none text-danger-text mt-0.5">SS</span>
+              )}
               {dots.length > 0 && (
                 <div className="flex items-center gap-0.5 mt-1">
                   {dots.slice(0, 3).map((dot) => (
@@ -161,7 +234,7 @@ export default function DashboardCalendar({
         })}
       </div>
 
-      <div className="flex items-center justify-center gap-4 px-4 py-2 border-t border-edge/40">
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-4 py-2 border-t border-edge/40">
         {([
           ['checkin',    'Check-in'],
           ['inprogress', 'En curso'],
@@ -173,6 +246,12 @@ export default function DashboardCalendar({
             <span className="text-[10px] font-medium text-content-3">{label}</span>
           </div>
         ))}
+        {stopSellDates && stopSellDates.size > 0 && (
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-sm flex-shrink-0 bg-danger-bg/80" />
+            <span className="text-[10px] font-medium text-content-3">Cierre ventas</span>
+          </div>
+        )}
       </div>
     </div>
   );

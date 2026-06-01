@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { Hotel } from 'lucide-react';
 import { db } from '../../firebase/firebase';
-import type { Reservation } from '../../channex/api/channexHubApi';
+import type { Reservation, ARIMonthSnapshot } from '../../channex/api/channexHubApi';
 import { useChannexProperties } from '../../channex/hooks/useChannexProperties';
 import { useAllPropertyThreads } from '../../channex/hooks/useChannexThreads';
 import DashboardCalendar from './DashboardCalendar';
 import ReservationCard from './ReservationCard';
 import NoConversationModal from './NoConversationModal';
 import ReservationDetailModal from '../../channex/components/shared/ReservationDetailModal';
+import ARIRestrictionDrawer from './ARIRestrictionDrawer';
 
 interface NewDashboardViewProps {
   businessId: string;
@@ -42,6 +43,14 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
   const [allBookings, setAllBookings] = useState<Reservation[]>([]);
   const [detailReservation, setDetailReservation] = useState<Reservation | null>(null);
   const [noConvReservation, setNoConvReservation] = useState<Reservation | null>(null);
+  const [calendarMode, setCalendarMode] = useState<'view' | 'edit'>('view');
+  const [restrictionRange, setRestrictionRange] = useState<{ from: string; to: string } | null>(null);
+  const [showARIDrawer, setShowARIDrawer] = useState(false);
+  const [calendarMonthKey, setCalendarMonthKey] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [stopSellDates, setStopSellDates] = useState<Set<string>>(new Set());
 
   const { properties } = useChannexProperties(businessId);
 
@@ -63,6 +72,24 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
     );
     return () => unsub();
   }, [businessId]);
+
+  useEffect(() => {
+    if (!selectedPropertyId || !businessId) {
+      setStopSellDates(new Set());
+      return;
+    }
+    const ref = doc(db, 'channex_integrations', businessId, 'properties', selectedPropertyId, 'ari_snapshots', calendarMonthKey);
+    const unsub = onSnapshot(ref, (snap) => {
+      if (!snap.exists()) { setStopSellDates(new Set()); return; }
+      const data = snap.data() as ARIMonthSnapshot;
+      const ss = new Set<string>();
+      for (const [date, day] of Object.entries(data)) {
+        if (Object.values(day.ratePlans ?? {}).some((rp) => rp.stopSell)) ss.add(date);
+      }
+      setStopSellDates(ss);
+    }, () => setStopSellDates(new Set()));
+    return () => unsub();
+  }, [selectedPropertyId, businessId, calendarMonthKey]);
 
   const filteredBookings = useMemo(
     () =>
@@ -96,12 +123,34 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
     });
   }, [selectedDate]);
 
+  function handleRangeComplete(from: string, to: string) {
+    setRestrictionRange({ from, to });
+    setShowARIDrawer(true);
+  }
+
+  function handleModeChange(mode: 'view' | 'edit') {
+    setCalendarMode(mode);
+    if (mode === 'view') {
+      setShowARIDrawer(false);
+      setRestrictionRange(null);
+    }
+  }
+
+  function handleViewMonthChange(monthKey: string) {
+    setCalendarMonthKey(monthKey);
+  }
+
   return (
     <div className="flex flex-col gap-4 p-4 pb-6 max-w-4xl mx-auto w-full">
       <DashboardCalendar
         bookings={filteredBookings}
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
+        mode={calendarMode}
+        onModeChange={handleModeChange}
+        onRangeComplete={handleRangeComplete}
+        stopSellDates={stopSellDates}
+        onViewMonthChange={handleViewMonthChange}
       />
 
       <div className="relative">
@@ -183,6 +232,18 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
             'Huésped desconocido'
           }
           onClose={() => setNoConvReservation(null)}
+        />
+      )}
+
+      {showARIDrawer && restrictionRange && (
+        <ARIRestrictionDrawer
+          open={showARIDrawer}
+          onClose={() => setShowARIDrawer(false)}
+          tenantId={businessId}
+          dateFrom={restrictionRange.from}
+          dateTo={restrictionRange.to}
+          initialPropertyId={selectedPropertyId || null}
+          properties={properties}
         />
       )}
     </div>

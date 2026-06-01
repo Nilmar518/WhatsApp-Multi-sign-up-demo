@@ -28,7 +28,11 @@
       "Bash(pnpm --filter @migo-uit/frontend test --passWithNoTests)",
       "PowerShell(ls \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\frontend\\\\src\\\\channex\\\\components\\\\\")",
       "PowerShell(ls \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\frontend\\\\src\\\\channex\\\\components\\\\shared\\\\\")",
-      "PowerShell(cd \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\frontend\" && npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"^npm \\(warn|notice\\)\" })"
+      "PowerShell(cd \"D:\\\\migo\\\\repos\\\\WhatsApp Multi sign up demo\\\\apps\\\\frontend\" && npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"^npm \\(warn|notice\\)\" })",
+      "Bash(pnpm --filter @migo-uit/frontend exec tsc --noEmit)",
+      "Bash(node_modules/.bin/tsc --noEmit -p apps/frontend/tsconfig.json)",
+      "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.json)",
+      "Bash(.\\\\node_modules\\\\.bin\\\\tsc --noEmit -p apps/frontend/tsconfig.json)"
     ]
   }
 }
