@@ -931,8 +931,9 @@ export default function ARICalendar({ propertyId, currency, tenantId }: Props) {
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-content-2">{t('channex.ari.restrictions')}</p>
                 {[
                   { id: 'stop_sell', label: isRangeBlocked ? t('channex.ari.openSell') : t('channex.ari.stopSell'), hint: t('channex.glossary.ss.hint'),  value: stopSell,          set: setStopSell },
-                  { id: 'cta',       label: t('channex.ari.cta'),                                                    hint: t('channex.glossary.cta.hint'), value: closedToArrival,   set: setClosedToArrival },
-                  { id: 'ctd',       label: t('channex.ari.ctd'),                                                    hint: t('channex.glossary.ctd.hint'), value: closedToDeparture, set: setClosedToDeparture },
+                  // TODO: habilitar cuando se necesiten — botones CTA y CTD
+                  // { id: 'cta',       label: t('channex.ari.cta'),                                                    hint: t('channex.glossary.cta.hint'), value: closedToArrival,   set: setClosedToArrival },
+                  // { id: 'ctd',       label: t('channex.ari.ctd'),                                                    hint: t('channex.glossary.ctd.hint'), value: closedToDeparture, set: setClosedToDeparture },
                 ].map(({ id, label, hint, value, set }) => (
                   <label key={id} className="flex cursor-pointer items-start gap-2.5">
                     <input
