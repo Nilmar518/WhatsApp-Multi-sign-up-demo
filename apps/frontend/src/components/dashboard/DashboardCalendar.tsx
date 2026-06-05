@@ -11,6 +11,7 @@ interface DashboardCalendarProps {
   onRangeComplete?: (from: string, to: string) => void;
   stopSellDates?: Set<string>;
   onViewMonthChange?: (monthKey: string) => void;
+  bookingCountByDate?: Map<string, number>;
 }
 
 type DotType = 'checkin' | 'inprogress' | 'checkout' | 'cancelled';
@@ -60,6 +61,7 @@ export default function DashboardCalendar({
   onRangeComplete,
   stopSellDates,
   onViewMonthChange,
+  bookingCountByDate,
 }: DashboardCalendarProps) {
   const today = new Date().toISOString().split('T')[0];
   const [rangeStart, setRangeStart] = useState<string | null>(null);
@@ -214,8 +216,24 @@ export default function DashboardCalendar({
               <span className={`text-[13px] font-semibold leading-none ${isSelected ? 'text-white' : ''}`}>
                 {parseInt(cell.split('-')[2], 10)}
               </span>
+              {!isSelected && (bookingCountByDate?.get(cell) ?? 0) > 0 && (
+                <span className="absolute bottom-1 right-1 text-[9px] font-bold leading-none tabular-nums text-content-2">
+                  {bookingCountByDate!.get(cell)}
+                </span>
+              )}
               {isStopSell && !isSelected && (
-                <span className="text-[8px] font-bold leading-none text-danger-text mt-0.5">SS</span>
+                <>
+                  <svg
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 h-full w-full text-danger-text opacity-30"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    <line x1="5" y1="5" x2="95" y2="95" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+                    <line x1="95" y1="5" x2="5" y2="95" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+                  </svg>
+                  <span className="text-[8px] font-bold leading-none text-danger-text mt-0.5">SS</span>
+                </>
               )}
               {dots.length > 0 && (
                 <div className="flex items-center gap-0.5 mt-1">

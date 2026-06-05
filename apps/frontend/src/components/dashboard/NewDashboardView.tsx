@@ -12,6 +12,7 @@ import NoConversationModal from './NoConversationModal';
 import ReservationDetailModal from '../../channex/components/shared/ReservationDetailModal';
 import ARIRestrictionDrawer from './ARIRestrictionDrawer';
 import RoomCalendarSection from './RoomCalendarSection';
+import { countActiveReservationDays, isActiveReservationOnDate } from './reservationUtils';
 
 interface NewDashboardViewProps {
   businessId: string;
@@ -67,15 +68,10 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
   const [roomTypes, setRoomTypes] = useState<StoredRoomType[]>([]);
   const [ariSnapshot, setAriSnapshot] = useState<ARIMonthSnapshot>({});
   const [loadingProperty, setLoadingProperty] = useState(false);
-  const [bookingsOpen, setBookingsOpen] = useState(true);
   const [propertyAccordions, setPropertyAccordions] = useState<Record<string, boolean>>({});
 
   const { properties } = useChannexProperties(businessId);
-
-  const propertyIds = useMemo(
-    () => properties.map((p) => p.channex_property_id),
-    [properties],
-  );
+  const propertyIds = useMemo(() => properties.map((p) => p.channex_property_id), [properties]);
   const { threads } = useAllPropertyThreads(businessId, propertyIds);
 
   useEffect(() => {
@@ -111,75 +107,66 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
   }, [selectedPropertyId, businessId, calendarMonthKey]);
 
   const filteredBookings = useMemo(
-    () =>
-      selectedPropertyId
-        ? allBookings.filter((b) => b.channex_property_id === selectedPropertyId)
-        : allBookings,
+    () => selectedPropertyId
+      ? allBookings.filter((b) => b.channex_property_id === selectedPropertyId)
+      : allBookings,
     [allBookings, selectedPropertyId],
   );
 
-  const showPerRoom = !!selectedPropertyId && roomTypes.length > 1;
-
-  const mainCalendarBookings = useMemo(() =>
-    showPerRoom && roomTypes[0]
-      ? filteredBookings.filter(b => b.room_type_id === roomTypes[0].room_type_id)
-      : filteredBookings,
-    [filteredBookings, showPerRoom, roomTypes]);
-
   const allSSdates = useMemo(() => computeSSdates(ariSnapshot, new Set()), [ariSnapshot]);
 
-  const room1SSdates = useMemo(() => {
-    if (!showPerRoom || !roomTypes[0]) return allSSdates;
-    const ids = new Set(roomTypes[0].rate_plans.map(rp => rp.rate_plan_id));
-    return computeSSdates(ariSnapshot, ids);
-  }, [ariSnapshot, roomTypes, showPerRoom, allSSdates]);
-
-  const mainSSdates = showPerRoom ? room1SSdates : allSSdates;
-
   const unmappedBookings = useMemo(() => {
-    if (!showPerRoom) return [];
+    if (!selectedPropertyId || roomTypes.length === 0) return [];
     const known = new Set(roomTypes.map(rt => rt.room_type_id));
     return filteredBookings.filter(b => !b.room_type_id || !known.has(b.room_type_id));
-  }, [filteredBookings, roomTypes, showPerRoom]);
+  }, [filteredBookings, roomTypes, selectedPropertyId]);
 
-  const selectedDateBookings = useMemo(
-    () => mainCalendarBookings.filter((r) => r.check_in <= selectedDate && r.check_out >= selectedDate),
-    [mainCalendarBookings, selectedDate],
+  // Count of active bookings per date — drives cell badges in aggregate calendar
+  const bookingCountByDate = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of filteredBookings) {
+      countActiveReservationDays(b, map);
+    }
+    return map;
+  }, [filteredBookings]);
+
+  // Bookings active on selected date across all rooms — drives the summary card.
+  const selectedDateAllBookings = useMemo(
+    () => filteredBookings.filter((r) => isActiveReservationOnDate(r, selectedDate)),
+    [filteredBookings, selectedDate],
   );
 
-  const sortedBookings = useMemo(
-    () =>
-      [...selectedDateBookings].sort(
-        (a, b) =>
-          STATUS_ORDER[getCardStatus(a, selectedDate)] -
-          STATUS_ORDER[getCardStatus(b, selectedDate)],
-      ),
-    [selectedDateBookings, selectedDate],
+  // Breakdown by room type for the summary card
+  const roomBreakdown = useMemo(
+    () => roomTypes.map(rt => ({
+      rt,
+      count: selectedDateAllBookings.filter(b => b.room_type_id === rt.room_type_id).length,
+    })),
+    [roomTypes, selectedDateAllBookings],
   );
 
   const selectedDateLabel = useMemo(() => {
     const [y, m, d] = selectedDate.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString('es', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
+      weekday: 'long', day: 'numeric', month: 'long',
     });
   }, [selectedDate]);
+
+  const selectedPropertyTitle = useMemo(
+    () => properties.find(p => p.channex_property_id === selectedPropertyId)?.title ?? '',
+    [properties, selectedPropertyId],
+  );
 
   const propertySections = useMemo(() => {
     if (selectedPropertyId) return [];
     return properties
       .map(prop => {
         const forDate = allBookings.filter(
-          b =>
-            b.channex_property_id === prop.channex_property_id &&
-            b.check_in <= selectedDate &&
-            b.check_out >= selectedDate,
+          b => b.channex_property_id === prop.channex_property_id &&
+           b.check_in <= selectedDate && b.check_out >= selectedDate,
         );
         const sorted = [...forDate].sort(
-          (a, b) =>
-            STATUS_ORDER[getCardStatus(a, selectedDate)] -
-            STATUS_ORDER[getCardStatus(b, selectedDate)],
+          (a, b) => STATUS_ORDER[getCardStatus(a, selectedDate)] - STATUS_ORDER[getCardStatus(b, selectedDate)],
         );
         return { property: prop, bookings: sorted };
       })
@@ -194,7 +181,7 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
   }
 
   function handleRangeComplete(from: string, to: string) {
-    handleOpenRestrictions(from, to, showPerRoom ? roomTypes[0]?.room_type_id : undefined);
+    handleOpenRestrictions(from, to, undefined);
   }
 
   function handleModeChange(mode: 'view' | 'edit') {
@@ -208,27 +195,8 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
 
   return (
     <div className="flex flex-col gap-4 p-4 pb-6 max-w-4xl mx-auto w-full">
-      {showPerRoom && roomTypes[0] && (
-        <div className="flex items-center gap-3 px-1">
-          <span className="h-px flex-1 bg-edge" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-content-3">
-            {roomTypes[0].title}
-          </span>
-          <span className="h-px flex-1 bg-edge" />
-        </div>
-      )}
 
-      <DashboardCalendar
-        bookings={mainCalendarBookings}
-        selectedDate={selectedDate}
-        onDateSelect={setSelectedDate}
-        mode={calendarMode}
-        onModeChange={handleModeChange}
-        onRangeComplete={handleRangeComplete}
-        stopSellDates={mainSSdates}
-        onViewMonthChange={handleViewMonthChange}
-      />
-
+      {/* ── Property selector — TOP ── */}
       <div className="relative">
         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-content-3 pointer-events-none">
           <Hotel size={14} />
@@ -255,55 +223,73 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
         </div>
       </div>
 
-      {selectedPropertyId ? (
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => setBookingsOpen((o) => !o)}
-            className="flex items-center justify-between w-full text-left"
-          >
-            <h3 className="text-[13px] font-bold text-content capitalize">{selectedDateLabel}</h3>
-            <div className="flex items-center gap-2">
-              {sortedBookings.length > 0 && (
-                <span className="text-[11px] text-content-3 font-medium">
-                  {sortedBookings.length} {sortedBookings.length === 1 ? 'reserva' : 'reservas'}
-                </span>
-              )}
-              <ChevronDown
-                size={14}
-                className={`text-content-3 transition-transform duration-200 ${bookingsOpen ? '' : '-rotate-90'}`}
-              />
+      {/* ── Summary card (selected date) — when property is selected ── */}
+      {selectedPropertyId && (
+        <div className="rounded-xl border border-edge bg-surface-raised shadow-sm overflow-hidden">
+          <div className="px-4 pt-3 pb-2 border-b border-edge/50">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-content-3 capitalize">
+              {selectedDateLabel}
+            </p>
+          </div>
+          <div className="flex min-h-[80px]">
+            {/* Total */}
+            <div className="flex flex-col items-center justify-center px-6 py-4 border-r border-edge min-w-[100px]">
+              <span className="text-[42px] font-black leading-none text-content tabular-nums">
+                {selectedDateAllBookings.length}
+              </span>
+              <span className="text-[11px] text-content-3 mt-1.5">
+                {selectedDateAllBookings.length === 1 ? 'reserva' : 'reservas'}
+              </span>
             </div>
-          </button>
-
-          {bookingsOpen && (
-            <>
-              {sortedBookings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-surface-subtle flex items-center justify-center mb-3">
-                    <Hotel size={20} className="text-content-3" />
-                  </div>
-                  <p className="text-[13px] font-semibold text-content-2">Sin reservas este día</p>
-                  <p className="text-[12px] text-content-3 mt-1">Selecciona otra fecha en el calendario</p>
-                </div>
+            {/* Breakdown by room type */}
+            <div className="flex-1 px-4 py-3 flex flex-col justify-center gap-1.5">
+              {loadingProperty ? (
+                <p className="text-[12px] text-content-3">Cargando habitaciones...</p>
+              ) : roomBreakdown.length === 0 ? (
+                <p className="text-[12px] text-content-3 italic">Sin habitaciones configuradas</p>
               ) : (
-                <div className="flex flex-col gap-3">
-                  {sortedBookings.map((r) => (
-                    <ReservationCard
-                      key={r.id ?? r.channex_booking_id ?? r.reservation_id}
-                      reservation={r}
-                      selectedDate={selectedDate}
-                      threads={threads}
-                      onViewDetail={setDetailReservation}
-                      onNoThread={setNoConvReservation}
-                    />
-                  ))}
-                </div>
+                roomBreakdown.map(({ rt, count }) => (
+                  <div key={rt.room_type_id} className="flex items-center justify-between gap-3">
+                    <span className="text-[12px] text-content-2 truncate">{rt.title}</span>
+                    <span className={`inline-flex items-center justify-center min-w-[22px] h-5 rounded-md px-1.5 text-[11px] font-bold shrink-0 ${
+                      count > 0 ? 'bg-brand/10 text-brand' : 'bg-surface-subtle text-content-3'
+                    }`}>
+                      {count}
+                    </span>
+                  </div>
+                ))
               )}
-            </>
-          )}
+            </div>
+          </div>
         </div>
-      ) : (
+      )}
+
+      {/* ── Aggregate calendar divider ── */}
+      {selectedPropertyId && (
+        <div className="flex items-center gap-3 px-1">
+          <span className="h-px flex-1 bg-edge" />
+          <span className="text-[11px] font-bold uppercase tracking-widest text-content-3">
+            {selectedPropertyTitle}
+          </span>
+          <span className="h-px flex-1 bg-edge" />
+        </div>
+      )}
+
+      {/* ── Aggregate calendar (all rooms of selected property, or all properties) ── */}
+      <DashboardCalendar
+        bookings={filteredBookings}
+        selectedDate={selectedDate}
+        onDateSelect={setSelectedDate}
+        mode={calendarMode}
+        onModeChange={handleModeChange}
+        onRangeComplete={handleRangeComplete}
+        stopSellDates={allSSdates}
+        onViewMonthChange={handleViewMonthChange}
+        bookingCountByDate={bookingCountByDate}
+      />
+
+      {/* ── No property selected: bookings by property for selected date ── */}
+      {!selectedPropertyId && (
         <div className="flex flex-col gap-3">
           <h3 className="text-[13px] font-bold text-content capitalize">{selectedDateLabel}</h3>
           {propertySections.length === 0 ? (
@@ -361,16 +347,18 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
         </div>
       )}
 
-      {/* Per-room calendars (2, 3, ..., N) */}
-      {showPerRoom && roomTypes.slice(1).map(rt => (
+      {/* ── Per-room calendars — ALL room types when property is selected ── */}
+      {selectedPropertyId && roomTypes.map(rt => (
         <RoomCalendarSection
           key={rt.room_type_id}
           roomType={rt}
           bookings={filteredBookings.filter(b => b.room_type_id === rt.room_type_id)}
           tenantId={businessId}
           propertyId={selectedPropertyId}
-          propertyTitle={properties.find(p => p.channex_property_id === selectedPropertyId)?.title ?? ''}
+          propertyTitle={selectedPropertyTitle}
           threads={threads}
+          selectedDate={selectedDate}
+          onSelectedDateChange={setSelectedDate}
           onViewDetail={setDetailReservation}
           onNoThread={setNoConvReservation}
           onOpenRestrictions={(from, to) => handleOpenRestrictions(from, to, rt.room_type_id)}
@@ -378,11 +366,10 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
         />
       ))}
 
-      {/* Bookings without a mapped room */}
-      {showPerRoom && unmappedBookings.length > 0 && (() => {
-        const propTitle = properties.find(p => p.channex_property_id === selectedPropertyId)?.title ?? '';
+      {/* ── Unmapped bookings ── */}
+      {selectedPropertyId && unmappedBookings.length > 0 && (() => {
         const unmappedForDate = unmappedBookings.filter(
-          r => r.check_in <= selectedDate && r.check_out >= selectedDate
+          r => r.check_in <= selectedDate && r.check_out >= selectedDate,
         );
         return (
           <div className="flex flex-col gap-3">
@@ -395,7 +382,7 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
                 <span className="h-px flex-1 bg-caution/40" />
               </div>
               <p className="text-center text-[11px] text-content-3 px-2">
-                Reservas sin habitacion especifica para <strong>{propTitle}</strong>.
+                Reservas sin habitacion especifica para <strong>{selectedPropertyTitle}</strong>.
                 Por favor revisa cada reserva para asignar la habitacion correspondiente.
               </p>
             </div>

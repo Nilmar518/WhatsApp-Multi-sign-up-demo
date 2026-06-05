@@ -529,20 +529,21 @@ export default function ARIRestrictionDrawer({
                     ? 'Este rango tiene ventas cerradas. Activá para reabrirlas.'
                     : 'Activa si no tenes mas habitaciones libres o queres pausar reservas.',
                 ],
-                [
-                  'cta',
-                  closedToArrival,
-                  setClosedToArrival,
-                  'Sin llegadas (CTA)',
-                  'Activa si ese dia no podes recibir huespedes.',
-                ],
-                [
-                  'ctd',
-                  closedToDeparture,
-                  setClosedToDeparture,
-                  'Sin salidas (CTD)',
-                  'Activa si ese dia no podes procesar salidas.',
-                ],
+                // TODO: habilitar cuando se necesiten — botones CTA y CTD
+                // [
+                //   'cta',
+                //   closedToArrival,
+                //   setClosedToArrival,
+                //   'Sin llegadas (CTA)',
+                //   'Activa si ese dia no podes recibir huespedes.',
+                // ],
+                // [
+                //   'ctd',
+                //   closedToDeparture,
+                //   setClosedToDeparture,
+                //   'Sin salidas (CTD)',
+                //   'Activa si ese dia no podes procesar salidas.',
+                // ],
               ] as [string, boolean, (v: boolean) => void, string, string][]
             ).map(([key, val, setter, label, hint]) => (
               <label key={key} className="flex cursor-pointer items-start gap-3">

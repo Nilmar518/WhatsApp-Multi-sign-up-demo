@@ -6,6 +6,7 @@ import type { ChannexThread } from '../../channex/hooks/useChannexThreads';
 import DashboardCalendar from './DashboardCalendar';
 import ReservationCard from './ReservationCard';
 import { ChevronDown, Hotel } from 'lucide-react';
+import { countActiveReservationDays, isActiveReservationOnDate } from './reservationUtils';
 
 type CardStatus = 'checkin' | 'inprogress' | 'checkout' | 'cancelled';
 const STATUS_ORDER: Record<CardStatus, number> = { checkin: 0, inprogress: 1, checkout: 2, cancelled: 3 };
@@ -28,6 +29,8 @@ interface RoomCalendarSectionProps {
   propertyId: string;
   propertyTitle: string;
   threads: ChannexThread[];
+  selectedDate: string;
+  onSelectedDateChange: (date: string) => void;
   onViewDetail: (r: Reservation) => void;
   onNoThread: (r: Reservation) => void;
   onOpenRestrictions: (from: string, to: string) => void;
@@ -36,17 +39,18 @@ interface RoomCalendarSectionProps {
 
 export default function RoomCalendarSection({
   roomType, bookings, tenantId, propertyId,
-  threads, onViewDetail, onNoThread,
+  threads, selectedDate, onSelectedDateChange, onViewDetail, onNoThread,
   onOpenRestrictions, onCloseRestrictions,
 }: RoomCalendarSectionProps) {
-  const [selectedDate, setSelectedDate] = useState<string>(isoToday);
   const [calendarMode, setCalendarMode] = useState<'view' | 'edit'>('view');
+  const [restrictionSelectedDate, setRestrictionSelectedDate] = useState<string>(isoToday);
   const [monthKey, setMonthKey] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [snapshot, setSnapshot] = useState<ARIMonthSnapshot>({});
   const [bookingsOpen, setBookingsOpen] = useState(true);
+  const effectiveSelectedDate = calendarMode === 'view' ? selectedDate : restrictionSelectedDate;
 
   // Firestore subscription to ARI snapshot
   useEffect(() => {
@@ -57,6 +61,19 @@ export default function RoomCalendarSection({
     }, () => setSnapshot({}));
     return () => unsub();
   }, [tenantId, propertyId, monthKey]);
+
+  const bookingCountByDate = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of bookings) {
+      countActiveReservationDays(b, map);
+    }
+    return map;
+  }, [bookings]);
+
+  const activeSelectedDateCount = useMemo(
+    () => bookings.filter((r) => isActiveReservationOnDate(r, effectiveSelectedDate)).length,
+    [bookings, effectiveSelectedDate],
+  );
 
   // SS dates filtered by this room type's rate plans
   const ssDateSet = useMemo(() => {
@@ -72,24 +89,27 @@ export default function RoomCalendarSection({
 
   // Bookings for the selected date
   const selectedDateBookings = useMemo(() =>
-    bookings.filter(r => r.check_in <= selectedDate && r.check_out >= selectedDate),
-    [bookings, selectedDate]);
+    bookings.filter(r => r.check_in <= effectiveSelectedDate && r.check_out >= effectiveSelectedDate),
+    [bookings, effectiveSelectedDate]);
 
   const sortedBookings = useMemo(() =>
     [...selectedDateBookings].sort((a, b) =>
-      STATUS_ORDER[getCardStatus(a, selectedDate)] - STATUS_ORDER[getCardStatus(b, selectedDate)]),
-    [selectedDateBookings, selectedDate]);
+      STATUS_ORDER[getCardStatus(a, effectiveSelectedDate)] - STATUS_ORDER[getCardStatus(b, effectiveSelectedDate)]),
+    [selectedDateBookings, effectiveSelectedDate]);
 
   const selectedDateLabel = useMemo(() => {
-    const [y, m, d] = selectedDate.split('-').map(Number);
+    const [y, m, d] = effectiveSelectedDate.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString('es', {
       weekday: 'long', day: 'numeric', month: 'long',
     });
-  }, [selectedDate]);
+  }, [effectiveSelectedDate]);
 
   function handleModeChange(mode: 'view' | 'edit') {
     setCalendarMode(mode);
-    if (mode === 'view') onCloseRestrictions();
+    if (mode === 'view') {
+      onCloseRestrictions();
+      setRestrictionSelectedDate(selectedDate);
+    }
   }
 
   function handleRangeComplete(from: string, to: string) {
@@ -114,13 +134,20 @@ export default function RoomCalendarSection({
       {/* Calendar */}
       <DashboardCalendar
         bookings={bookings}
-        selectedDate={selectedDate}
-        onDateSelect={setSelectedDate}
+        selectedDate={effectiveSelectedDate}
+        onDateSelect={(date) => {
+          if (calendarMode === 'view') {
+            onSelectedDateChange(date);
+          } else {
+            setRestrictionSelectedDate(date);
+          }
+        }}
         mode={calendarMode}
         onModeChange={handleModeChange}
         onRangeComplete={handleRangeComplete}
         stopSellDates={ssDateSet}
         onViewMonthChange={handleViewMonthChange}
+        bookingCountByDate={bookingCountByDate}
       />
 
       {/* Reservation cards */}
@@ -132,9 +159,9 @@ export default function RoomCalendarSection({
         >
           <h3 className="text-[13px] font-bold text-content capitalize">{selectedDateLabel}</h3>
           <div className="flex items-center gap-2">
-            {sortedBookings.length > 0 && (
+            {activeSelectedDateCount > 0 && (
               <span className="text-[11px] text-content-3 font-medium">
-                {sortedBookings.length} {sortedBookings.length === 1 ? 'reserva' : 'reservas'}
+                {activeSelectedDateCount} {activeSelectedDateCount === 1 ? 'reserva' : 'reservas'}
               </span>
             )}
             <ChevronDown
