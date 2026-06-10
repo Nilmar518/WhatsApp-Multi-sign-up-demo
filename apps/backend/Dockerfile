@@ -20,6 +20,11 @@ WORKDIR /app
 
 RUN npm install -g pnpm@9.15.4
 
+# Chromium for Puppeteer PDF generation (--ignore-scripts skips puppeteer's own download)
+RUN apk add --no-cache chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
