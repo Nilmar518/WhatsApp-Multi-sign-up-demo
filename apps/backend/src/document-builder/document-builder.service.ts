@@ -232,18 +232,14 @@ ${rowsHtml}
     }
     if (field.type === 'checkbox-group') {
       const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
-      const opts = (field.options ?? []).map((o) =>
-        `<span class="checkbox-item">${selected.includes(o) ? '[✓]' : '[ ]'} ${this.esc(o)}</span>`
-      ).join('');
-      return `${labelHtml}<div class="field-value">${opts}</div>`;
+      return `${labelHtml}<div class="field-value">${selected.map((o) => this.esc(o)).join(', ')}</div>`;
     }
     if (field.type === 'checkbox-amount') {
       const val = value as { selected?: string[]; amount?: string | number } | undefined;
       const selected = val?.selected ?? [];
-      const opts = (field.options ?? []).map((o) =>
-        `<span class="checkbox-item">${selected.includes(o) ? '[✓]' : '[ ]'} ${this.esc(o)}</span>`
-      ).join('');
-      return `${labelHtml}<div class="field-value">${opts} &nbsp; Monto: ${this.esc(val?.amount)}</div>`;
+      const display = selected.map((o) => this.esc(o)).join(', ');
+      const amount = val?.amount != null ? ` &nbsp; Monto: ${this.esc(val.amount)}` : '';
+      return `${labelHtml}<div class="field-value">${display}${amount}</div>`;
     }
     if (field.type === 'bullet-list') {
       const items: string[] = Array.isArray(value) ? (value as string[]) : [];
