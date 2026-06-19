@@ -138,10 +138,11 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
 
   // Breakdown by room type for the summary card
   const roomBreakdown = useMemo(
-    () => roomTypes.map(rt => ({
-      rt,
-      count: selectedDateAllBookings.filter(b => b.room_type_id === rt.room_type_id).length,
-    })),
+    () => roomTypes.map(rt => {
+      const occupied = selectedDateAllBookings.filter(b => b.room_type_id === rt.room_type_id).length;
+      const total = rt.count_of_rooms ?? 0;
+      return { rt, occupied, available: Math.max(0, total - occupied), total };
+    }),
     [roomTypes, selectedDateAllBookings],
   );
 
@@ -233,7 +234,7 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
           </div>
           <div className="flex min-h-[80px]">
             {/* Total */}
-            <div className="flex flex-col items-center justify-center px-6 py-4 border-r border-edge min-w-[100px]">
+            <div className="flex flex-col items-center justify-start pt-4 px-6 pb-4 border-r border-edge min-w-[100px]">
               <span className="text-[42px] font-black leading-none text-content tabular-nums">
                 {selectedDateAllBookings.length}
               </span>
@@ -242,22 +243,64 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
               </span>
             </div>
             {/* Breakdown by room type */}
-            <div className="flex-1 px-4 py-3 flex flex-col justify-center gap-1.5">
+            <div className="flex-1 px-4 py-3 flex flex-col justify-start gap-2">
               {loadingProperty ? (
                 <p className="text-[12px] text-content-3">Cargando habitaciones...</p>
               ) : roomBreakdown.length === 0 ? (
                 <p className="text-[12px] text-content-3 italic">Sin habitaciones configuradas</p>
               ) : (
-                roomBreakdown.map(({ rt, count }) => (
-                  <div key={rt.room_type_id} className="flex items-center justify-between gap-3">
-                    <span className="text-[12px] text-content-2 truncate">{rt.title}</span>
-                    <span className={`inline-flex items-center justify-center min-w-[22px] h-5 rounded-md px-1.5 text-[11px] font-bold shrink-0 ${
-                      count > 0 ? 'bg-brand/10 text-brand' : 'bg-surface-subtle text-content-3'
-                    }`}>
-                      {count}
-                    </span>
+                <>
+                  {/* Column labels */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-content-3 invisible">label</span>
+                    <div className="flex items-center gap-1 shrink-0 text-[10px] font-semibold text-content-3">
+                      <span className="min-w-[28px] text-center">ocup.</span>
+                      <span className="min-w-[28px] text-center">disp.</span>
+                      <span className="min-w-[28px] text-center">total</span>
+                    </div>
                   </div>
-                ))
+                  {roomBreakdown.map(({ rt, occupied, available, total }) => (
+                  <div key={rt.room_type_id} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[12px] text-content-2 truncate">{rt.title}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={`inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 rounded px-1.5 text-[11px] font-bold ${
+                          occupied > 0 ? 'bg-red-100 text-red-600' : 'bg-surface-subtle text-content-3'
+                        }`}>
+                          ✗{occupied}
+                        </span>
+                        <span className={`inline-flex items-center justify-center gap-0.5 min-w-[28px] h-5 rounded px-1.5 text-[11px] font-bold ${
+                          available > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-surface-subtle text-content-3'
+                        }`}>
+                          ✓{available}
+                        </span>
+                        {total > 0 && (
+                          <span className="inline-flex items-center justify-center min-w-[28px] h-5 rounded px-1.5 text-[11px] font-semibold bg-surface-subtle text-content-3">
+                            /{total}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {total > 0 && (
+                      <div className="flex gap-[3px] flex-wrap">
+                        {Array.from({ length: Math.min(total, 20) }).map((_, i) => (
+                          <div
+                            key={i}
+                            className={`w-[10px] h-[10px] rounded-[2px] ${
+                              i < occupied ? 'bg-red-400' : 'bg-emerald-400/80'
+                            }`}
+                          />
+                        ))}
+                        {total > 20 && (
+                          <span className="text-[10px] text-content-3 self-center ml-0.5">
+                            +{total - 20}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                </>
               )}
             </div>
           </div>

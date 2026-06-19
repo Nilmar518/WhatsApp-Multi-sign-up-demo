@@ -32,7 +32,11 @@
       "Bash(pnpm --filter @migo-uit/frontend exec tsc --noEmit)",
       "Bash(node_modules/.bin/tsc --noEmit -p apps/frontend/tsconfig.json)",
       "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.json)",
-      "Bash(.\\\\node_modules\\\\.bin\\\\tsc --noEmit -p apps/frontend/tsconfig.json)"
+      "Bash(.\\\\node_modules\\\\.bin\\\\tsc --noEmit -p apps/frontend/tsconfig.json)",
+      "Bash(sed -n '126p' 274551ae-31b5-45e0-8a73-d00fc49164a1.jsonl)",
+      "Bash(python3 -c ' *)",
+      "Bash(rm ./line126.json)",
+      "Bash(cd *)"
     ]
   }
 }

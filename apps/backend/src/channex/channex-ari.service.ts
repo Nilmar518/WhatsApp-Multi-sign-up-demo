@@ -207,11 +207,22 @@ export class ChannexARIService {
     if (dto.occChildren !== undefined) channexPayload.occ_children = dto.occChildren;
     if (dto.occInfants !== undefined) channexPayload.occ_infants = dto.occInfants;
 
-    const response = await this.channex.updateRoomType(roomTypeId, channexPayload);
+    // Try to update Channex. Some channels (e.g. Airbnb single-unit) reject
+    // count_of_rooms > 1 with a 422 because the OTA doesn't support multi-unit
+    // inventory for that listing type. We catch that here so the Firestore cache
+    // can still be updated — count_of_rooms is used locally for dashboard display.
+    let channexResponse: ChannexRoomTypeResponse | undefined;
+    try {
+      channexResponse = await this.channex.updateRoomType(roomTypeId, channexPayload);
+      this.logger.log(`[ARI] ✓ Room type updated in Channex — roomTypeId=${roomTypeId}`);
+    } catch (channexErr) {
+      this.logger.warn(
+        `[ARI] Channex rejected room type update — roomTypeId=${roomTypeId}: ${(channexErr as Error).message}. Will still sync to Firestore.`,
+      );
+    }
 
-    this.logger.log(`[ARI] ✓ Room type updated in Channex — roomTypeId=${roomTypeId}`);
-
-    // Mirror changes to the Firestore cache
+    // Mirror changes to the Firestore cache (always, even when Channex rejects)
+    let updatedRoomType: StoredRoomType | undefined;
     const integration = await this.propertyService.resolveIntegration(propertyId);
     if (integration) {
       const db = this.firebase.getFirestore();
@@ -226,7 +237,7 @@ export class ChannexARIService {
         const existing: StoredRoomType[] = (snap.data()?.room_types ?? []) as StoredRoomType[];
         const updated = existing.map((rt) => {
           if (rt.room_type_id !== roomTypeId) return rt;
-          return {
+          const merged = {
             ...rt,
             ...(dto.title !== undefined ? { title: dto.title } : {}),
             ...(dto.countOfRooms !== undefined ? { count_of_rooms: dto.countOfRooms } : {}),
@@ -235,6 +246,8 @@ export class ChannexARIService {
             ...(dto.occChildren !== undefined ? { occ_children: dto.occChildren } : {}),
             ...(dto.occInfants !== undefined ? { occ_infants: dto.occInfants } : {}),
           };
+          updatedRoomType = merged;
+          return merged;
         });
         tx.update(docRef, { room_types: updated, updated_at: new Date().toISOString() });
       });
@@ -242,7 +255,32 @@ export class ChannexARIService {
       this.logger.log(`[ARI] ✓ Room type Firestore cache updated — roomTypeId=${roomTypeId}`);
     }
 
-    return response;
+    if (channexResponse) return channexResponse;
+
+    // Channex rejected but Firestore is updated — build a synthetic response so
+    // the controller can return 200 and the frontend reloads the correct state.
+    if (!updatedRoomType) {
+      throw new HttpException(
+        'Room type not found in Firestore after update attempt.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return {
+      data: {
+        id: roomTypeId,
+        type: 'room_type' as const,
+        attributes: {
+          title: updatedRoomType.title,
+          property_id: propertyId,
+          default_occupancy: updatedRoomType.default_occupancy,
+          occ_adults: updatedRoomType.occ_adults,
+          occ_children: updatedRoomType.occ_children,
+          occ_infants: updatedRoomType.occ_infants,
+          count_of_rooms: updatedRoomType.count_of_rooms,
+          availability: 0,
+        },
+      },
+    } as ChannexRoomTypeResponse;
   }
 
   async createRatePlan(

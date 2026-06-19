@@ -162,6 +162,12 @@ export class ChannexService {
       throw new ChannexAuthError(`Channex 403: ${message}`, 403);
     }
 
+    // Log response body for 422 to help diagnose validation failures.
+    if (status === 422) {
+      const body = err?.response?.data;
+      this.logger.error(`[CHANNEX] 422 Unprocessable Entity — body: ${JSON.stringify(body)}`);
+    }
+
     // Re-throw anything else as a generic bad gateway so callers get a clean error.
     throw new HttpException(
       `Channex API error (${status ?? 'unknown'}): ${message}`,
