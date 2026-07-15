@@ -87,10 +87,11 @@ jobs:
 
       - name: Deploy to Railway
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
         run: |
           railway up \
-            --service 4d90d6c0-7848-4436-80c6-bb97acd30e89 \
+            --project 91d961ab-23b8-4456-bc03-d5bf2b30651c \
+            --service 19d65c33-e33b-46a4-ba22-38e6e736c0c9 \
             --environment production \
             --detach
 
@@ -112,7 +113,7 @@ jobs:
 
             **Version:** ${{ needs.version.outputs.version }}
             **Frontend:** Firebase Hosting (`smart-service-85369.web.app`)
-            **Backend:** Railway (`backend-production-9fd0.up.railway.app`)
+            **Backend:** Railway (`backend-production-16cc.up.railway.app`)
 
             ### Changelog
             ${{ needs.version.outputs.changelog }}

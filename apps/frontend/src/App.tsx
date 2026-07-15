@@ -23,6 +23,9 @@ import NewDashboardView from './components/dashboard/NewDashboardView';
 // immediately; once the response arrives the toggle updates.
 const FALLBACK_BUSINESS_IDS = ['787167007221172', 'demo-business-002'];
 
+// ponytail: selector de negocio desactivado. En true vuelve al header.
+const SHOW_BUSINESS_TOGGLE = false;
+
 interface AppProps {
   view?: 'dashboard' | 'mensajes';
   initialChannel?: Channel;
@@ -154,11 +157,15 @@ export default function App({ view = 'dashboard', initialChannel }: AppProps) {
           {view === 'mensajes' ? t('app.subtitle.messages') : t('app.subtitle.dashboard')}
         </p>
       </div>
-      <BusinessToggle
-        businessIds={businessIds}
-        selected={businessId}
-        onChange={(id) => setBusinessId(id)}
-      />
+      {/* ponytail: selector Número 1 / Número 2 desactivado, no eliminado.
+          Poner SHOW_BUSINESS_TOGGLE en true para restaurarlo. */}
+      {SHOW_BUSINESS_TOGGLE && (
+        <BusinessToggle
+          businessIds={businessIds}
+          selected={businessId}
+          onChange={(id) => setBusinessId(id)}
+        />
+      )}
     </div>
   );
 

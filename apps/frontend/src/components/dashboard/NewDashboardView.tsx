@@ -6,6 +6,7 @@ import type { Reservation, ARIMonthSnapshot, StoredRoomType } from '../../channe
 import { listRoomTypes } from '../../channex/api/channexHubApi';
 import { useChannexProperties } from '../../channex/hooks/useChannexProperties';
 import { useAllPropertyThreads } from '../../channex/hooks/useChannexThreads';
+import { useAriRefresh } from '../../channex/hooks/useAriRefresh';
 import DashboardCalendar from './DashboardCalendar';
 import ReservationCard from './ReservationCard';
 import NoConversationModal from './NoConversationModal';
@@ -74,6 +75,10 @@ export default function NewDashboardView({ businessId }: NewDashboardViewProps) 
   const propertyIds = useMemo(() => properties.map((p) => p.channex_property_id), [properties]);
   const { threads } = useAllPropertyThreads(businessId, propertyIds);
 
+  useAriRefresh(businessId, selectedPropertyId, calendarMonthKey);
+
+  // Los avisos de cambios (reservas y ARI) los emite ActivityToaster desde el feed
+  // de actividad, global al layout. Acá sólo mantenemos los datos del calendario.
   useEffect(() => {
     if (!businessId) return;
     const unsub = onSnapshot(

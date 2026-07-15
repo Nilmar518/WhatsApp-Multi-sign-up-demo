@@ -5,6 +5,7 @@ import type { Reservation, ARIMonthSnapshot, StoredRoomType } from '../../channe
 import type { ChannexThread } from '../../channex/hooks/useChannexThreads';
 import DashboardCalendar from './DashboardCalendar';
 import ReservationCard from './ReservationCard';
+import { useAriRefresh } from '../../channex/hooks/useAriRefresh';
 import { ChevronDown, Hotel } from 'lucide-react';
 import { countActiveReservationDays, isActiveReservationOnDate } from './reservationUtils';
 
@@ -51,6 +52,9 @@ export default function RoomCalendarSection({
   const [snapshot, setSnapshot] = useState<ARIMonthSnapshot>({});
   const [bookingsOpen, setBookingsOpen] = useState(true);
   const effectiveSelectedDate = calendarMode === 'view' ? selectedDate : restrictionSelectedDate;
+
+  // Trae del ARI de Channex los cambios hechos fuera de la app (dedupe por mes).
+  useAriRefresh(tenantId, propertyId, monthKey);
 
   // Firestore subscription to ARI snapshot
   useEffect(() => {

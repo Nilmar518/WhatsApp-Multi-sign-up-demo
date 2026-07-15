@@ -4,12 +4,16 @@ import { auth } from '../firebase/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import {
-  LayoutDashboard, MessageSquare, Package, Smartphone,
+  CalendarDays, MessageSquare, Package, Smartphone,
   Hotel, Globe, Settings, Moon, Sun, User, LogOut,
   ChevronLeft, ChevronRight, MessageCircle, Camera, Home, Languages, FileText,
 } from 'lucide-react';
 
 const LS_KEY = 'sidenav_collapsed';
+
+// ponytail: entradas desactivadas, no eliminadas. Poner en true para restaurarlas.
+const SHOW_MESSAGING_NAV = false;
+const SHOW_INVENTORY_NAV = false;
 
 import { navigate } from '../lib/navigate';
 export { navigate };
@@ -135,9 +139,13 @@ export default function SideNav() {
             {t('nav.principal')}
           </p>
         )}
-        <NavRow icon={<LayoutDashboard size={16} />} label={t('nav.dashboard')}  href="/"         collapsed={collapsed} currentPath={currentPath} />
-        <NavRow icon={<MessageSquare size={16} />}   label={t('nav.messages')}   href="/mensajes"  collapsed={collapsed} currentPath={currentPath} />
-        <NavRow icon={<Package size={16} />}         label={t('nav.inventory')} href="/inventory" collapsed={collapsed} currentPath={currentPath} />
+        <NavRow icon={<CalendarDays size={16} />}    label={t('nav.dashboard')}  href="/"         collapsed={collapsed} currentPath={currentPath} />
+        {SHOW_MESSAGING_NAV && (
+          <NavRow icon={<MessageSquare size={16} />} label={t('nav.messages')}   href="/mensajes"  collapsed={collapsed} currentPath={currentPath} />
+        )}
+        {SHOW_INVENTORY_NAV && (
+          <NavRow icon={<Package size={16} />}       label={t('nav.inventory')} href="/inventory" collapsed={collapsed} currentPath={currentPath} />
+        )}
         <NavRow icon={<FileText size={16} />}        label={t('nav.documents')} href="/documentos" collapsed={collapsed} currentPath={currentPath} />
 
         {!collapsed && (
@@ -148,18 +156,22 @@ export default function SideNav() {
         {collapsed && <div className="my-1 mx-2 border-t border-white/5" />}
 
         {/* Messaging channels — all at the same level */}
-        <NavRow
-          icon={<MessageCircle size={16} />} label={t('nav.whatsapp')} href="/mensajes?channel=whatsapp" collapsed={collapsed} currentPath={currentPath}
-          activeOverride={currentPath.startsWith('/mensajes') && (!channelParam || channelParam === 'whatsapp')}
-        />
-        <NavRow
-          icon={<MessageSquare size={16} />} label={t('nav.messenger')} href="/mensajes?channel=messenger" collapsed={collapsed} currentPath={currentPath}
-          activeOverride={isChannelActive('messenger')}
-        />
-        <NavRow
-          icon={<Camera size={16} />} label={t('nav.instagram')} href="/mensajes?channel=instagram" collapsed={collapsed} currentPath={currentPath}
-          activeOverride={isChannelActive('instagram')}
-        />
+        {SHOW_MESSAGING_NAV && (
+          <>
+            <NavRow
+              icon={<MessageCircle size={16} />} label={t('nav.whatsapp')} href="/mensajes?channel=whatsapp" collapsed={collapsed} currentPath={currentPath}
+              activeOverride={currentPath.startsWith('/mensajes') && (!channelParam || channelParam === 'whatsapp')}
+            />
+            <NavRow
+              icon={<MessageSquare size={16} />} label={t('nav.messenger')} href="/mensajes?channel=messenger" collapsed={collapsed} currentPath={currentPath}
+              activeOverride={isChannelActive('messenger')}
+            />
+            <NavRow
+              icon={<Camera size={16} />} label={t('nav.instagram')} href="/mensajes?channel=instagram" collapsed={collapsed} currentPath={currentPath}
+              activeOverride={isChannelActive('instagram')}
+            />
+          </>
+        )}
 
         {/* Channex with sub-items */}
         <NavRow icon={<Hotel size={16} />} label={t('nav.channex')} href="/channex" collapsed={collapsed} currentPath={currentPath} />

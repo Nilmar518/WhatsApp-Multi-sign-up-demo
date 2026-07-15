@@ -11,6 +11,21 @@ import {
   type DayRatePlanSnapshot,
 } from '../../channex/api/channexHubApi';
 import type { ChannexProperty } from '../../channex/hooks/useChannexProperties';
+import { Toasts, useToasts } from '../ui';
+
+const ALL_ROOMS = '__ALL__';
+
+function expandRange(dateFrom: string, dateTo: string): string[] {
+  if (!dateFrom || !dateTo) return [];
+  const dates: string[] = [];
+  let cur = new Date(`${dateFrom}T00:00:00Z`);
+  const end = new Date(`${dateTo}T00:00:00Z`);
+  while (cur <= end) {
+    dates.push(cur.toISOString().slice(0, 10));
+    cur = new Date(cur.getTime() + 86400000);
+  }
+  return dates;
+}
 
 interface BatchEntry {
   id: number;
@@ -63,9 +78,8 @@ export default function ARIRestrictionDrawer({
   const [closedToDeparture, setClosedToDeparture] = useState(false);
   const [batchQueue, setBatchQueue] = useState<BatchEntry[]>([]);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [lastTaskIds, setLastTaskIds] = useState<string[]>([]);
-  const [snapshot, setSnapshot] = useState<ARIMonthSnapshot>({});
+  const [snapshots, setSnapshots] = useState<Record<string, ARIMonthSnapshot>>({});
+  const { toasts, showToast, dismissToast } = useToasts();
 
   const batchCounterRef = useRef(0);
   const batchQueueRef = useRef(batchQueue);
@@ -121,13 +135,6 @@ export default function ARIRestrictionDrawer({
   }, [initialPropertyId]);
 
   useEffect(() => {
-    if (open) {
-      setLastTaskIds([]);
-      setSaveError(null);
-    }
-  }, [open]);
-
-  useEffect(() => {
     if (!drawerPropertyId) {
       setRoomTypes([]);
       setSelectedRoomTypeId('');
@@ -169,32 +176,87 @@ export default function ARIRestrictionDrawer({
     [initialRoomTypeId, roomTypes],
   );
 
-  const dateMonthKey = dateFrom.slice(0, 7);
+  // Meses cubiertos por el rango — un rango puede cruzar el borde de mes.
+  const monthKeys = useMemo(() => {
+    if (!dateFrom || !dateTo) return [];
+    const keys: string[] = [];
+    let cur = dateFrom.slice(0, 7);
+    const last = dateTo.slice(0, 7);
+    while (cur <= last) {
+      keys.push(cur);
+      const [y, m] = cur.split('-').map(Number);
+      cur = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7);
+    }
+    return keys;
+  }, [dateFrom, dateTo]);
 
   useEffect(() => {
-    if (!drawerPropertyId || !tenantId) { setSnapshot({}); return; }
-    const ref = doc(db, 'channex_integrations', tenantId, 'properties', drawerPropertyId, 'ari_snapshots', dateMonthKey);
-    const unsub = onSnapshot(ref, (snap) => {
-      setSnapshot(snap.exists() ? (snap.data() as ARIMonthSnapshot) : {});
-    }, () => setSnapshot({}));
-    return () => unsub();
-  }, [drawerPropertyId, tenantId, dateMonthKey]);
+    if (!drawerPropertyId || !tenantId || monthKeys.length === 0) { setSnapshots({}); return; }
+    setSnapshots({});
+    const unsubs = monthKeys.map((key) =>
+      onSnapshot(
+        doc(db, 'channex_integrations', tenantId, 'properties', drawerPropertyId, 'ari_snapshots', key),
+        (snap) => setSnapshots((prev) => ({ ...prev, [key]: snap.exists() ? (snap.data() as ARIMonthSnapshot) : {} })),
+        () => setSnapshots((prev) => ({ ...prev, [key]: {} })),
+      ),
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [drawerPropertyId, tenantId, monthKeys]);
 
-  const isRangeBlocked = useMemo(() => {
-    if (!dateFrom || !dateTo) return false;
-    let cur = new Date(`${dateFrom}T00:00:00Z`);
-    const end = new Date(`${dateTo}T00:00:00Z`);
-    while (cur <= end) {
-      const ds = cur.toISOString().slice(0, 10);
-      const rpValues = Object.values(snapshot[ds]?.ratePlans ?? {}) as DayRatePlanSnapshot[];
-      if (rpValues.some((rp) => rp.stopSell)) return true;
-      cur = new Date(cur.getTime() + 86400000);
+  // Las claves son fechas ISO, así que los meses se pueden aplanar sin colisión.
+  const snapshot = useMemo<ARIMonthSnapshot>(
+    () => Object.assign({}, ...Object.values(snapshots)),
+    [snapshots],
+  );
+
+  const rangeDates = useMemo(() => expandRange(dateFrom, dateTo), [dateFrom, dateTo]);
+
+  // Stop-sell scoped a los rate plans de cada habitación (antes se miraba toda la
+  // propiedad, y una SS en otra habitación disparaba el aviso en ésta).
+  const blockedDatesByRoom = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const rt of roomTypes) {
+      const rpIds = new Set(rt.rate_plans.map((rp) => rp.rate_plan_id));
+      const dates = rangeDates.filter((ds) =>
+        Object.entries(snapshot[ds]?.ratePlans ?? {}).some(
+          ([rpId, rp]) => rpIds.has(rpId) && (rp as DayRatePlanSnapshot).stopSell,
+        ),
+      );
+      if (dates.length > 0) map.set(rt.room_type_id, dates);
     }
-    return false;
-  }, [dateFrom, dateTo, snapshot]);
+    return map;
+  }, [roomTypes, rangeDates, snapshot]);
+
+  const targetRooms = useMemo(
+    () => selectedRoomTypeId === ALL_ROOMS
+      ? roomTypes
+      : roomTypes.filter((rt) => rt.room_type_id === selectedRoomTypeId),
+    [roomTypes, selectedRoomTypeId],
+  );
+
+  const blockedRooms = useMemo(
+    () => targetRooms
+      .map((rt) => ({ title: rt.title, dates: blockedDatesByRoom.get(rt.room_type_id) ?? [] }))
+      .filter((r) => r.dates.length > 0),
+    [targetRooms, blockedDatesByRoom],
+  );
+
+  // Si alguien más toca estas fechas mientras editás, el snapshot se actualiza solo
+  // (el banner de abajo y el checkbox se recalculan) y ActivityToaster tira el aviso.
+  const isRangeBlocked = blockedRooms.length > 0;
+
+  const drawerPropertyTitle = useMemo(
+    () => properties.find((p) => p.channex_property_id === drawerPropertyId)?.title ?? 'la propiedad',
+    [properties, drawerPropertyId],
+  );
+
+  function formatBlockedDates(dates: string[]): string {
+    if (dates.length === rangeDates.length && rangeDates.length > 1) return 'todo el rango';
+    return dates.map((d) => d.slice(8, 10) + '/' + d.slice(5, 7)).join(', ');
+  }
 
   function handleAddToBatch() {
-    if (!drawerPropertyId || !selectedRoomTypeId) return;
+    if (!drawerPropertyId || !selectedRoomTypeId || targetRooms.length === 0) return;
 
     const hasValue =
       availability !== '' ||
@@ -206,24 +268,36 @@ export default function ARIRestrictionDrawer({
       closedToDeparture;
     if (!hasValue) return;
 
-    setBatchQueue((prev) => [
-      ...prev,
-      {
+    const entries: BatchEntry[] = targetRooms.map((rt) => {
+      const ratePlanId = selectedRoomTypeId === ALL_ROOMS
+        ? rt.rate_plans[0]?.rate_plan_id ?? ''
+        : selectedRatePlanId;
+      // Con la SS ya puesta, tildar el checkbox significa reabrir (stopSell=false).
+      const roomBlocked = (blockedDatesByRoom.get(rt.room_type_id) ?? []).length > 0;
+      return {
         id: batchCounterRef.current++,
         dateFrom,
         dateTo,
         propertyId: drawerPropertyId,
-        roomTypeId: selectedRoomTypeId,
-        ratePlanId: selectedRatePlanId,
+        roomTypeId: rt.room_type_id,
+        ratePlanId,
         ...(availability !== '' ? { availability: Number(availability) } : {}),
         ...(rate !== '' ? { rate: String(rate) } : {}),
         ...(minStay !== '' ? { minStay: Number(minStay) } : {}),
         ...(maxStay !== '' ? { maxStay: Number(maxStay) } : {}),
-        ...(stopSell ? { stopSell: !isRangeBlocked } : {}),
+        ...(stopSell ? { stopSell: !roomBlocked } : {}),
         ...(closedToArrival ? { closedToArrival } : {}),
         ...(closedToDeparture ? { closedToDeparture } : {}),
-      },
-    ]);
+      };
+    });
+
+    setBatchQueue((prev) => [...prev, ...entries]);
+    showToast(
+      entries.length === 1
+        ? `Agregado al grupo de cambios: ${targetRooms[0].title}`
+        : `Agregados al grupo de cambios: ${entries.length} habitaciones`,
+      'notice',
+    );
     setAvailability('');
     setRate('');
     setMinStay('');
@@ -231,15 +305,13 @@ export default function ARIRestrictionDrawer({
     setStopSell(false);
     setClosedToArrival(false);
     setClosedToDeparture(false);
-    setLastTaskIds([]);
-    setSaveError(null);
   }
 
   async function handleSaveBatch() {
     if (batchQueue.length === 0) return;
+    const pushed = batchQueue;
+    const entryCount = pushed.length;
     setSaving(true);
-    setSaveError(null);
-    const taskIds: string[] = [];
 
     try {
       // Agrupar entries por propertyId
@@ -261,8 +333,7 @@ export default function ARIRestrictionDrawer({
           }));
 
         if (availUpdates.length > 0) {
-          const res = await pushAvailabilityBatch(propId, availUpdates);
-          taskIds.push(res.taskId);
+          await pushAvailabilityBatch(propId, availUpdates);
         }
 
         const restrictUpdates = entries
@@ -289,15 +360,17 @@ export default function ARIRestrictionDrawer({
           }));
 
         if (restrictUpdates.length > 0) {
-          const res = await pushRestrictionsBatch(propId, restrictUpdates);
-          taskIds.push(res.taskId);
+          await pushRestrictionsBatch(propId, restrictUpdates);
         }
       }
 
-      setLastTaskIds(taskIds);
       setBatchQueue([]);
+      showToast(
+        `Cambios guardados · ${entryCount} ${entryCount === 1 ? 'cambio enviado' : 'cambios enviados'} a Channex`,
+        'ok',
+      );
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Error al guardar.');
+      showToast(err instanceof Error ? err.message : 'Error al guardar los cambios.', 'danger');
     } finally {
       setSaving(false);
     }
@@ -339,7 +412,7 @@ export default function ARIRestrictionDrawer({
         {/* Header */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-edge bg-surface-raised px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] font-bold text-content">Restricciones</span>
+            <span className="text-[13px] font-bold text-content">Gestionar calendario</span>
             <span className="flex items-center gap-1 rounded-md bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand">
               <Calendar size={10} />
               {dateFrom === dateTo ? dateFrom : `${dateFrom} → ${dateTo}`}
@@ -363,11 +436,19 @@ export default function ARIRestrictionDrawer({
             </div>
           )}
           {isRangeBlocked && (
-            <div className="flex items-center gap-2 rounded-lg bg-danger-bg px-3 py-2">
-              <span className="text-[11px] font-bold text-danger-text">SS</span>
-              <p className="text-[12px] font-medium text-danger-text">
-                Este rango tiene ventas cerradas. Podés reabrirlas con el checkbox de abajo.
-              </p>
+            <div className="flex items-start gap-2 rounded-lg bg-danger-bg px-3 py-2">
+              <span className="mt-px text-[11px] font-bold text-danger-text">SS</span>
+              <div className="text-[12px] font-medium text-danger-text">
+                <p>Ventas cerradas en {drawerPropertyTitle}:</p>
+                <ul className="mt-1 list-disc pl-4">
+                  {blockedRooms.map((r) => (
+                    <li key={r.title}>
+                      <strong>{r.title}</strong> — {formatBlockedDates(r.dates)}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 font-normal">Tildá el checkbox de abajo para reabrirlas.</p>
+              </div>
             </div>
           )}
 
@@ -428,6 +509,9 @@ export default function ARIRestrictionDrawer({
                   {rt.title}
                 </option>
               ))}
+              {roomTypes.length > 1 && (
+                <option value={ALL_ROOMS}>Todas las habitaciones ({roomTypes.length})</option>
+              )}
             </select>
           </div>
 
@@ -436,18 +520,24 @@ export default function ARIRestrictionDrawer({
             <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-content-2">
               Tarifa
             </label>
-            <select
-              value={selectedRatePlanId}
-              disabled={!selectedRoomTypeId}
-              onChange={(e) => setSelectedRatePlanId(e.target.value)}
-              className="w-full rounded-lg border border-edge bg-surface px-3 py-2 text-[13px] text-content focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 disabled:opacity-50"
-            >
-              {ratePlansForRoom.map((rp) => (
-                <option key={rp.rate_plan_id} value={rp.rate_plan_id}>
-                  {rp.title}
-                </option>
-              ))}
-            </select>
+            {selectedRoomTypeId === ALL_ROOMS ? (
+              <p className="rounded-lg border border-dashed border-edge px-3 py-2 text-[12px] text-content-3">
+                Se aplica la tarifa principal de cada habitación.
+              </p>
+            ) : (
+              <select
+                value={selectedRatePlanId}
+                disabled={!selectedRoomTypeId}
+                onChange={(e) => setSelectedRatePlanId(e.target.value)}
+                className="w-full rounded-lg border border-edge bg-surface px-3 py-2 text-[13px] text-content focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 disabled:opacity-50"
+              >
+                {ratePlansForRoom.map((rp) => (
+                  <option key={rp.rate_plan_id} value={rp.rate_plan_id}>
+                    {rp.title}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Availability + Rate */}
@@ -568,14 +658,14 @@ export default function ARIRestrictionDrawer({
             disabled={!drawerPropertyId || !selectedRoomTypeId}
             className="w-full rounded-xl border border-brand/40 bg-brand/10 py-2.5 text-[13px] font-semibold text-brand transition-colors hover:bg-brand/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            + Agregar al batch
+            + Agregar al grupo de cambios
           </button>
 
           {/* Batch queue */}
           {batchQueue.length > 0 && (
             <div className="rounded-xl border border-edge bg-surface-subtle p-3">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-content-3">
-                Cola de cambios ({batchQueue.length})
+                Grupo de cambios ({batchQueue.length})
               </p>
               <div className="flex flex-col gap-1.5">
                 {batchQueue.map((entry) => (
@@ -610,19 +700,6 @@ export default function ARIRestrictionDrawer({
             </div>
           )}
 
-          {/* Save error */}
-          {saveError && (
-            <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12px] font-medium text-danger-text">
-              {saveError}
-            </p>
-          )}
-
-          {/* Task IDs banner */}
-          {lastTaskIds.length > 0 && (
-            <div className="rounded-lg bg-ok-bg px-3 py-2 text-[12px] font-medium text-ok-text">
-              Guardado · Task {lastTaskIds.join(', ')}
-            </div>
-          )}
         </div>
 
         {/* Footer */}
@@ -637,6 +714,8 @@ export default function ARIRestrictionDrawer({
           </button>
         </div>
       </div>
+
+      <Toasts toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

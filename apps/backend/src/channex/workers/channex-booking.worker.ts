@@ -5,6 +5,7 @@ import { ChannexPropertyService } from '../channex-property.service';
 import { FirebaseService } from '../../firebase/firebase.service';
 import { MigoPropertyService } from '../../migo-property/migo-property.service';
 import { ChannexARIService, type StoredRoomType } from '../channex-ari.service';
+import { ChannexActivityService } from '../channex-activity.service';
 import { expandDateRange } from '../utils/date-range';
 import type { AvailabilityEntryDto } from '../channex.types';
 import {
@@ -38,6 +39,7 @@ export class ChannexBookingWorker {
     private readonly eventEmitter: EventEmitter2,
     private readonly migoPropertyService: MigoPropertyService,
     private readonly ariService: ChannexARIService,
+    private readonly activity: ChannexActivityService,
   ) {}
 
   async handleWithRetry(payload: ChannexWebhookFullPayload): Promise<void> {
@@ -305,6 +307,26 @@ export class ChannexBookingWorker {
         `event=${event} bookingId=${bookingId} bookingRef=${bookingUniqueId ?? bookingId} ` +
         `status=${reservationDoc.booking_status} tenantId=${tenantId}`,
     );
+
+    // Feed de actividad: alimenta los toasts de cualquier pantalla y sesión abierta.
+    const activityEvent = this.activity.buildBookingEvent(
+      event,
+      propertyId,
+      (propertyDocSnap.data()?.title as string | undefined) ?? '',
+      {
+        guest:
+          reservationDoc.customer_name?.trim() ||
+          [reservationDoc.guest_first_name, reservationDoc.guest_last_name]
+            .filter(Boolean)
+            .join(' ')
+            .trim(),
+        check_in: reservationDoc.check_in,
+        check_out: reservationDoc.check_out,
+      },
+    );
+    if (activityEvent) {
+      void this.activity.record(firestoreDocId, [activityEvent]);
+    }
 
     // ── Fetch full booking details from Channex API (fire-and-forget) ───────────
     // Webhook payloads only contain a summary. The full GET returns rooms[],

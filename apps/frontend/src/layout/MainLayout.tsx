@@ -1,5 +1,6 @@
 import SideNav from './SideNav';
 import BottomNav from './BottomNav';
+import ActivityToaster from '../channex/ActivityToaster';
 
 interface Props {
   children: React.ReactNode;
@@ -28,6 +29,8 @@ export default function MainLayout({ children, transitioning }: Props) {
         </div>
       </div>
       <BottomNav />
+      {/* Toasts de tiempo real — visibles en cualquier ruta. */}
+      <ActivityToaster />
     </>
   );
 }

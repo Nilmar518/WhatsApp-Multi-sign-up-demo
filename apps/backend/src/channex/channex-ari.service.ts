@@ -8,6 +8,10 @@ import { ChannexService } from './channex.service';
 import { ChannexPropertyService } from './channex-property.service';
 import { ChannexARIRateLimiter } from './channex-ari-rate-limiter.service';
 import { ChannexARISnapshotService } from './channex-ari-snapshot.service';
+import {
+  ChannexActivityService,
+  type PropertyNames,
+} from './channex-activity.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { CreateRoomTypeDto } from './dto/create-room-type.dto';
 import { UpdateRoomTypeDto } from './dto/update-room-type.dto';
@@ -111,7 +115,27 @@ export class ChannexARIService {
     private readonly rateLimiter: ChannexARIRateLimiter,
     private readonly snapshotService: ChannexARISnapshotService,
     private readonly migoPropertyService: MigoPropertyService,
+    private readonly activity: ChannexActivityService,
   ) {}
+
+  /** Título de la propiedad + room_types, para nombrar los eventos de actividad. */
+  private async loadPropertyNames(
+    firestoreDocId: string,
+    propertyId: string,
+  ): Promise<PropertyNames> {
+    const snap = await this.firebase
+      .getFirestore()
+      .collection(INTEGRATIONS_COLLECTION)
+      .doc(firestoreDocId)
+      .collection('properties')
+      .doc(propertyId)
+      .get();
+    const data = snap.data() ?? {};
+    return {
+      title: (data.title as string) ?? '',
+      room_types: (data.room_types as PropertyNames['room_types']) ?? [],
+    };
+  }
 
   // ─── Room Type CRUD ───────────────────────────────────────────────────────
 
@@ -425,12 +449,15 @@ export class ChannexARIService {
     propertyId: string,
     updates: AvailabilityEntryDto[],
   ): Promise<void> {
-    return this.propertyService.resolveIntegration(propertyId).then((integration) => {
+    return this.propertyService.resolveIntegration(propertyId).then(async (integration) => {
       if (!integration) return;
-      return this.snapshotService.saveFromAvailabilityEntries(
-        integration.firestoreDocId,
-        propertyId,
-        updates,
+      const { firestoreDocId } = integration;
+      await this.snapshotService.saveFromAvailabilityEntries(firestoreDocId, propertyId, updates);
+
+      const property = await this.loadPropertyNames(firestoreDocId, propertyId);
+      await this.activity.record(
+        firestoreDocId,
+        this.activity.buildAvailabilityEvents(propertyId, property, updates),
       );
     }).catch((err) =>
       this.logger.error('[ARI] Availability snapshot save failed', err),
@@ -472,12 +499,15 @@ export class ChannexARIService {
     propertyId: string,
     updates: RestrictionEntryDto[],
   ): Promise<void> {
-    return this.propertyService.resolveIntegration(propertyId).then((integration) => {
+    return this.propertyService.resolveIntegration(propertyId).then(async (integration) => {
       if (!integration) return;
-      return this.snapshotService.saveFromRestrictionEntries(
-        integration.firestoreDocId,
-        propertyId,
-        updates,
+      const { firestoreDocId } = integration;
+      await this.snapshotService.saveFromRestrictionEntries(firestoreDocId, propertyId, updates);
+
+      const property = await this.loadPropertyNames(firestoreDocId, propertyId);
+      await this.activity.record(
+        firestoreDocId,
+        this.activity.buildRestrictionEvents(propertyId, property, updates),
       );
     }).catch((err) =>
       this.logger.error('[ARI] Restrictions snapshot save failed', err),

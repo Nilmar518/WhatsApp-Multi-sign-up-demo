@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { navigate } from '../lib/navigate';
 import {
-  LayoutDashboard,
+  CalendarDays,
   Hotel, Globe, Moon, Sun, LogOut,
   Home, Languages, ChevronUp, MoreHorizontal,
   Settings, FileText,
@@ -197,7 +197,7 @@ export default function BottomNav() {
       <nav className="fixed bottom-0 left-0 right-0 z-[35] h-16 bg-surface-sidebar border-t border-white/10 md:hidden shadow-[0_-2px_8px_rgba(0,0,0,0.2)]">
         <div className="grid grid-cols-3 h-full w-full">
           <Tab
-            icon={<LayoutDashboard size={17} />}
+            icon={<CalendarDays size={17} />}
             label={t('nav.dashboard')}
             active={currentPath === '/'}
             onClick={() => { navigate('/'); setExpandedMenu(null); }}

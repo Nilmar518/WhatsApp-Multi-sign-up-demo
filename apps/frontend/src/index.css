@@ -107,3 +107,9 @@
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Barra de vida del Toast: se agota linealmente y se pausa con el mouse encima. */
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}

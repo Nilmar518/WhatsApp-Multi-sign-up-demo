@@ -139,7 +139,7 @@ export default function DashboardCalendar({
                 : 'bg-surface-subtle text-content-2 hover:text-content hover:bg-surface-raised border border-edge',
             ].join(' ')}
           >
-            Restricciones
+            {mode === 'edit' ? 'Salir de edición' : 'Gestionar calendario'}
           </button>
         )}
         <button
